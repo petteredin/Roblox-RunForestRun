@@ -558,6 +558,11 @@ local function setSlotFilled(player, slotIndex, brainrotColor)
 		part.BrickColor = BrickColor.new("Medium stone grey")
 		part.Material   = Enum.Material.SmoothPlastic
 	end
+	-- Hide/show slot number label to avoid overlapping with brainrot
+	local billboard = part:FindFirstChildWhichIsA("BillboardGui")
+	if billboard then
+		billboard.Enabled = not brainrotColor
+	end
 	updateUpgradeSign(player, slotIndex)
 end
 
@@ -1037,7 +1042,23 @@ local function depositBrainrot(player)
 				part.CanCollide = false
 			end
 		end
+		-- Remove the pickup prompt billboard so it doesn't overlap slot UI
+		local prompt = brainrot:FindFirstChild("PickupPrompt", true)
+		if prompt then prompt:Destroy() end
 		brainrot:SetPrimaryPartCFrame(CFrame.new(slotPad.Position + Vector3.new(0, 2, 0)))
+		brainrot.Parent = storedFolder
+		storedBlock = brainrot
+	elseif brainrot and brainrot:IsA("BasePart") then
+		-- Reuse the original part (preserves MeshParts / SpecialMesh children)
+		carriedBrainrots[player] = nil
+		playerHasPickup[player]  = false
+		task.wait(0.05)
+		brainrot.Anchored   = true
+		brainrot.CanCollide = false
+		brainrot.Position   = slotPad.Position + Vector3.new(0, 1.5, 0)
+		-- Remove the pickup prompt billboard so it doesn't overlap slot UI
+		local prompt = brainrot:FindFirstChild("PickupPrompt")
+		if prompt then prompt:Destroy() end
 		brainrot.Parent = storedFolder
 		storedBlock = brainrot
 	else

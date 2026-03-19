@@ -442,7 +442,8 @@ local function createSlotParts(player)
 			local billboard = Instance.new("BillboardGui")
 			billboard.Size        = UDim2.new(0, 40, 0, 40)
 			billboard.StudsOffset = Vector3.new(0, 1, 0)
-			billboard.AlwaysOnTop = true
+			billboard.AlwaysOnTop = false
+			billboard.MaxDistance = 30
 			billboard.Parent      = slotPart
 
 			local label = Instance.new("TextLabel")
@@ -450,6 +451,8 @@ local function createSlotParts(player)
 			label.BackgroundTransparency = 1
 			label.Text                   = tostring(slotIndex)
 			label.TextColor3             = Color3.fromRGB(255, 255, 255)
+			label.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
+			label.TextStrokeTransparency = 0.3
 			label.TextScaled             = true
 			label.Font                   = Enum.Font.GothamBold
 			label.Parent                 = billboard
@@ -475,8 +478,8 @@ local function createSlotParts(player)
 			local plateBillboard = Instance.new("BillboardGui")
 			plateBillboard.Size        = UDim2.new(0, 80, 0, 40)
 			plateBillboard.StudsOffset = Vector3.new(0, 1.5, 0)
-			plateBillboard.AlwaysOnTop = true
-			plateBillboard.MaxDistance = 20
+			plateBillboard.AlwaysOnTop = false
+			plateBillboard.MaxDistance = 30
 			plateBillboard.Enabled     = false  -- hidden until credits > 0
 			plateBillboard.Parent      = platePart
 
@@ -485,6 +488,8 @@ local function createSlotParts(player)
 			plateLabel.BackgroundTransparency = 1
 			plateLabel.Text                   = ""
 			plateLabel.TextColor3             = Color3.fromRGB(255, 220, 50)
+			plateLabel.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
+			plateLabel.TextStrokeTransparency = 0.3
 			plateLabel.TextScaled             = true
 			plateLabel.Font                   = Enum.Font.GothamBold
 			plateLabel.Parent                 = plateBillboard
@@ -510,8 +515,8 @@ local function createSlotParts(player)
 			local signBillboard = Instance.new("BillboardGui")
 			signBillboard.Size        = UDim2.new(0, 140, 0, 70)
 			signBillboard.StudsOffset = Vector3.new(0, 2.5, 0)
-			signBillboard.AlwaysOnTop = true
-			signBillboard.MaxDistance = 20
+			signBillboard.AlwaysOnTop = false
+			signBillboard.MaxDistance = 30
 			signBillboard.Parent      = signPart
 
 			local signLabel = Instance.new("TextLabel")
@@ -519,6 +524,8 @@ local function createSlotParts(player)
 			signLabel.BackgroundTransparency = 1
 			signLabel.Text                   = ""
 			signLabel.TextColor3             = Color3.fromRGB(100, 220, 255)
+			signLabel.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
+			signLabel.TextStrokeTransparency = 0.3
 			signLabel.TextScaled             = true
 			signLabel.Font                   = Enum.Font.GothamBold
 			signLabel.Parent                 = signBillboard

@@ -965,10 +965,7 @@ local function spawnBrainrotInZone(zoneIndex)
 	zoneActive[zoneIndex] += 1
 
 	task.delay(DESPAWN_TIME, function()
-		local hasTag = brainrot and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT)
-		local hasParent = brainrot and brainrot.Parent
-		print("[DESPAWN-TIMER] Fired for", brainrot and brainrot.Name or "nil", "| hasTag:", hasTag, "| parent:", hasParent and brainrot.Parent.Name or "nil")
-		if brainrot and hasParent and hasTag then
+		if brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT) then
 			CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
 			brainrot:Destroy()
 			zoneActive[zoneIndex] = math.max(0, zoneActive[zoneIndex] - 1)
@@ -1044,7 +1041,6 @@ local function depositBrainrot(player)
 		end
 		carriedBrainrots[player] = nil
 		playerHasPickup[player]  = false
-		task.wait(0.05)
 		for _, part in ipairs(brainrot:GetDescendants()) do
 			if part:IsA("BasePart") then
 				part.Anchored   = true
@@ -1061,7 +1057,6 @@ local function depositBrainrot(player)
 		-- Reuse the original part (preserves MeshParts / SpecialMesh children)
 		carriedBrainrots[player] = nil
 		playerHasPickup[player]  = false
-		task.wait(0.05)
 		brainrot.Anchored   = true
 		brainrot.CanCollide = false
 		brainrot.Position   = slotPad.Position + Vector3.new(0, 1.5, 0)
@@ -1094,19 +1089,6 @@ local function depositBrainrot(player)
 	playerSlots[player][freeSlot] = { color = color, block = storedBlock, earnRate = earnRate }
 	setSlotFilled(player, freeSlot, color)
 	depositEvent:FireClient(player, freeSlot)
-
-	-- DEBUG: Track why stored brainrot disappears
-	local debugBlock = storedBlock
-	local debugSlot  = freeSlot
-	print("[DEPOSIT] Slot", debugSlot, "type:", debugBlock.ClassName, "parent:", debugBlock.Parent and debugBlock.Parent.Name or "nil")
-	debugBlock.AncestryChanged:Connect(function(_, newParent)
-		if not newParent then
-			print("[DEPOSIT-DEBUG] Stored brainrot in slot", debugSlot, "was DESTROYED! Traceback:")
-			print(debug.traceback())
-		else
-			print("[DEPOSIT-DEBUG] Stored brainrot in slot", debugSlot, "reparented to:", newParent.Name)
-		end
-	end)
 end
 
 task.spawn(function()
@@ -1172,6 +1154,20 @@ remoteEvent.OnServerEvent:Connect(function(player, brainrot, isHolding)
 	if isHolding then
 		playerHolding[player] = true
 		local startPosition = root.Position
+
+		-- Remove spawned tag immediately to prevent despawn timer from destroying
+		-- the brainrot during the 3-second pickup hold
+		CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
+
+		-- Track which zone it came from before pickup starts
+		local fromZoneIndex = nil
+		for zi, folder in ipairs(spawnFolders) do
+			if brainrot.Parent == folder then
+				fromZoneIndex = zi
+				break
+			end
+		end
+
 		task.spawn(function()
 			local elapsed = 0
 			while playerHolding[player] do
@@ -1183,11 +1179,14 @@ remoteEvent.OnServerEvent:Connect(function(player, brainrot, isHolding)
 					return
 				end
 				if (root.Position - startPosition).Magnitude > MOVE_TOLERANCE then
+					-- Cancelled: re-add tag so it can despawn normally
+					CollectionService:AddTag(brainrot, TAG_SPAWNED_BRAINROT)
 					playerHolding[player] = false
 					progressEvent:FireClient(player, 0)
 					return
 				end
 				if (root.Position - checkPart.Position).Magnitude > PICKUP_DISTANCE then
+					CollectionService:AddTag(brainrot, TAG_SPAWNED_BRAINROT)
 					playerHolding[player] = false
 					progressEvent:FireClient(player, 0)
 					return
@@ -1195,6 +1194,7 @@ remoteEvent.OnServerEvent:Connect(function(player, brainrot, isHolding)
 				progressEvent:FireClient(player, math.min(elapsed / HOLD_TIME, 1))
 				if elapsed >= HOLD_TIME then
 					if playerHasPickup[player] then
+						CollectionService:AddTag(brainrot, TAG_SPAWNED_BRAINROT)
 						playerHolding[player] = false
 						progressEvent:FireClient(player, 0)
 						return
@@ -1204,16 +1204,17 @@ remoteEvent.OnServerEvent:Connect(function(player, brainrot, isHolding)
 					progressEvent:FireClient(player, 0)
 
 					-- Decrement zone count when picked up
-					for zi, folder in ipairs(spawnFolders) do
-						if brainrot.Parent == folder then
-							zoneActive[zi] = math.max(0, zoneActive[zi] - 1)
-							break
-						end
+					if fromZoneIndex then
+						zoneActive[fromZoneIndex] = math.max(0, zoneActive[fromZoneIndex] - 1)
 					end
 
 					attachBrainrotToPlayer(player, brainrot)
 					return
 				end
+			end
+			-- Player released E early: re-add tag
+			if brainrot and brainrot.Parent then
+				CollectionService:AddTag(brainrot, TAG_SPAWNED_BRAINROT)
 			end
 		end)
 	else

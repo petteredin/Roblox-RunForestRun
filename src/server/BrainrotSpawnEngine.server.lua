@@ -872,9 +872,9 @@ local function attachBrainrotToPlayer(player, brainrot)
 				local root = char:FindFirstChild("HumanoidRootPart")
 				if root then
 					local targetCFrame = root.CFrame * CFrame.new(0, 2, -4)
-					if brainrot:IsA("Model") and brainrot.PrimaryPart then
-						brainrot:SetPrimaryPartCFrame(targetCFrame)
-					elseif not brainrot:IsA("Model") then
+					if brainrot:IsA("Model") then
+						brainrot:PivotTo(targetCFrame)
+					else
 						brainrot.CFrame = targetCFrame
 					end
 				end
@@ -914,7 +914,7 @@ local function spawnBrainrotInZone(zoneIndex)
 					local firstPart = brainrot:FindFirstChildWhichIsA("BasePart")
 					if firstPart then brainrot.PrimaryPart = firstPart end
 				end
-				brainrot:SetPrimaryPartCFrame(CFrame.new(spawnPos))
+				brainrot:PivotTo(CFrame.new(spawnPos))
 				for _, part in ipairs(brainrot:GetDescendants()) do
 					if part:IsA("BasePart") then
 						part.Anchored   = true
@@ -1051,11 +1051,7 @@ local function depositBrainrot(player)
 		-- Remove the pickup prompt billboard so it doesn't overlap slot UI
 		local prompt = brainrot:FindFirstChild("PickupPrompt", true)
 		if prompt then prompt:Destroy() end
-		if brainrot.PrimaryPart then
-			brainrot:SetPrimaryPartCFrame(CFrame.new(slotPad.Position + Vector3.new(0, 2, 0)))
-		else
-			brainrot:PivotTo(CFrame.new(slotPad.Position + Vector3.new(0, 2, 0)))
-		end
+		brainrot:PivotTo(CFrame.new(slotPad.Position + Vector3.new(0, 2, 0)))
 		brainrot.Parent = storedFolder
 		storedBlock = brainrot
 	elseif brainrot and brainrot:IsA("BasePart") then

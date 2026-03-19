@@ -1,0 +1,24 @@
+{
+  "name": "RunForestRun",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "BrainrotSpawnEngine": {
+        "$path": "src/server/BrainrotSpawnEngine.server.lua"
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "BrainrotPlayerScripts": {
+          "$path": "src/client/BrainrotPlayerScripts.client.lua"
+        }
+      }
+    },
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage"
+    }
+  }
+}

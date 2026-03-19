@@ -1241,85 +1241,64 @@ local function createLedBoard(posX, posY, posZ, title)
 	board.Position    = Vector3.new(posX, posY, posZ)
 	board.Anchored    = true
 	board.CanCollide  = false
-	board.BrickColor  = BrickColor.new("Black")
+	board.BrickColor  = BrickColor.new("Really black")
 	board.Material    = Enum.Material.SmoothPlastic
 	board.Parent      = workspace
 
-	local frame = Instance.new("Part")
-	frame.Name        = "Frame"
-	frame.Size        = Vector3.new(0.2, 25, 39)
-	frame.Position    = Vector3.new(posX - 0.1, posY, posZ)
-	frame.Anchored    = true
-	frame.CanCollide  = false
-	frame.BrickColor  = BrickColor.new("Bright red")
-	frame.Material    = Enum.Material.Neon
-	frame.Parent      = workspace
-
 	local gui = Instance.new("SurfaceGui")
 	gui.Face           = Enum.NormalId.Left
-	gui.CanvasSize     = Vector2.new(1200, 2400)
+	gui.CanvasSize     = Vector2.new(600, 800)
 	gui.AlwaysOnTop    = false
 	gui.LightInfluence = 0
+	gui.Brightness     = 1
 	gui.Parent         = board
 
 	local bg = Instance.new("Frame")
 	bg.Size             = UDim2.new(1, 0, 1, 0)
-	bg.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+	bg.BackgroundColor3 = Color3.fromRGB(15, 20, 15)
 	bg.BorderSizePixel  = 0
 	bg.Parent           = gui
+	Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 8)
 
-	local titleBar = Instance.new("Frame")
-	titleBar.Size             = UDim2.new(1, 0, 0.08, 0)
-	titleBar.Position         = UDim2.new(0, 0, 0, 0)
-	titleBar.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
-	titleBar.BorderSizePixel  = 0
-	titleBar.Parent           = bg
-
-	for d = 1, 20 do
-		local dot = Instance.new("Frame")
-		dot.Size             = UDim2.new(0, 14, 0, 8)
-		dot.Position         = UDim2.new((d - 1) / 20, 4, 0, 6)
-		dot.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-		dot.BorderSizePixel  = 0
-		dot.Parent           = titleBar
-		Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
-	end
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft   = UDim.new(0, 20)
+	padding.PaddingRight  = UDim.new(0, 20)
+	padding.PaddingTop    = UDim.new(0, 16)
+	padding.PaddingBottom = UDim.new(0, 16)
+	padding.Parent        = bg
 
 	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Size                   = UDim2.new(1, 0, 1, 0)
+	titleLabel.Size                   = UDim2.new(1, 0, 0, 50)
 	titleLabel.BackgroundTransparency = 1
 	titleLabel.Text                   = title
-	titleLabel.TextColor3             = Color3.fromRGB(255, 220, 0)
-	titleLabel.TextScaled             = false
-	titleLabel.TextSize               = 52
+	titleLabel.TextColor3             = Color3.fromRGB(255, 220, 50)
+	titleLabel.TextScaled             = true
 	titleLabel.Font                   = Enum.Font.GothamBold
-	titleLabel.Parent                 = titleBar
+	titleLabel.Parent                 = bg
 
 	local headerRow = Instance.new("Frame")
-	headerRow.Size             = UDim2.new(1, 0, 0.04, 0)
-	headerRow.Position         = UDim2.new(0, 0, 0.08, 0)
-	headerRow.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	headerRow.BorderSizePixel  = 0
-	headerRow.Parent           = bg
+	headerRow.Size                   = UDim2.new(1, 0, 0, 30)
+	headerRow.Position               = UDim2.new(0, 0, 0, 56)
+	headerRow.BackgroundTransparency = 1
+	headerRow.BorderSizePixel        = 0
+	headerRow.Parent                 = bg
 
 	local hRank = Instance.new("TextLabel")
-	hRank.Size                   = UDim2.new(0.15, 0, 1, 0)
+	hRank.Size                   = UDim2.new(0.12, 0, 1, 0)
 	hRank.BackgroundTransparency = 1
-	hRank.Text                   = "RANK"
-	hRank.TextColor3             = Color3.fromRGB(120, 120, 120)
-	hRank.TextScaled             = false
-	hRank.TextSize               = 24
+	hRank.Text                   = "#"
+	hRank.TextColor3             = Color3.fromRGB(160, 160, 160)
+	hRank.TextScaled             = true
 	hRank.Font                   = Enum.Font.GothamBold
 	hRank.Parent                 = headerRow
 
 	local hName = Instance.new("TextLabel")
 	hName.Size                   = UDim2.new(0.55, 0, 1, 0)
-	hName.Position               = UDim2.new(0.16, 0, 0, 0)
+	hName.Position               = UDim2.new(0.14, 0, 0, 0)
 	hName.BackgroundTransparency = 1
 	hName.Text                   = "PLAYER"
-	hName.TextColor3             = Color3.fromRGB(120, 120, 120)
-	hName.TextScaled             = false
-	hName.TextSize               = 24
+	hName.TextColor3             = Color3.fromRGB(160, 160, 160)
+	hName.TextScaled             = true
 	hName.Font                   = Enum.Font.GothamBold
 	hName.TextXAlignment         = Enum.TextXAlignment.Left
 	hName.Parent                 = headerRow
@@ -1329,17 +1308,23 @@ local function createLedBoard(posX, posY, posZ, title)
 	hScore.Position               = UDim2.new(0.72, 0, 0, 0)
 	hScore.BackgroundTransparency = 1
 	hScore.Text                   = "CREDITS"
-	hScore.TextColor3             = Color3.fromRGB(120, 120, 120)
-	hScore.TextScaled             = false
-	hScore.TextSize               = 24
+	hScore.TextColor3             = Color3.fromRGB(160, 160, 160)
+	hScore.TextScaled             = true
 	hScore.Font                   = Enum.Font.GothamBold
 	hScore.TextXAlignment         = Enum.TextXAlignment.Right
 	hScore.Parent                 = headerRow
 
+	local divider = Instance.new("Frame")
+	divider.Size             = UDim2.new(1, 0, 0, 2)
+	divider.Position         = UDim2.new(0, 0, 0, 88)
+	divider.BackgroundColor3 = Color3.fromRGB(60, 80, 60)
+	divider.BorderSizePixel  = 0
+	divider.Parent           = bg
+
 	local rowContainer = Instance.new("Frame")
 	rowContainer.Name                   = "Rows"
-	rowContainer.Size                   = UDim2.new(1, 0, 0.88, 0)
-	rowContainer.Position               = UDim2.new(0, 0, 0.12, 0)
+	rowContainer.Size                   = UDim2.new(1, 0, 1, -96)
+	rowContainer.Position               = UDim2.new(0, 0, 0, 96)
 	rowContainer.BackgroundTransparency = 1
 	rowContainer.BorderSizePixel        = 0
 	rowContainer.Parent                 = bg
@@ -1347,54 +1332,31 @@ local function createLedBoard(posX, posY, posZ, title)
 	local rowLabels = {}
 	for i = 1, 10 do
 		local row = Instance.new("Frame")
-		row.Size             = UDim2.new(1, 0, 0.1, 0)
-		row.Position         = UDim2.new(0, 0, (i - 1) * 0.1, 0)
-		row.BackgroundColor3 = i % 2 == 0
-			and Color3.fromRGB(8, 8, 8)
-			or  Color3.fromRGB(14, 14, 14)
-		row.BorderSizePixel  = 0
-		row.Parent           = rowContainer
-
-		local accent = Instance.new("Frame")
-		accent.Size             = UDim2.new(0.008, 0, 1, 0)
-		accent.BackgroundColor3 = i == 1 and Color3.fromRGB(255, 215, 0)
-			or i == 2 and Color3.fromRGB(192, 192, 192)
-			or i == 3 and Color3.fromRGB(205, 127, 50)
-			or Color3.fromRGB(60, 60, 60)
-		accent.BorderSizePixel  = 0
-		accent.Parent           = row
+		row.Size                   = UDim2.new(1, 0, 0.1, 0)
+		row.Position               = UDim2.new(0, 0, (i - 1) * 0.1, 0)
+		row.BackgroundTransparency = 1
+		row.BorderSizePixel        = 0
+		row.Parent                 = rowContainer
 
 		local rankLabel = Instance.new("TextLabel")
-		rankLabel.Size                   = UDim2.new(0.14, 0, 1, 0)
-		rankLabel.Position               = UDim2.new(0.01, 0, 0, 0)
+		rankLabel.Size                   = UDim2.new(0.12, 0, 1, 0)
 		rankLabel.BackgroundTransparency = 1
 		rankLabel.Text                   = "#" .. i
 		rankLabel.TextColor3             = i == 1 and Color3.fromRGB(255, 215, 0)
-			or i == 2 and Color3.fromRGB(192, 192, 192)
-			or i == 3 and Color3.fromRGB(205, 127, 50)
-			or Color3.fromRGB(150, 150, 150)
-		rankLabel.TextScaled             = false
-		rankLabel.TextSize               = 28
+			or i == 2 and Color3.fromRGB(200, 200, 200)
+			or i == 3 and Color3.fromRGB(220, 150, 60)
+			or Color3.fromRGB(140, 140, 140)
+		rankLabel.TextScaled             = true
 		rankLabel.Font                   = Enum.Font.GothamBold
 		rankLabel.Parent                 = row
 
-		local dot = Instance.new("Frame")
-		dot.Size             = UDim2.new(0.025, 0, 0.25, 0)
-		dot.AnchorPoint      = Vector2.new(0, 0.5)
-		dot.Position         = UDim2.new(0.155, 0, 0.375, 0)
-		dot.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-		dot.BorderSizePixel  = 0
-		dot.Parent           = row
-		Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
-
 		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size                   = UDim2.new(0.52, 0, 1, 0)
-		nameLabel.Position               = UDim2.new(0.19, 0, 0, 0)
+		nameLabel.Size                   = UDim2.new(0.55, 0, 1, 0)
+		nameLabel.Position               = UDim2.new(0.14, 0, 0, 0)
 		nameLabel.BackgroundTransparency = 1
 		nameLabel.Text                   = "---"
-		nameLabel.TextColor3             = Color3.fromRGB(220, 220, 220)
-		nameLabel.TextScaled             = false
-		nameLabel.TextSize               = 28
+		nameLabel.TextColor3             = Color3.fromRGB(230, 230, 230)
+		nameLabel.TextScaled             = true
 		nameLabel.Font                   = Enum.Font.Gotham
 		nameLabel.TextXAlignment         = Enum.TextXAlignment.Left
 		nameLabel.Parent                 = row
@@ -1405,8 +1367,7 @@ local function createLedBoard(posX, posY, posZ, title)
 		scoreLabel.BackgroundTransparency = 1
 		scoreLabel.Text                   = "0"
 		scoreLabel.TextColor3             = Color3.fromRGB(100, 255, 100)
-		scoreLabel.TextScaled             = false
-		scoreLabel.TextSize               = 28
+		scoreLabel.TextScaled             = true
 		scoreLabel.Font                   = Enum.Font.GothamBold
 		scoreLabel.TextXAlignment         = Enum.TextXAlignment.Right
 		scoreLabel.Parent                 = row

@@ -480,7 +480,7 @@ local function createSlotParts(player)
 			local plateLabel = Instance.new("TextLabel")
 			plateLabel.Size                   = UDim2.new(1, 0, 1, 0)
 			plateLabel.BackgroundTransparency = 1
-			plateLabel.Text                   = "0"
+			plateLabel.Text                   = ""
 			plateLabel.TextColor3             = Color3.fromRGB(255, 220, 50)
 			plateLabel.TextScaled             = true
 			plateLabel.Font                   = Enum.Font.GothamBold
@@ -663,7 +663,7 @@ task.spawn(function()
 				if dist <= CREDIT_PLATE_COLLECT_DISTANCE and plate.credits > 0 then
 					local collected = plate.credits
 					plate.credits = 0
-					plate.label.Text = "0"
+					plate.label.Text = ""
 					playerWallet[player] = (playerWallet[player] or 0) + collected
 					plate.part.BrickColor = BrickColor.new("White")
 					task.delay(0.3, function()
@@ -743,13 +743,13 @@ sellEvent.OnServerEvent:Connect(function(player, slotIndex, isSelling)
 			if elapsed >= HOLD_TIME then
 				local slot = playerSlots[player][slotIndex]
 				if slot and slot.block and slot.block.Parent then
-					-- Remove CollectionService tag before destroying
+					warn("[SELL] Destroying brainrot in slot", slotIndex, "name:", slot.block.Name)
 					CollectionService:RemoveTag(slot.block, TAG_STORED_BRAINROT)
 					slot.block:Destroy()
 				end
 				if creditPlates[player] and creditPlates[player][slotIndex] then
 					creditPlates[player][slotIndex].credits = 0
-					creditPlates[player][slotIndex].label.Text = "0"
+					creditPlates[player][slotIndex].label.Text = ""
 				end
 				playerSlots[player][slotIndex]  = nil
 				slotUpgrades[player][slotIndex] = 0
@@ -913,6 +913,7 @@ end
 local function detachBrainrotFromPlayer(player)
 	local brainrot = carriedBrainrots[player]
 	if brainrot and brainrot.Parent then
+		warn("[DETACH] Destroying carried brainrot:", brainrot.Name)
 		CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
 		brainrot:Destroy()
 	end
@@ -992,6 +993,7 @@ local function spawnBrainrotInZone(zoneIndex)
 
 	task.delay(DESPAWN_TIME, function()
 		if brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT) then
+			warn("[DESPAWN] Destroying", brainrot.Name, "parent:", brainrot.Parent.Name)
 			CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
 			brainrot:Destroy()
 			zoneActive[zoneIndex] = math.max(0, zoneActive[zoneIndex] - 1)

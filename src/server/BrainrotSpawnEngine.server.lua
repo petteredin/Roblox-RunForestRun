@@ -965,7 +965,10 @@ local function spawnBrainrotInZone(zoneIndex)
 	zoneActive[zoneIndex] += 1
 
 	task.delay(DESPAWN_TIME, function()
-		if brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT) then
+		local hasTag = brainrot and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT)
+		local hasParent = brainrot and brainrot.Parent
+		print("[DESPAWN-TIMER] Fired for", brainrot and brainrot.Name or "nil", "| hasTag:", hasTag, "| parent:", hasParent and brainrot.Parent.Name or "nil")
+		if brainrot and hasParent and hasTag then
 			CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
 			brainrot:Destroy()
 			zoneActive[zoneIndex] = math.max(0, zoneActive[zoneIndex] - 1)
@@ -1091,6 +1094,19 @@ local function depositBrainrot(player)
 	playerSlots[player][freeSlot] = { color = color, block = storedBlock, earnRate = earnRate }
 	setSlotFilled(player, freeSlot, color)
 	depositEvent:FireClient(player, freeSlot)
+
+	-- DEBUG: Track why stored brainrot disappears
+	local debugBlock = storedBlock
+	local debugSlot  = freeSlot
+	print("[DEPOSIT] Slot", debugSlot, "type:", debugBlock.ClassName, "parent:", debugBlock.Parent and debugBlock.Parent.Name or "nil")
+	debugBlock.AncestryChanged:Connect(function(_, newParent)
+		if not newParent then
+			print("[DEPOSIT-DEBUG] Stored brainrot in slot", debugSlot, "was DESTROYED! Traceback:")
+			print(debug.traceback())
+		else
+			print("[DEPOSIT-DEBUG] Stored brainrot in slot", debugSlot, "reparented to:", newParent.Name)
+		end
+	end)
 end
 
 task.spawn(function()

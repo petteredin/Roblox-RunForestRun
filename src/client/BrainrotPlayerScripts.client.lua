@@ -356,18 +356,19 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	if input.KeyCode ~= Enum.KeyCode.E then return end
 
-	local sellSlot, sellTarget = getClosestStoredBrainrot()
-	if sellSlot then
-		isSelling = true
-		targetSellSlot = sellSlot
-		startSellAnimation("...")
-		sellEvent:FireServer(sellSlot, true)
+	-- Check for pickup FIRST (prevents accidental sell when trying to pick up nearby)
+	targetBrainrot = getClosestBrainrot()
+	if targetBrainrot then
+		isHolding = true
+		startPickupAnimation()
+		remoteEvent:FireServer(targetBrainrot, true)
 	else
-		targetBrainrot = getClosestBrainrot()
-		if targetBrainrot then
-			isHolding = true
-			startPickupAnimation()
-			remoteEvent:FireServer(targetBrainrot, true)
+		local sellSlot, sellTarget = getClosestStoredBrainrot()
+		if sellSlot then
+			isSelling = true
+			targetSellSlot = sellSlot
+			startSellAnimation("...")
+			sellEvent:FireServer(sellSlot, true)
 		end
 	end
 end)

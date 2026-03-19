@@ -179,6 +179,7 @@ local BASE_SLOTS                    = 10
 local CREDIT_PLATE_COLLECT_DISTANCE = 3
 local MAX_UPGRADE_LEVEL             = 10
 local SELL_DISTANCE                 = 5
+local SELL_GRACE_PERIOD             = 5  -- seconds after deposit before sell is allowed
 local REBIRTH_MULT                  = 2.25
 
 -- Rate limiting (seconds between actions)
@@ -205,6 +206,7 @@ local playerRebirth    = {}
 local playerDepositing = {}
 local playerBaseIndex  = {}
 local sessionEarnings  = {}
+local slotDepositTime  = {}  -- tracks when each slot was last deposited (grace period for sell)
 
 -- Rate limit trackers
 local lastSellTime   = {}
@@ -475,6 +477,7 @@ local function createSlotParts(player)
 			plateBillboard.StudsOffset = Vector3.new(0, 1.5, 0)
 			plateBillboard.AlwaysOnTop = true
 			plateBillboard.MaxDistance = 20
+			plateBillboard.Enabled     = false  -- hidden until credits > 0
 			plateBillboard.Parent      = platePart
 
 			local plateLabel = Instance.new("TextLabel")
@@ -486,7 +489,7 @@ local function createSlotParts(player)
 			plateLabel.Font                   = Enum.Font.GothamBold
 			plateLabel.Parent                 = plateBillboard
 
-			plates[slotIndex] = { part = platePart, label = plateLabel, credits = 0 }
+			plates[slotIndex] = { part = platePart, label = plateLabel, billboard = plateBillboard, credits = 0 }
 
 			-- Upgrade sign
 			local signZ = row == 0
@@ -630,9 +633,10 @@ local function startCreditTick(player)
 					local rate = getSlotEarnRate(player, i)
 					totalEarned += rate
 					if creditPlates[player] and creditPlates[player][i] then
-						creditPlates[player][i].credits += rate
-						creditPlates[player][i].label.Text =
-							tostring(creditPlates[player][i].credits)
+						local plate = creditPlates[player][i]
+						plate.credits += rate
+						plate.label.Text = tostring(plate.credits)
+						if plate.billboard then plate.billboard.Enabled = true end
 					end
 				end
 			end
@@ -664,6 +668,7 @@ task.spawn(function()
 					local collected = plate.credits
 					plate.credits = 0
 					plate.label.Text = ""
+					if plate.billboard then plate.billboard.Enabled = false end
 					playerWallet[player] = (playerWallet[player] or 0) + collected
 					plate.part.BrickColor = BrickColor.new("White")
 					task.delay(0.3, function()
@@ -697,6 +702,14 @@ sellEvent.OnServerEvent:Connect(function(player, slotIndex, isSelling)
 	slotIndex = math.floor(slotIndex)
 	if slotIndex < 1 or slotIndex > BASE_SLOTS then return end
 	if not playerSlots[player][slotIndex] then return end
+
+	-- Block sell during grace period after deposit
+	if slotDepositTime[player] and slotDepositTime[player][slotIndex] then
+		if (tick() - slotDepositTime[player][slotIndex]) < SELL_GRACE_PERIOD then
+			sellProgressEvent:FireClient(player, false, 0, 0, 0)
+			return
+		end
+	end
 
 	if not isSelling then
 		playerSelling[player] = nil
@@ -750,6 +763,9 @@ sellEvent.OnServerEvent:Connect(function(player, slotIndex, isSelling)
 				if creditPlates[player] and creditPlates[player][slotIndex] then
 					creditPlates[player][slotIndex].credits = 0
 					creditPlates[player][slotIndex].label.Text = ""
+					if creditPlates[player][slotIndex].billboard then
+						creditPlates[player][slotIndex].billboard.Enabled = false
+					end
 				end
 				playerSlots[player][slotIndex]  = nil
 				slotUpgrades[player][slotIndex] = 0
@@ -1137,6 +1153,8 @@ local function depositBrainrot(player)
 	end)
 
 	playerSlots[player][freeSlot] = { color = color, block = storedBlock, earnRate = earnRate }
+	if not slotDepositTime[player] then slotDepositTime[player] = {} end
+	slotDepositTime[player][freeSlot] = tick()
 	setSlotFilled(player, freeSlot, color)
 	depositEvent:FireClient(player, freeSlot)
 end
@@ -1639,6 +1657,7 @@ Players.PlayerRemoving:Connect(function(player)
 	slotCredits[player]      = nil
 	slotUpgrades[player]     = nil
 	lastSellTime[player]     = nil
+	slotDepositTime[player]  = nil
 	lastPickupTime[player]   = nil
 	playerSpeedTime[player]  = nil
 end)

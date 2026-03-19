@@ -1059,7 +1059,16 @@ local function depositBrainrot(player)
 
 	local storedBlock
 
-	if brainrot and brainrot:IsA("Model") then
+	-- DEBUG: log which deposit path is taken
+	if not brainrot then
+		warn("[DEPOSIT] brainrot is NIL for slot", freeSlot)
+	elseif not brainrot.Parent then
+		warn("[DEPOSIT] brainrot DESTROYED before deposit for slot", freeSlot, brainrot.ClassName, brainrot.Name)
+	else
+		print("[DEPOSIT] Slot", freeSlot, "class:", brainrot.ClassName, "name:", brainrot.Name)
+	end
+
+	if brainrot and brainrot.Parent and brainrot:IsA("Model") then
 		-- Re-find PrimaryPart if it was lost during carry
 		if not brainrot.PrimaryPart then
 			local firstPart = brainrot:FindFirstChildWhichIsA("BasePart")
@@ -1079,7 +1088,8 @@ local function depositBrainrot(player)
 		brainrot:PivotTo(CFrame.new(slotPad.Position + Vector3.new(0, 2, 0)))
 		brainrot.Parent = storedFolder
 		storedBlock = brainrot
-	elseif brainrot and brainrot:IsA("BasePart") then
+		print("[DEPOSIT] Model path OK for slot", freeSlot)
+	elseif brainrot and brainrot.Parent and brainrot:IsA("BasePart") then
 		-- Reuse the original part (preserves MeshParts / SpecialMesh children)
 		carriedBrainrots[player] = nil
 		playerHasPickup[player]  = false
@@ -1091,7 +1101,9 @@ local function depositBrainrot(player)
 		if prompt then prompt:Destroy() end
 		brainrot.Parent = storedFolder
 		storedBlock = brainrot
+		print("[DEPOSIT] BasePart path OK for slot", freeSlot)
 	else
+		warn("[DEPOSIT] FALLBACK (block) for slot", freeSlot, "brainrot:", brainrot and brainrot.Name or "nil")
 		carriedBrainrots[player] = nil
 		playerHasPickup[player]  = false
 		if brainrot and brainrot.Parent then brainrot:Destroy() end
@@ -1111,6 +1123,16 @@ local function depositBrainrot(player)
 	-- Store ownerUserId and slotIndex as attributes for client-side sell detection
 	storedBlock:SetAttribute("OwnerUserId", player.UserId)
 	storedBlock:SetAttribute("SlotIndex", freeSlot)
+
+	-- DEBUG: watch for unexpected destruction of stored brainrot
+	local watchSlot = freeSlot
+	local watchBlock = storedBlock
+	storedBlock.AncestryChanged:Connect(function(_, newParent)
+		if not newParent then
+			warn("[STORED-DESTROYED] Slot", watchSlot, "name:", watchBlock.Name, "class:", watchBlock.ClassName)
+			warn(debug.traceback())
+		end
+	end)
 
 	playerSlots[player][freeSlot] = { color = color, block = storedBlock, earnRate = earnRate }
 	setSlotFilled(player, freeSlot, color)

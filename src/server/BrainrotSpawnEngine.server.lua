@@ -448,6 +448,7 @@ local function createSlotParts(player)
 			plateBillboard.Size        = UDim2.new(0, 80, 0, 40)
 			plateBillboard.StudsOffset = Vector3.new(0, 1.5, 0)
 			plateBillboard.AlwaysOnTop = true
+			plateBillboard.MaxDistance = 20
 			plateBillboard.Parent      = platePart
 
 			local plateLabel = Instance.new("TextLabel")
@@ -481,6 +482,7 @@ local function createSlotParts(player)
 			signBillboard.Size        = UDim2.new(0, 140, 0, 70)
 			signBillboard.StudsOffset = Vector3.new(0, 2.5, 0)
 			signBillboard.AlwaysOnTop = true
+			signBillboard.MaxDistance = 20
 			signBillboard.Parent      = signPart
 
 			local signLabel = Instance.new("TextLabel")
@@ -853,11 +855,10 @@ local function attachBrainrotToPlayer(player, brainrot)
 		for _, part in ipairs(brainrot:GetDescendants()) do
 			if part:IsA("BasePart") then
 				part.CanCollide = false
-				part.Anchored   = false
+				part.Anchored   = true
 			end
 		end
 	else
-		brainrot.Size       = Vector3.new(1.5, 1.5, 1.5)
 		brainrot.CanCollide = false
 		brainrot.Anchored   = true
 	end
@@ -1032,7 +1033,12 @@ local function depositBrainrot(player)
 
 	local storedBlock
 
-	if brainrot and brainrot:IsA("Model") and brainrot.PrimaryPart then
+	if brainrot and brainrot:IsA("Model") then
+		-- Re-find PrimaryPart if it was lost during carry
+		if not brainrot.PrimaryPart then
+			local firstPart = brainrot:FindFirstChildWhichIsA("BasePart")
+			if firstPart then brainrot.PrimaryPart = firstPart end
+		end
 		carriedBrainrots[player] = nil
 		playerHasPickup[player]  = false
 		task.wait(0.05)
@@ -1045,7 +1051,11 @@ local function depositBrainrot(player)
 		-- Remove the pickup prompt billboard so it doesn't overlap slot UI
 		local prompt = brainrot:FindFirstChild("PickupPrompt", true)
 		if prompt then prompt:Destroy() end
-		brainrot:SetPrimaryPartCFrame(CFrame.new(slotPad.Position + Vector3.new(0, 2, 0)))
+		if brainrot.PrimaryPart then
+			brainrot:SetPrimaryPartCFrame(CFrame.new(slotPad.Position + Vector3.new(0, 2, 0)))
+		else
+			brainrot:PivotTo(CFrame.new(slotPad.Position + Vector3.new(0, 2, 0)))
+		end
 		brainrot.Parent = storedFolder
 		storedBlock = brainrot
 	elseif brainrot and brainrot:IsA("BasePart") then

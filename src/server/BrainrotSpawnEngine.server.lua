@@ -264,6 +264,32 @@ local upgradeResultEvent = getOrCreateRemote("UpgradeResult")
 local sellProgressEvent  = getOrCreateRemote("SellProgress")
 local sellResultEvent    = getOrCreateRemote("SellResult")
 local sellEvent          = getOrCreateRemote("SellRequested")
+local speedUpdateEvent   = getOrCreateRemote("SpeedUpdate")
+
+-- =====================
+-- SPEED ACCELERATOR
+-- =====================
+
+local BASE_WALK_SPEED      = 16
+local SPEED_INCREMENT      = 1 / 100  -- +1% per second (100s = double speed)
+local playerSpeedTime      = {}       -- tracks seconds spent in game
+
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for _, p in ipairs(Players:GetPlayers()) do
+			local character = p.Character
+			if not character then continue end
+			local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+			if not humanoid then continue end
+
+			playerSpeedTime[p] = (playerSpeedTime[p] or 0) + 1
+			local multiplier = 1 + playerSpeedTime[p] * SPEED_INCREMENT
+			humanoid.WalkSpeed = BASE_WALK_SPEED * multiplier
+			speedUpdateEvent:FireClient(p, multiplier)
+		end
+	end
+end)
 
 -- =====================
 -- EARN RATE HELPERS
@@ -1590,6 +1616,7 @@ Players.PlayerRemoving:Connect(function(player)
 	slotUpgrades[player]     = nil
 	lastSellTime[player]     = nil
 	lastPickupTime[player]   = nil
+	playerSpeedTime[player]  = nil
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do

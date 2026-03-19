@@ -161,6 +161,8 @@ end)
 -- WALLET UI (top left)
 -- =====================
 
+local speedUpdateEvent = game.ReplicatedStorage:WaitForChild("SpeedUpdate")
+
 local walletGui = Instance.new("ScreenGui")
 walletGui.Name = "WalletGui"
 walletGui.ResetOnSpawn = false
@@ -175,7 +177,6 @@ walletFrame.BorderSizePixel = 0
 walletFrame.Parent = walletGui
 Instance.new("UICorner", walletFrame).CornerRadius = UDim.new(0, 10)
 
--- FIX v0.24: walletLabel is now properly scoped as local
 local walletLabel = Instance.new("TextLabel")
 walletLabel.Size = UDim2.new(1, -16, 1, 0)
 walletLabel.Position = UDim2.new(0, 12, 0, 0)
@@ -187,9 +188,34 @@ walletLabel.TextScaled = true
 walletLabel.Font = Enum.Font.GothamBold
 walletLabel.Parent = walletFrame
 
+-- Speed-o-meter
+local speedFrame = Instance.new("Frame")
+speedFrame.Size = UDim2.new(0, 200, 0, 55)
+speedFrame.Position = UDim2.new(0, 16, 0, 78)
+speedFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+speedFrame.BackgroundTransparency = 0.3
+speedFrame.BorderSizePixel = 0
+speedFrame.Parent = walletGui
+Instance.new("UICorner", speedFrame).CornerRadius = UDim.new(0, 10)
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, -16, 1, 0)
+speedLabel.Position = UDim2.new(0, 12, 0, 0)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed: 1.00x"
+speedLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedLabel.TextScaled = true
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.Parent = speedFrame
+
+speedUpdateEvent.OnClientEvent:Connect(function(multiplier)
+	speedLabel.Text = string.format("Speed: %.2fx", multiplier)
+end)
+
 local popupLabel = Instance.new("TextLabel")
 popupLabel.Size = UDim2.new(0, 220, 0, 30)
-popupLabel.Position = UDim2.new(0, 16, 0, 76)
+popupLabel.Position = UDim2.new(0, 16, 0, 140)
 popupLabel.BackgroundTransparency = 1
 popupLabel.Text = ""
 popupLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -209,13 +235,13 @@ local function showPopup(text, color)
 	popupLabel.Text = text
 	popupLabel.TextColor3 = color or Color3.fromRGB(100, 255, 100)
 	popupLabel.TextTransparency = 0
-	popupLabel.Position = UDim2.new(0, 16, 0, 76)
+	popupLabel.Position = UDim2.new(0, 16, 0, 140)
 	local startTime = tick()
 	local duration = 1.8
 	popupConnection = RunService.RenderStepped:Connect(function()
 		local t = math.min((tick() - startTime) / duration, 1)
 		popupLabel.TextTransparency = t
-		popupLabel.Position = UDim2.new(0, 16, 0, 76 - t * 24)
+		popupLabel.Position = UDim2.new(0, 16, 0, 140 - t * 24)
 		if t >= 1 then
 			popupConnection:Disconnect()
 			popupConnection = nil

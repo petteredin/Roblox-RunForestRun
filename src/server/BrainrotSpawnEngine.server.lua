@@ -959,7 +959,7 @@ local function spawnBrainrotInZone(zoneIndex)
 	zoneActive[zoneIndex] += 1
 
 	task.delay(DESPAWN_TIME, function()
-		if brainrot and brainrot.Parent then
+		if brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT) then
 			CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
 			brainrot:Destroy()
 			zoneActive[zoneIndex] = math.max(0, zoneActive[zoneIndex] - 1)

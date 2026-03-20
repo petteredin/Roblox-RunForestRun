@@ -538,8 +538,19 @@ local function createSlotParts(player)
 			local capturedSlot   = slotIndex
 			clickDetector.MouseClick:Connect(function(clickingPlayer)
 				if clickingPlayer ~= capturedPlayer then return end
-				if not playerSlots[capturedPlayer] then return end
+				if not playerSlots[capturedPlayer] then
+					warn("[UPGRADE] playerSlots is nil for player")
+					return
+				end
 				if not playerSlots[capturedPlayer][capturedSlot] then
+					-- Debug: show which slots ARE filled
+					local filled = {}
+					for i = 1, BASE_SLOTS do
+						if playerSlots[capturedPlayer][i] then
+							table.insert(filled, i)
+						end
+					end
+					warn("[UPGRADE] No brainrot in slot", capturedSlot, "| Filled slots:", table.concat(filled, ","))
 					upgradeResultEvent:FireClient(capturedPlayer, false, "No brainrot in this slot!")
 					return
 				end

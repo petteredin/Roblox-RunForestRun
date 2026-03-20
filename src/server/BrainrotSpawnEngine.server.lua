@@ -439,12 +439,11 @@ local function createSlotParts(player)
 			slotPart.Material   = Enum.Material.SmoothPlastic
 			slotPart.Parent     = workspace
 
-			local billboard = Instance.new("BillboardGui")
-			billboard.Size        = UDim2.new(0, 40, 0, 40)
-			billboard.StudsOffset = Vector3.new(0, 1, 0)
-			billboard.AlwaysOnTop = false
-			billboard.MaxDistance = 30
-			billboard.Parent      = slotPart
+			local slotSurface = Instance.new("SurfaceGui")
+			slotSurface.Face          = Enum.NormalId.Top
+			slotSurface.SizingMode    = Enum.SurfaceGuiSizingMode.PixelsPerStud
+			slotSurface.PixelsPerStud = 50
+			slotSurface.Parent        = slotPart
 
 			local label = Instance.new("TextLabel")
 			label.Size                   = UDim2.new(1, 0, 1, 0)
@@ -452,10 +451,11 @@ local function createSlotParts(player)
 			label.Text                   = tostring(slotIndex)
 			label.TextColor3             = Color3.fromRGB(255, 255, 255)
 			label.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
-			label.TextStrokeTransparency = 0.3
+			label.TextStrokeTransparency = 0
 			label.TextScaled             = true
 			label.Font                   = Enum.Font.GothamBold
-			label.Parent                 = billboard
+			label.Rotation               = 180
+			label.Parent                 = slotSurface
 
 			slots[slotIndex] = slotPart
 
@@ -475,13 +475,12 @@ local function createSlotParts(player)
 			platePart.Transparency = 0.5
 			platePart.Parent       = workspace
 
-			local plateBillboard = Instance.new("BillboardGui")
-			plateBillboard.Size        = UDim2.new(0, 80, 0, 40)
-			plateBillboard.StudsOffset = Vector3.new(0, 1.5, 0)
-			plateBillboard.AlwaysOnTop = false
-			plateBillboard.MaxDistance = 30
-			plateBillboard.Enabled     = false  -- hidden until credits > 0
-			plateBillboard.Parent      = platePart
+			local plateSurface = Instance.new("SurfaceGui")
+			plateSurface.Face          = Enum.NormalId.Top
+			plateSurface.SizingMode    = Enum.SurfaceGuiSizingMode.PixelsPerStud
+			plateSurface.PixelsPerStud = 50
+			plateSurface.Enabled       = false  -- hidden until credits > 0
+			plateSurface.Parent        = platePart
 
 			local plateLabel = Instance.new("TextLabel")
 			plateLabel.Size                   = UDim2.new(1, 0, 1, 0)
@@ -489,12 +488,13 @@ local function createSlotParts(player)
 			plateLabel.Text                   = ""
 			plateLabel.TextColor3             = Color3.fromRGB(255, 220, 50)
 			plateLabel.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
-			plateLabel.TextStrokeTransparency = 0.3
+			plateLabel.TextStrokeTransparency = 0
 			plateLabel.TextScaled             = true
 			plateLabel.Font                   = Enum.Font.GothamBold
-			plateLabel.Parent                 = plateBillboard
+			plateLabel.Rotation               = 180
+			plateLabel.Parent                 = plateSurface
 
-			plates[slotIndex] = { part = platePart, label = plateLabel, billboard = plateBillboard, credits = 0 }
+			plates[slotIndex] = { part = platePart, label = plateLabel, billboard = plateSurface, credits = 0 }
 
 			-- Upgrade sign
 			local signZ = row == 0
@@ -597,9 +597,9 @@ local function setSlotFilled(player, slotIndex, brainrotColor)
 		part.Material   = Enum.Material.SmoothPlastic
 	end
 	-- Hide/show slot number label to avoid overlapping with brainrot
-	local billboard = part:FindFirstChildWhichIsA("BillboardGui")
-	if billboard then
-		billboard.Enabled = not brainrotColor
+	local gui = part:FindFirstChildWhichIsA("SurfaceGui") or part:FindFirstChildWhichIsA("BillboardGui")
+	if gui then
+		gui.Enabled = not brainrotColor
 	end
 	updateUpgradeSign(player, slotIndex)
 end
@@ -1015,7 +1015,20 @@ local function spawnBrainrotInZone(zoneIndex)
 	zoneActive[zoneIndex] += 1
 
 	task.delay(DESPAWN_TIME, function()
+		if not (brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT)) then
+			return
+		end
+		-- Don't despawn if someone is carrying this brainrot (race with pickup event)
+		for _, carried in pairs(carriedBrainrots) do
+			if carried == brainrot then return end
+		end
+		-- Brief re-check to handle network-latency race with pickup
+		task.wait(0.5)
 		if brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT) then
+			-- Final check: not being carried
+			for _, carried in pairs(carriedBrainrots) do
+				if carried == brainrot then return end
+			end
 			warn("[DESPAWN] Destroying", brainrot.Name, "parent:", brainrot.Parent.Name)
 			CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
 			brainrot:Destroy()

@@ -156,12 +156,12 @@ local BASE_SIZE   = Vector3.new(39, 1, 35)
 
 local BASES = {
 	{
-		position = Vector3.new(13.969, 4.433, -68.283),
+		position = Vector3.new(2, 4.433, -59.392),
 		size     = BASE_SIZE,
 		owner    = nil,
 	},
 	{
-		position = Vector3.new(14, 3, -23),
+		position = Vector3.new(2, 4.433, -13.446),
 		size     = BASE_SIZE,
 		owner    = nil,
 	},
@@ -176,11 +176,32 @@ local PICKUP_DISTANCE               = 8
 local HOLD_TIME                     = 3
 local MOVE_TOLERANCE                = 1
 local BASE_SLOTS                    = 10
-local CREDIT_PLATE_COLLECT_DISTANCE = 3
+local CREDIT_PLATE_COLLECT_DISTANCE = 4
 local MAX_UPGRADE_LEVEL             = 10
 local SELL_DISTANCE                 = 5
 local SELL_GRACE_PERIOD             = 5  -- seconds after deposit before sell is allowed
 local REBIRTH_MULT                  = 2.25
+local MAX_REBIRTHS                  = 10
+
+local REBIRTH_BASE_COST             = 500
+local REBIRTH_REQUIRED_COUNT        = 3     -- brainrots required per rebirth
+local playerRebirthReq              = {}    -- per-player current rebirth requirements
+
+-- Generate random rebirth requirements for a player's next rebirth
+local function generateRebirthReq(player)
+	local rebirths = playerRebirth[player] or 0
+	local cost = math.floor(REBIRTH_BASE_COST * (REBIRTH_MULT ^ rebirths))
+
+	-- Pick 3 random brainrots from catalog (allow duplicates)
+	local names = {}
+	for i = 1, REBIRTH_REQUIRED_COUNT do
+		local idx = math.random(1, #BRAINROT_CATALOG)
+		table.insert(names, BRAINROT_CATALOG[idx].name)
+	end
+
+	playerRebirthReq[player] = { brainrots = names, cost = cost }
+	return playerRebirthReq[player]
+end
 
 -- Rate limiting (seconds between actions)
 local SELL_COOLDOWN   = 0.5
@@ -267,6 +288,17 @@ local sellProgressEvent  = getOrCreateRemote("SellProgress")
 local sellResultEvent    = getOrCreateRemote("SellResult")
 local sellEvent          = getOrCreateRemote("SellRequested")
 local speedUpdateEvent   = getOrCreateRemote("SpeedUpdate")
+local rebirthResultEvent = getOrCreateRemote("RebirthResult")
+local rebirthInfoEvent   = getOrCreateRemote("RebirthInfo")
+
+-- =====================
+-- REBIRTH MULTIPLIER
+-- =====================
+
+local function getEvoMult(player)
+	local rebirths = playerRebirth[player] or 0
+	return REBIRTH_MULT ^ rebirths
+end
 
 -- =====================
 -- SPEED ACCELERATOR
@@ -286,9 +318,11 @@ task.spawn(function()
 			if not humanoid then continue end
 
 			playerSpeedTime[p] = (playerSpeedTime[p] or 0) + 1
-			local multiplier = 1 + playerSpeedTime[p] * SPEED_INCREMENT
-			humanoid.WalkSpeed = BASE_WALK_SPEED * multiplier
-			speedUpdateEvent:FireClient(p, multiplier)
+			local speedMult = 1 + playerSpeedTime[p] * SPEED_INCREMENT
+			local rebirthMult = getEvoMult(p)
+			local totalMult = speedMult * rebirthMult
+			humanoid.WalkSpeed = BASE_WALK_SPEED * totalMult
+			speedUpdateEvent:FireClient(p, totalMult)
 		end
 	end
 end)
@@ -297,17 +331,12 @@ end)
 -- EARN RATE HELPERS
 -- =====================
 
-local function getEvoMult(player)
-	local rebirths = playerRebirth[player] or 0
-	return REBIRTH_MULT ^ rebirths
-end
-
 local function getSlotEarnRate(player, slotIndex)
 	if not playerSlots[player] or not playerSlots[player][slotIndex] then return 0 end
 	local slot     = playerSlots[player][slotIndex]
 	local level    = slotUpgrades[player] and slotUpgrades[player][slotIndex] or 0
 	local baseRate = slot.earnRate or 1
-	return baseRate * (2 ^ level)
+	return baseRate * (2 ^ level) * getEvoMult(player)
 end
 
 local function getUpgradeCost(player, slotIndex)
@@ -408,7 +437,7 @@ local function createSlotParts(player)
 	local rows              = 2
 	local slotSize          = 4
 	local colSpacing        = 5
-	local rowSpacing        = 22
+	local rowSpacing        = 16
 	local creditPlateWidth  = 2.5
 	local creditPlateOffset = slotSize / 2 + 0.5 + creditPlateWidth / 2
 	local signWidth         = 2
@@ -681,8 +710,10 @@ task.spawn(function()
 			if not creditPlates[player] then continue end
 			for i, plate in ipairs(creditPlates[player]) do
 				if not plate or not plate.part then continue end
-				local dist = (root.Position - plate.part.Position).Magnitude
-				if dist <= CREDIT_PLATE_COLLECT_DISTANCE and plate.credits > 0 then
+				local dx = root.Position.X - plate.part.Position.X
+				local dz = root.Position.Z - plate.part.Position.Z
+				local horizDist = math.sqrt(dx * dx + dz * dz)
+				if horizDist <= CREDIT_PLATE_COLLECT_DISTANCE and plate.credits > 0 then
 					local collected = plate.credits
 					plate.credits = 0
 					plate.label.Text = ""
@@ -795,6 +826,176 @@ sellEvent.OnServerEvent:Connect(function(player, slotIndex, isSelling)
 			end
 		end
 	end)
+end)
+
+-- =====================
+-- REBIRTH STATION
+-- =====================
+
+local REBIRTH_SIGN_POS = Vector3.new(-35.308, 9.002, 74.893)
+
+local rebirthPart = Instance.new("Part")
+rebirthPart.Name        = "RebirthStation"
+rebirthPart.Size        = Vector3.new(8, 1, 8)
+rebirthPart.Position    = REBIRTH_SIGN_POS + Vector3.new(0, -3, -18)
+rebirthPart.Anchored    = true
+rebirthPart.CanCollide  = true
+rebirthPart.BrickColor  = BrickColor.new("Bright violet")
+rebirthPart.Material    = Enum.Material.Neon
+rebirthPart.Parent      = workspace
+
+local rebirthBillboard = Instance.new("BillboardGui")
+rebirthBillboard.Size        = UDim2.new(0, 280, 0, 200)
+rebirthBillboard.StudsOffset = Vector3.new(0, 6, 0)
+rebirthBillboard.AlwaysOnTop = false
+rebirthBillboard.MaxDistance  = 50
+rebirthBillboard.Parent      = rebirthPart
+
+local rebirthBg = Instance.new("Frame")
+rebirthBg.Size                   = UDim2.new(1, 0, 1, 0)
+rebirthBg.BackgroundColor3       = Color3.fromRGB(15, 10, 30)
+rebirthBg.BackgroundTransparency = 0.15
+rebirthBg.BorderSizePixel        = 0
+rebirthBg.Parent                 = rebirthBillboard
+Instance.new("UICorner", rebirthBg).CornerRadius = UDim.new(0, 10)
+
+local rebirthTitle = Instance.new("TextLabel")
+rebirthTitle.Size                   = UDim2.new(1, 0, 0.18, 0)
+rebirthTitle.Position               = UDim2.new(0, 0, 0, 0)
+rebirthTitle.BackgroundTransparency = 1
+rebirthTitle.Text                   = "REBIRTH STATION"
+rebirthTitle.TextColor3             = Color3.fromRGB(255, 180, 50)
+rebirthTitle.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
+rebirthTitle.TextStrokeTransparency = 0
+rebirthTitle.TextScaled             = true
+rebirthTitle.Font                   = Enum.Font.GothamBold
+rebirthTitle.Parent                 = rebirthBg
+
+local rebirthInfo = Instance.new("TextLabel")
+rebirthInfo.Name                    = "InfoLabel"
+rebirthInfo.Size                    = UDim2.new(1, -10, 0.72, 0)
+rebirthInfo.Position                = UDim2.new(0, 5, 0.2, 0)
+rebirthInfo.BackgroundTransparency  = 1
+rebirthInfo.Text                    = ""
+rebirthInfo.TextColor3              = Color3.fromRGB(220, 220, 255)
+rebirthInfo.TextStrokeColor3        = Color3.fromRGB(0, 0, 0)
+rebirthInfo.TextStrokeTransparency  = 0.3
+rebirthInfo.TextScaled              = true
+rebirthInfo.TextYAlignment          = Enum.TextYAlignment.Top
+rebirthInfo.TextXAlignment          = Enum.TextXAlignment.Left
+rebirthInfo.Font                    = Enum.Font.GothamBold
+rebirthInfo.Parent                  = rebirthBg
+
+-- Update the sign text (generic since requirements are per-player)
+rebirthInfo.Text = "Click to Rebirth!\n\nRequires 3 random brainrots\n+ credits (2.25x per rebirth)\n\nCheck your HUD for details!"
+
+local rebirthClick = Instance.new("ClickDetector")
+rebirthClick.MaxActivationDistance = 12
+rebirthClick.Parent = rebirthPart
+
+local function getPlayerBrainrotNames(player)
+	local names = {}
+	if not playerSlots[player] then return names end
+	for i = 1, BASE_SLOTS do
+		local slot = playerSlots[player][i]
+		if slot and slot.block and slot.block.Parent then
+			local bName = slot.block:GetAttribute("BrainrotName") or slot.block.Name
+			names[bName] = (names[bName] or 0) + 1
+		end
+	end
+	return names
+end
+
+local function clearPlayerBase(player)
+	if not playerSlots[player] then return end
+	for i = 1, BASE_SLOTS do
+		local slot = playerSlots[player][i]
+		if slot and slot.block and slot.block.Parent then
+			CollectionService:RemoveTag(slot.block, TAG_STORED_BRAINROT)
+			slot.block:Destroy()
+		end
+		playerSlots[player][i] = nil
+		if slotUpgrades[player] then slotUpgrades[player][i] = 0 end
+		if creditPlates[player] and creditPlates[player][i] then
+			creditPlates[player][i].credits = 0
+			creditPlates[player][i].label.Text = ""
+			if creditPlates[player][i].billboard then
+				creditPlates[player][i].billboard.Enabled = false
+			end
+		end
+		setSlotFilled(player, i, nil)
+	end
+	-- Drop any carried brainrot
+	if carriedBrainrots[player] then
+		local carried = carriedBrainrots[player]
+		if carried and carried.Parent then
+			CollectionService:RemoveTag(carried, TAG_SPAWNED_BRAINROT)
+			carried:Destroy()
+		end
+		carriedBrainrots[player] = nil
+		playerHasPickup[player] = false
+	end
+end
+
+rebirthClick.MouseClick:Connect(function(clickingPlayer)
+	local currentRebirth = playerRebirth[clickingPlayer] or 0
+	if currentRebirth >= MAX_REBIRTHS then
+		rebirthResultEvent:FireClient(clickingPlayer, false, "Max rebirths reached! (10/10)")
+		return
+	end
+
+	-- Get or generate this player's current rebirth requirements
+	local req = playerRebirthReq[clickingPlayer]
+	if not req then
+		req = generateRebirthReq(clickingPlayer)
+	end
+
+	-- Check credits
+	local wallet = playerWallet[clickingPlayer] or 0
+	if wallet < req.cost then
+		rebirthResultEvent:FireClient(clickingPlayer, false,
+			"Need " .. req.cost .. " credits (you have " .. wallet .. ")")
+		return
+	end
+
+	-- Check brainrots in base
+	local ownedNames = getPlayerBrainrotNames(clickingPlayer)
+	local missing = {}
+	local tempOwned = {}
+	for k, v in pairs(ownedNames) do tempOwned[k] = v end
+
+	for _, requiredName in ipairs(req.brainrots) do
+		if (tempOwned[requiredName] or 0) > 0 then
+			tempOwned[requiredName] = tempOwned[requiredName] - 1
+		else
+			table.insert(missing, requiredName)
+		end
+	end
+
+	if #missing > 0 then
+		local missingStr = table.concat(missing, ", ")
+		rebirthResultEvent:FireClient(clickingPlayer, false,
+			"Missing brainrots: " .. missingStr)
+		return
+	end
+
+	-- All requirements met! Execute rebirth
+	playerWallet[clickingPlayer] = wallet - req.cost
+	clearPlayerBase(clickingPlayer)
+	local nextLevel = currentRebirth + 1
+	playerRebirth[clickingPlayer] = nextLevel
+
+	-- Notify client
+	rebirthResultEvent:FireClient(clickingPlayer, true, nextLevel, playerWallet[clickingPlayer])
+
+	-- Generate NEW random requirements for next rebirth
+	if nextLevel < MAX_REBIRTHS then
+		local nextReq = generateRebirthReq(clickingPlayer)
+		rebirthInfoEvent:FireClient(clickingPlayer, nextLevel, nextReq.brainrots, nextReq.cost)
+	else
+		playerRebirthReq[clickingPlayer] = nil
+		rebirthInfoEvent:FireClient(clickingPlayer, nextLevel, {}, 0)
+	end
 end)
 
 -- =====================
@@ -1633,6 +1834,10 @@ local function onPlayerAdded(player)
 
 	createSlotParts(player)
 	startCreditTick(player)
+
+	-- Generate and send initial rebirth requirements to client
+	local req = generateRebirthReq(player)
+	rebirthInfoEvent:FireClient(player, 0, req.brainrots, req.cost)
 
 	player.CharacterAdded:Connect(function(character)
 		task.wait(1)

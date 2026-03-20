@@ -162,6 +162,8 @@ end)
 -- =====================
 
 local speedUpdateEvent = game.ReplicatedStorage:WaitForChild("SpeedUpdate")
+local rebirthResultEvent = game.ReplicatedStorage:WaitForChild("RebirthResult")
+local rebirthInfoEvent   = game.ReplicatedStorage:WaitForChild("RebirthInfo")
 
 local walletGui = Instance.new("ScreenGui")
 walletGui.Name = "WalletGui"
@@ -213,9 +215,113 @@ speedUpdateEvent.OnClientEvent:Connect(function(multiplier)
 	speedLabel.Text = string.format("Speed: %.2fx", multiplier)
 end)
 
+-- Rebirth display
+local rebirthFrame = Instance.new("Frame")
+rebirthFrame.Size = UDim2.new(0, 200, 0, 55)
+rebirthFrame.Position = UDim2.new(0, 16, 0, 140)
+rebirthFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+rebirthFrame.BackgroundTransparency = 0.3
+rebirthFrame.BorderSizePixel = 0
+rebirthFrame.Parent = walletGui
+Instance.new("UICorner", rebirthFrame).CornerRadius = UDim.new(0, 10)
+
+local rebirthLabel = Instance.new("TextLabel")
+rebirthLabel.Size = UDim2.new(1, -16, 1, 0)
+rebirthLabel.Position = UDim2.new(0, 12, 0, 0)
+rebirthLabel.BackgroundTransparency = 1
+rebirthLabel.Text = "Rebirth #0"
+rebirthLabel.TextColor3 = Color3.fromRGB(255, 180, 50)
+rebirthLabel.TextXAlignment = Enum.TextXAlignment.Left
+rebirthLabel.TextScaled = true
+rebirthLabel.Font = Enum.Font.GothamBold
+rebirthLabel.Parent = rebirthFrame
+
+-- Rebirth requirements box (below Rebirth #)
+local rebirthReqFrame = Instance.new("Frame")
+rebirthReqFrame.Size = UDim2.new(0, 200, 0, 120)
+rebirthReqFrame.Position = UDim2.new(0, 16, 0, 202)
+rebirthReqFrame.BackgroundColor3 = Color3.fromRGB(30, 15, 40)
+rebirthReqFrame.BackgroundTransparency = 0.2
+rebirthReqFrame.BorderSizePixel = 0
+rebirthReqFrame.Parent = walletGui
+Instance.new("UICorner", rebirthReqFrame).CornerRadius = UDim.new(0, 10)
+
+-- Rebirth icon + title row
+local rebirthReqTitle = Instance.new("TextLabel")
+rebirthReqTitle.Size = UDim2.new(1, -10, 0, 22)
+rebirthReqTitle.Position = UDim2.new(0, 8, 0, 4)
+rebirthReqTitle.BackgroundTransparency = 1
+rebirthReqTitle.Text = "\u{1F504} Next Rebirth"
+rebirthReqTitle.TextColor3 = Color3.fromRGB(255, 180, 50)
+rebirthReqTitle.TextXAlignment = Enum.TextXAlignment.Left
+rebirthReqTitle.TextScaled = true
+rebirthReqTitle.Font = Enum.Font.GothamBold
+rebirthReqTitle.Parent = rebirthReqFrame
+
+-- Brainrot requirement labels (3 lines)
+local rebirthReqLabels = {}
+for i = 1, 3 do
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, -16, 0, 18)
+	lbl.Position = UDim2.new(0, 12, 0, 24 + (i - 1) * 20)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = ""
+	lbl.TextColor3 = Color3.fromRGB(220, 220, 255)
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.TextScaled = true
+	lbl.Font = Enum.Font.Gotham
+	lbl.Parent = rebirthReqFrame
+	rebirthReqLabels[i] = lbl
+end
+
+-- Cost label
+local rebirthCostLabel = Instance.new("TextLabel")
+rebirthCostLabel.Size = UDim2.new(1, -10, 0, 22)
+rebirthCostLabel.Position = UDim2.new(0, 8, 1, -26)
+rebirthCostLabel.BackgroundTransparency = 1
+rebirthCostLabel.Text = "Cost: ---"
+rebirthCostLabel.TextColor3 = Color3.fromRGB(255, 220, 50)
+rebirthCostLabel.TextXAlignment = Enum.TextXAlignment.Left
+rebirthCostLabel.TextScaled = true
+rebirthCostLabel.Font = Enum.Font.GothamBold
+rebirthCostLabel.Parent = rebirthReqFrame
+
+-- Update rebirth requirements display
+local function updateRebirthReqDisplay(brainrots, cost)
+	for i = 1, 3 do
+		if brainrots[i] then
+			rebirthReqLabels[i].Text = "\u{25CF} " .. brainrots[i]
+		else
+			rebirthReqLabels[i].Text = ""
+		end
+	end
+	if cost and cost > 0 then
+		rebirthCostLabel.Text = "Cost: " .. tostring(cost) .. " credits"
+	else
+		rebirthCostLabel.Text = "MAX REBIRTH!"
+	end
+end
+
+-- Listen for rebirth info from server
+rebirthInfoEvent.OnClientEvent:Connect(function(currentLevel, brainrots, cost)
+	rebirthLabel.Text = "Rebirth #" .. currentLevel
+	updateRebirthReqDisplay(brainrots, cost)
+end)
+
+rebirthResultEvent.OnClientEvent:Connect(function(success, dataOrLevel, newWallet)
+	if success then
+		rebirthLabel.Text = "Rebirth #" .. dataOrLevel
+		walletTotal = newWallet
+		walletLabel.Text = "Credits: " .. walletTotal
+		showPopup("REBIRTH #" .. dataOrLevel .. "! 2.25x boost!", Color3.fromRGB(255, 180, 50))
+	else
+		showPopup(tostring(dataOrLevel), Color3.fromRGB(255, 80, 80))
+	end
+end)
+
 local popupLabel = Instance.new("TextLabel")
 popupLabel.Size = UDim2.new(0, 220, 0, 30)
-popupLabel.Position = UDim2.new(0, 16, 0, 140)
+popupLabel.Position = UDim2.new(0, 16, 0, 330)
 popupLabel.BackgroundTransparency = 1
 popupLabel.Text = ""
 popupLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -235,13 +341,13 @@ local function showPopup(text, color)
 	popupLabel.Text = text
 	popupLabel.TextColor3 = color or Color3.fromRGB(100, 255, 100)
 	popupLabel.TextTransparency = 0
-	popupLabel.Position = UDim2.new(0, 16, 0, 140)
+	popupLabel.Position = UDim2.new(0, 16, 0, 202)
 	local startTime = tick()
 	local duration = 1.8
 	popupConnection = RunService.RenderStepped:Connect(function()
 		local t = math.min((tick() - startTime) / duration, 1)
 		popupLabel.TextTransparency = t
-		popupLabel.Position = UDim2.new(0, 16, 0, 140 - t * 24)
+		popupLabel.Position = UDim2.new(0, 16, 0, 330 - t * 24)
 		if t >= 1 then
 			popupConnection:Disconnect()
 			popupConnection = nil
@@ -253,6 +359,7 @@ end
 player.CharacterAdded:Connect(function()
 	walletTotal = 0
 	walletLabel.Text = "Credits: 0"
+	rebirthLabel.Text = "Rebirth #0"
 end)
 
 collectEvent.OnClientEvent:Connect(function(collected, newWalletTotal)

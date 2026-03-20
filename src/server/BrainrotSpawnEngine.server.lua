@@ -834,15 +834,15 @@ end)
 
 local REBIRTH_SIGN_POS = Vector3.new(-35.308, 9.002, 74.893)
 
+-- Invisible click part near the HappyStone (no purple box)
 local rebirthPart = Instance.new("Part")
-rebirthPart.Name        = "RebirthStation"
-rebirthPart.Size        = Vector3.new(8, 1, 8)
-rebirthPart.Position    = REBIRTH_SIGN_POS + Vector3.new(0, -3, -18)
-rebirthPart.Anchored    = true
-rebirthPart.CanCollide  = true
-rebirthPart.BrickColor  = BrickColor.new("Bright violet")
-rebirthPart.Material    = Enum.Material.Neon
-rebirthPart.Parent      = workspace
+rebirthPart.Name         = "RebirthStation"
+rebirthPart.Size         = Vector3.new(6, 8, 6)
+rebirthPart.Position     = REBIRTH_SIGN_POS + Vector3.new(0, -3, -18)
+rebirthPart.Anchored     = true
+rebirthPart.CanCollide   = false
+rebirthPart.Transparency = 1
+rebirthPart.Parent       = workspace
 
 local rebirthBillboard = Instance.new("BillboardGui")
 rebirthBillboard.Size        = UDim2.new(0, 280, 0, 200)
@@ -886,8 +886,8 @@ rebirthInfo.TextXAlignment          = Enum.TextXAlignment.Left
 rebirthInfo.Font                    = Enum.Font.GothamBold
 rebirthInfo.Parent                  = rebirthBg
 
--- Update the sign text (generic since requirements are per-player)
-rebirthInfo.Text = "Click to Rebirth!\n\nRequires 3 random brainrots\n+ credits (2.25x per rebirth)\n\nCheck your HUD for details!"
+-- Sign shows generic info; specific requirements shown in player HUD
+rebirthInfo.Text = "Click to Rebirth!\n\nRequires 3 specific brainrots\nin your base + credits.\n\nCost scales 2.25x per rebirth.\nCheck HUD for your requirements!"
 
 local rebirthClick = Instance.new("ClickDetector")
 rebirthClick.MaxActivationDistance = 12

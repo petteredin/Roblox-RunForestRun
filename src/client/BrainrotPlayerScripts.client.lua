@@ -354,37 +354,61 @@ local rebirthStationPart = nil
 local rebirthSignLabel = nil
 
 task.spawn(function()
-	rebirthStationPart = workspace:WaitForChild("RebirthStation", 30)
-	if rebirthStationPart then
-		local billboard = rebirthStationPart:FindFirstChildWhichIsA("BillboardGui")
-		if billboard then
-			local bg = billboard:FindFirstChildWhichIsA("Frame")
-			if bg then
-				rebirthSignLabel = bg:FindFirstChild("InfoLabel")
+	for i = 1, 30 do
+		rebirthStationPart = workspace:FindFirstChild("RebirthStation")
+		if rebirthStationPart then
+			local billboard = rebirthStationPart:FindFirstChildWhichIsA("BillboardGui")
+			if billboard then
+				local bg = billboard:FindFirstChildWhichIsA("Frame")
+				if bg then
+					rebirthSignLabel = bg:FindFirstChild("InfoLabel")
+					if rebirthSignLabel then
+						-- Re-render sign with current data from HUD labels
+						local currentText = rebirthLabel.Text
+						local level = tonumber(currentText:match("%d+")) or 0
+						local lines = "Next: Rebirth #" .. (level + 1) .. "\n"
+						lines = lines .. "──────────────\n"
+						for j = 1, 3 do
+							if rebirthReqLabels[j] and rebirthReqLabels[j].Text ~= "" then
+								lines = lines .. rebirthReqLabels[j].Text .. "\n"
+							end
+						end
+						if rebirthCostLabel then
+							lines = lines .. "\n" .. rebirthCostLabel.Text
+						end
+						rebirthSignLabel.Text = lines
+						break
+					end
+				end
 			end
 		end
+		task.wait(1)
 	end
 end)
-
-local function updateRebirthSign(brainrots, cost)
-	if not rebirthSignLabel then return end
-	local lines = "Requires:\n"
-	for i, name in ipairs(brainrots) do
-		lines = lines .. "  " .. i .. ". " .. name .. "\n"
-	end
-	if cost and cost > 0 then
-		lines = lines .. "\nCost: " .. tostring(cost) .. " credits"
-	else
-		lines = lines .. "\nMAX REBIRTH REACHED!"
-	end
-	rebirthSignLabel.Text = lines
-end
 
 -- Listen for rebirth info from server (push updates after rebirth)
 rebirthInfoEvent.OnClientEvent:Connect(function(currentLevel, brainrots, cost, rarityText)
 	rebirthLabel.Text = "Rebirth #" .. currentLevel
 	updateRebirthReqDisplay(brainrots, cost, rarityText)
-	updateRebirthSign(brainrots, cost)
+
+	-- Update the physical sign in the world
+	if rebirthSignLabel then
+		if cost and cost > 0 then
+			local lines = "Next: Rebirth #" .. (currentLevel + 1) .. "\n"
+			lines = lines .. "──────────────\n"
+			if rarityText and rarityText ~= "" then
+				lines = lines .. rarityText .. "\n"
+			else
+				for i, name in ipairs(brainrots) do
+					lines = lines .. "\u{2022} " .. name .. "\n"
+				end
+			end
+			lines = lines .. "\nCost: " .. tostring(cost) .. " credits"
+			rebirthSignLabel.Text = lines
+		else
+			rebirthSignLabel.Text = "MAX REBIRTH\nREACHED! (10/10)"
+		end
+	end
 end)
 
 -- Pull initial rebirth requirements from server (client is ready now)
@@ -399,7 +423,16 @@ task.spawn(function()
 	if ok and brainrots then
 		rebirthLabel.Text = "Rebirth #" .. (level or 0)
 		updateRebirthReqDisplay(brainrots, cost, rarityText)
-		updateRebirthSign(brainrots, cost)
+		-- Update the sign if found
+		if rebirthSignLabel and cost and cost > 0 then
+			local lines = "Next: Rebirth #" .. ((level or 0) + 1) .. "\n"
+			lines = lines .. "──────────────\n"
+			if rarityText and rarityText ~= "" then
+				lines = lines .. rarityText .. "\n"
+			end
+			lines = lines .. "\nCost: " .. tostring(cost) .. " credits"
+			rebirthSignLabel.Text = lines
+		end
 	else
 		warn("[CLIENT] Failed to get rebirth info:", level)
 	end

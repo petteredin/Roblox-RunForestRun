@@ -992,7 +992,7 @@ local function updateRebirthSign(player)
 	lines = lines .. "Cost: " .. tostring(req.cost) .. " credits"
 	rebirthInfo.Text = lines
 end
-rebirthInfo.Text = "Walk up to see\nyour requirements"
+rebirthInfo.Text = ""
 
 local rebirthClick = Instance.new("ClickDetector")
 rebirthClick.MaxActivationDistance = 12

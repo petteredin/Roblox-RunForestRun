@@ -329,6 +329,7 @@ end
 local BASE_WALK_SPEED      = 16
 local SPEED_INCREMENT      = 1 / 100  -- +1% per second (100s = double speed)
 local playerSpeedTime      = {}       -- tracks seconds spent in game
+local playerRebirthInfoSent = {}      -- tracks if rebirth info was sent to client
 
 task.spawn(function()
 	while true do
@@ -345,6 +346,15 @@ task.spawn(function()
 			local totalMult = speedMult * rebirthMult
 			humanoid.WalkSpeed = BASE_WALK_SPEED * totalMult
 			speedUpdateEvent:FireClient(p, totalMult)
+
+			-- Send rebirth info if not yet delivered (piggyback on working speed loop)
+			if not playerRebirthInfoSent[p] then
+				local req = playerRebirthReq[p]
+				if req then
+					rebirthInfoEvent:FireClient(p, playerRebirth[p] or 0, req.brainrots, req.cost)
+					playerRebirthInfoSent[p] = true
+				end
+			end
 		end
 	end
 end)
@@ -1024,6 +1034,7 @@ rebirthClick.MouseClick:Connect(function(clickingPlayer)
 	rebirthResultEvent:FireClient(clickingPlayer, true, nextLevel, playerWallet[clickingPlayer])
 
 	-- Generate NEW random requirements for next rebirth
+	playerRebirthInfoSent[clickingPlayer] = false  -- reset so speed loop resends if needed
 	if nextLevel < MAX_REBIRTHS then
 		local nextReq = generateRebirthReq(clickingPlayer)
 		rebirthInfoEvent:FireClient(clickingPlayer, nextLevel, nextReq.brainrots, nextReq.cost)

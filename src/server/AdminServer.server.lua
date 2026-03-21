@@ -42,7 +42,10 @@ pcall(function()
 end)
 
 local function loadAdminList()
-	if not adminStore then return end
+	if not adminStore then
+		warn("[ADMIN] adminStore is nil - DataStore not available (enable API access in Game Settings)")
+		return
+	end
 	local ok, data = pcall(function()
 		return adminStore:GetAsync("Admins")
 	end)
@@ -50,20 +53,32 @@ local function loadAdminList()
 		for _, userId in ipairs(data) do
 			ADMINS[userId] = true
 		end
-		print("[ADMIN] Loaded admin list from DataStore")
+		print("[ADMIN] Loaded", #data, "admins from DataStore")
+	elseif not ok then
+		warn("[ADMIN] Failed to load admin list:", tostring(data))
+	else
+		print("[ADMIN] No saved admin list found (first run)")
 	end
 end
 
 local function saveAdminList()
-	if not adminStore then return end
+	if not adminStore then
+		warn("[ADMIN] Cannot save - adminStore is nil")
+		return
+	end
 	task.spawn(function()
 		local list = {}
 		for userId in pairs(ADMINS) do
 			table.insert(list, userId)
 		end
-		pcall(function()
+		local ok, err = pcall(function()
 			adminStore:SetAsync("Admins", list)
 		end)
+		if ok then
+			print("[ADMIN] Saved admin list:", #list, "admins")
+		else
+			warn("[ADMIN] Failed to save admin list:", tostring(err))
+		end
 	end)
 end
 
@@ -244,12 +259,31 @@ end
 -- Ladda ban-lista vid uppstart
 loadBanList()
 
--- Kicka bannade spelare vid join
+-- Skapa AdminCheck event för att visa Owner-knappen
+local adminCheckEvent = ReplicatedStorage:FindFirstChild("AdminCheck")
+if not adminCheckEvent then
+	adminCheckEvent = Instance.new("RemoteEvent")
+	adminCheckEvent.Name = "AdminCheck"
+	adminCheckEvent.Parent = ReplicatedStorage
+end
+
+-- Hantera spelare vid join: banna eller visa admin-knappen
 Players.PlayerAdded:Connect(function(p)
 	if isPlayerBanned(p.UserId) then
 		local entry = bannedPlayers[tostring(p.UserId)]
 		local reason = entry and entry.reason or "Bannad"
 		p:Kick("Du är bannad: " .. reason)
+		return
+	end
+
+	-- Visa Owner-knappen för admins (med delay så klient-scriptet hinner starta)
+	if ADMINS[p.UserId] then
+		task.delay(3, function()
+			if p and p.Parent then
+				adminCheckEvent:FireClient(p, true)
+				print("[ADMIN] Fired AdminCheck for returning admin:", p.Name)
+			end
+		end)
 	end
 end)
 
@@ -649,10 +683,7 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			adminResponse:FireClient(player, true, "Gav admin till: " .. target.DisplayName .. " (globalt, måste rejoina för panel)")
 
 			-- Visa Owner-knappen för den nya adminen
-			local adminCheckEvent = ReplicatedStorage:FindFirstChild("AdminCheck")
-			if adminCheckEvent then
-				adminCheckEvent:FireClient(target, true)
-			end
+			adminCheckEvent:FireClient(target, true)
 
 			-- Publicera globalt
 			pcall(function()

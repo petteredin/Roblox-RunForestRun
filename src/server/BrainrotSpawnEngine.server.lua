@@ -1648,7 +1648,7 @@ local BOARD_X     = WALL_CENTER.X - 1.2  -- flush with -X face (towards houses)
 local function createLedBoard(posX, posY, posZ, title)
 	local board = Instance.new("Part")
 	board.Name        = title .. "Board"
-	board.Size        = Vector3.new(27, 20, 0.3)
+	board.Size        = Vector3.new(0.3, 20, 27)
 	board.Position    = Vector3.new(posX, posY, posZ)
 	board.Anchored    = true
 	board.CanCollide  = false
@@ -1657,7 +1657,7 @@ local function createLedBoard(posX, posY, posZ, title)
 	board.Parent      = workspace
 
 	local gui = Instance.new("SurfaceGui")
-	gui.Face           = Enum.NormalId.Front
+	gui.Face           = Enum.NormalId.Right
 	gui.CanvasSize     = Vector2.new(600, 800)
 	gui.AlwaysOnTop    = false
 	gui.LightInfluence = 0

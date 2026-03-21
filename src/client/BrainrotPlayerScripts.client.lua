@@ -20,6 +20,7 @@ local upgradeResultEvent = game.ReplicatedStorage:WaitForChild("UpgradeResult")
 local sellEvent = game.ReplicatedStorage:WaitForChild("SellRequested")
 local sellProgressEvent = game.ReplicatedStorage:WaitForChild("SellProgress")
 local sellResultEvent = game.ReplicatedStorage:WaitForChild("SellResult")
+local creditUpdateEvent = game.ReplicatedStorage:WaitForChild("CreditUpdate")
 
 -- Tags must match server-side definitions
 local TAG_SPAWNED_BRAINROT = "SpawnedBrainrot"
@@ -698,6 +699,14 @@ upgradeResultEvent.OnClientEvent:Connect(function(success, data, newLevel, newWa
 	else
 		showPopup(tostring(data), Color3.fromRGB(255, 80, 80))
 	end
+end)
+
+-- =====================
+-- CREDIT UPDATE (from admin panel or other sources)
+-- =====================
+creditUpdateEvent.OnClientEvent:Connect(function(newWallet)
+	walletTotal = newWallet
+	walletLabel.Text = "Credits: " .. walletTotal
 end)
 
 -- =====================

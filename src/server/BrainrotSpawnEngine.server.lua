@@ -184,6 +184,7 @@ local REBIRTH_MULT                  = 2.25
 local MAX_REBIRTHS                  = 10
 
 local playerRebirthReq              = {}    -- per-player current rebirth requirements
+local playerRebirth                 = {}    -- rebirth count per player
 
 -- Fixed rebirth requirements per level (same for all players)
 local REBIRTH_REQUIREMENTS = {
@@ -270,7 +271,7 @@ local slotCredits      = {}
 local upgradeSigns     = {}
 local slotUpgrades     = {}
 local playerSelling    = {}
-local playerRebirth    = {}
+-- playerRebirth declared earlier (needed by initRebirthReq)
 local playerDepositing = {}
 local playerBaseIndex  = {}
 local sessionEarnings  = {}

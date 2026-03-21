@@ -1643,7 +1643,7 @@ local allTimeStore = DataStoreService:GetDataStore("AllTimeEarnings_v1")
 -- LeaderboardWall: Pos (-51, 12, 4.5), Size (2, 22, 59), Orientation (0, -180, 0)
 -- Players approach from +X side, so boards go on the +X face
 local WALL_CENTER = Vector3.new(-51, 12, 4.5)
-local BOARD_X     = WALL_CENTER.X + 1.2  -- flush with +X face of wall
+local BOARD_X     = WALL_CENTER.X - 1.2  -- flush with -X face (towards houses)
 
 local function createLedBoard(posX, posY, posZ, title)
 	local board = Instance.new("Part")
@@ -1657,7 +1657,7 @@ local function createLedBoard(posX, posY, posZ, title)
 	board.Parent      = workspace
 
 	local gui = Instance.new("SurfaceGui")
-	gui.Face           = Enum.NormalId.Back
+	gui.Face           = Enum.NormalId.Front
 	gui.CanvasSize     = Vector2.new(600, 800)
 	gui.AlwaysOnTop    = false
 	gui.LightInfluence = 0

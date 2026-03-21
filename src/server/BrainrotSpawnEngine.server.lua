@@ -382,6 +382,7 @@ end
 -- =====================
 local BASE_WALK_SPEED      = 16
 local SPEED_INCREMENT      = 1 / 100  -- +1% per second (100s = double speed)
+local playerSpeedTime      = {}       -- tracks seconds spent in game
 
 -- =====================
 -- ADMIN BINDABLE EVENTS
@@ -481,7 +482,6 @@ end
 -- SPEED ACCELERATOR
 -- =====================
 
-local playerSpeedTime      = {}       -- tracks seconds spent in game
 local playerRebirthInfoSent = {}      -- tracks if rebirth info was sent to client
 
 task.spawn(function()

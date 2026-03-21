@@ -542,52 +542,11 @@ local function updateRebirthReqDisplay(brainrots, cost, rarityText)
 	end
 end
 
--- Find the rebirth station sign in workspace
-local rebirthStationPart = nil
-local rebirthSignLabel = nil
-
-local function updateRebirthSign(currentLevel, brainrots, cost, rarityText)
-	if not rebirthSignLabel then return end
-	if cost and cost > 0 then
-		local lines = "Next: Rebirth #" .. (currentLevel + 1) .. "\n"
-		lines = lines .. "──────────────\n"
-		if rarityText and rarityText ~= "" then
-			lines = lines .. rarityText .. "\n"
-		elseif brainrots then
-			for _, name in ipairs(brainrots) do
-				lines = lines .. "\u{2022} " .. name .. "\n"
-			end
-		end
-		lines = lines .. "\nCost: " .. tostring(cost) .. " credits"
-		rebirthSignLabel.Text = lines
-	else
-		rebirthSignLabel.Text = "MAX REBIRTH\nREACHED! (10/10)"
-	end
-end
-
-task.spawn(function()
-	for i = 1, 30 do
-		rebirthStationPart = workspace:FindFirstChild("RebirthStation")
-		if rebirthStationPart then
-			local billboard = rebirthStationPart:FindFirstChildWhichIsA("BillboardGui")
-			if billboard then
-				local bg = billboard:FindFirstChildWhichIsA("Frame")
-				if bg then
-					rebirthSignLabel = bg:FindFirstChild("InfoLabel")
-					if rebirthSignLabel then break end
-				end
-			end
-		end
-		task.wait(1)
-	end
-end)
-
 -- Listen for rebirth info from server
 rebirthInfoEvent.OnClientEvent:Connect(function(currentLevel, brainrots, cost, rarityText)
 	rebirthLabel.Text = "Rebirth #" .. currentLevel
 	rebirthReqTitle.Text = "NEXT REBIRTH #" .. (currentLevel + 1)
 	updateRebirthReqDisplay(brainrots, cost, rarityText)
-	updateRebirthSign(currentLevel, brainrots, cost, rarityText)
 end)
 
 -- Pull initial rebirth info from server
@@ -603,7 +562,6 @@ task.spawn(function()
 		rebirthLabel.Text = "Rebirth #" .. (level or 0)
 		rebirthReqTitle.Text = "NEXT REBIRTH #" .. ((level or 0) + 1)
 		updateRebirthReqDisplay(brainrots, cost, rarityText)
-		updateRebirthSign(level or 0, brainrots, cost, rarityText)
 	else
 		warn("[CLIENT] Failed to get rebirth info:", level)
 	end

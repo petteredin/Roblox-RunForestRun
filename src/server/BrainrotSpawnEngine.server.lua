@@ -358,8 +358,6 @@ getRebirthInfoFunc.OnServerInvoke = function(player)
 	if not req then
 		req = initRebirthReq(player)
 	end
-	-- Also update the physical sign billboard
-	updateRebirthSign(player)
 	if req then
 		local nextLvl = (playerRebirth[player] or 0) + 1
 		local rarityText = getRebirthRarityText(nextLvl)
@@ -922,84 +920,8 @@ end)
 -- REBIRTH STATION
 -- =====================
 
-local REBIRTH_SIGN_POS = Vector3.new(-35.308, 9.002, 74.893)
-
--- Invisible click part near the HappyStone (no purple box)
-local rebirthPart = Instance.new("Part")
-rebirthPart.Name         = "RebirthStation"
-rebirthPart.Size         = Vector3.new(6, 8, 6)
-rebirthPart.Position     = REBIRTH_SIGN_POS + Vector3.new(0, -3, -18)
-rebirthPart.Anchored     = true
-rebirthPart.CanCollide   = false
-rebirthPart.Transparency = 1
-rebirthPart.Parent       = workspace
-
-local rebirthBillboard = Instance.new("BillboardGui")
-rebirthBillboard.Size        = UDim2.new(0, 280, 0, 200)
-rebirthBillboard.StudsOffset = Vector3.new(0, 6, 0)
-rebirthBillboard.AlwaysOnTop = false
-rebirthBillboard.MaxDistance  = 50
-rebirthBillboard.Parent      = rebirthPart
-
-local rebirthBg = Instance.new("Frame")
-rebirthBg.Size                   = UDim2.new(1, 0, 1, 0)
-rebirthBg.BackgroundColor3       = Color3.fromRGB(15, 10, 30)
-rebirthBg.BackgroundTransparency = 0.15
-rebirthBg.BorderSizePixel        = 0
-rebirthBg.Parent                 = rebirthBillboard
-Instance.new("UICorner", rebirthBg).CornerRadius = UDim.new(0, 10)
-
-local rebirthTitle = Instance.new("TextLabel")
-rebirthTitle.Size                   = UDim2.new(1, 0, 0.18, 0)
-rebirthTitle.Position               = UDim2.new(0, 0, 0, 0)
-rebirthTitle.BackgroundTransparency = 1
-rebirthTitle.Text                   = "REBIRTH STATION"
-rebirthTitle.TextColor3             = Color3.fromRGB(255, 180, 50)
-rebirthTitle.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
-rebirthTitle.TextStrokeTransparency = 0
-rebirthTitle.TextScaled             = true
-rebirthTitle.Font                   = Enum.Font.GothamBold
-rebirthTitle.Parent                 = rebirthBg
-
-local rebirthInfo = Instance.new("TextLabel")
-rebirthInfo.Name                    = "InfoLabel"
-rebirthInfo.Size                    = UDim2.new(1, -10, 0.72, 0)
-rebirthInfo.Position                = UDim2.new(0, 5, 0.2, 0)
-rebirthInfo.BackgroundTransparency  = 1
-rebirthInfo.Text                    = ""
-rebirthInfo.TextColor3              = Color3.fromRGB(220, 220, 255)
-rebirthInfo.TextStrokeColor3        = Color3.fromRGB(0, 0, 0)
-rebirthInfo.TextStrokeTransparency  = 0.3
-rebirthInfo.TextScaled              = true
-rebirthInfo.TextYAlignment          = Enum.TextYAlignment.Top
-rebirthInfo.TextXAlignment          = Enum.TextXAlignment.Left
-rebirthInfo.Font                    = Enum.Font.GothamBold
-rebirthInfo.Parent                  = rebirthBg
-
--- Server-side function to update the rebirth sign billboard directly
-local function updateRebirthSign(player)
-	local nextLevel = (playerRebirth[player] or 0) + 1
-	if nextLevel > MAX_REBIRTHS then
-		rebirthInfo.Text = "MAX REBIRTH\nREACHED!"
-		return
-	end
-	local req = playerRebirthReq[player]
-	if not req then
-		rebirthInfo.Text = "No requirements yet..."
-		return
-	end
-	local rarityText = getRebirthRarityText(nextLevel)
-	local lines = "REBIRTH #" .. nextLevel .. "\n"
-	lines = lines .. "──────────────\n"
-	lines = lines .. rarityText .. "\n\n"
-	lines = lines .. "Cost: " .. tostring(req.cost) .. " credits"
-	rebirthInfo.Text = lines
-end
-rebirthInfo.Text = ""
-
-local rebirthClick = Instance.new("ClickDetector")
-rebirthClick.MaxActivationDistance = 12
-rebirthClick.Parent = rebirthPart
+-- Rebirth is now handled via the HUD button (RebirthRequested RemoteEvent)
+-- No physical sign or click detector needed
 
 local function getPlayerBrainrotNames(player)
 	local names = {}
@@ -1166,16 +1088,11 @@ local function processRebirth(clickingPlayer)
 			local rarityText = getRebirthRarityText(nextLevel + 1)
 			rebirthInfoEvent:FireClient(clickingPlayer, nextLevel, nextReq.brainrots, nextReq.cost, rarityText)
 		end
-		updateRebirthSign(clickingPlayer)
 	else
 		playerRebirthReq[clickingPlayer] = nil
 		rebirthInfoEvent:FireClient(clickingPlayer, nextLevel, {}, 0)
-		rebirthInfo.Text = "MAX REBIRTH REACHED!"
 	end
 end
-
--- ClickDetector (physical sign) still works as backup
-rebirthClick.MouseClick:Connect(processRebirth)
 
 -- RemoteEvent from client HUD button
 rebirthRequestEvent.OnServerEvent:Connect(processRebirth)
@@ -2029,9 +1946,8 @@ local function onPlayerAdded(player)
 	createSlotParts(player)
 	startCreditTick(player)
 
-	-- Initialize rebirth requirements and update the physical sign
+	-- Initialize rebirth requirements
 	local req = initRebirthReq(player)
-	updateRebirthSign(player)
 	print("[REBIRTH DEBUG] Player:", player.Name)
 	if req then
 		print("[REBIRTH DEBUG] brainrots:", table.concat(req.brainrots, ", "))

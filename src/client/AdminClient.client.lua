@@ -65,8 +65,9 @@ screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Forward declaration
+-- Forward declarations
 local togglePanel
+local refreshBanList
 
 -- =====================
 -- ADMIN-KNAPP (hittar Owner-knappen från BrainrotPlayerScripts)
@@ -186,7 +187,7 @@ closeCorner.Parent = closeBtn
 -- =====================
 -- TAB BAR
 -- =====================
-local TAB_NAMES = { "Members", "Brainrots", "Admin", "Logs" }
+local TAB_NAMES = { "Members", "Brainrots", "Admin", "Banned", "Logs" }
 local tabBar = Instance.new("Frame")
 tabBar.Size = UDim2.new(1, 0, 0, TAB_HEIGHT)
 tabBar.Position = UDim2.new(0, 0, 0, HEADER_HEIGHT)
@@ -288,6 +289,10 @@ local function switchTab(name)
 	activeTab = name
 	for tabName, frame in pairs(tabFrames) do
 		frame.Visible = (tabName == name)
+	end
+	-- Refresh ban list when switching to Banned tab
+	if name == "Banned" and refreshBanList then
+		task.spawn(refreshBanList)
 	end
 	for tabName, btn in pairs(tabButtons) do
 		if tabName == name then
@@ -882,7 +887,186 @@ kickBtn.MouseButton1Click:Connect(function()
 end)
 
 -- =====================================================
--- TAB 4: LOGS - admin action log
+-- TAB 4: BANNED - bannade spelare med unban-funktion
+-- =====================================================
+local bannedTab = tabFrames["Banned"]
+local getBanListFunc = ReplicatedStorage:WaitForChild("GetBanList", 10)
+local bannedRows = {}
+
+-- Ban from Members tab (add ban button to kick section)
+local banSection = createSection("Ban Player", bannedTab, "Banned")
+local banReasonInput = createInput(banSection, "Reason for ban", 1)
+
+-- Info text
+local banInfoLabel = Instance.new("TextLabel")
+banInfoLabel.Size = UDim2.new(1, 0, 0, 20)
+banInfoLabel.BackgroundTransparency = 1
+banInfoLabel.Text = "Select a player in Members tab first, then ban here"
+banInfoLabel.TextColor3 = COLORS.dimText
+banInfoLabel.TextSize = 11
+banInfoLabel.Font = Enum.Font.Gotham
+banInfoLabel.TextWrapped = true
+banInfoLabel.LayoutOrder = 2
+banInfoLabel.Parent = banSection
+
+local banBtn = createButton(banSection, "Ban Selected Player", COLORS.btnRed, 3)
+banBtn.MouseButton1Click:Connect(function()
+	local target = targetInput.Text
+	if #target == 0 then showStatus("Välj en spelare först (Members -> klicka namn)", false) return end
+	local reason = banReasonInput.Text
+	if #reason == 0 then reason = "Ingen anledning angiven" end
+	adminRemote:FireServer("BanPlayer", target, reason)
+	flashButton(banBtn, true)
+	-- Uppdatera listan efter en kort delay
+	task.delay(1, function() refreshBanList() end)
+end)
+
+-- Banned players header
+local bannedHeader = Instance.new("Frame")
+bannedHeader.Size = UDim2.new(1, 0, 0, 28)
+bannedHeader.BackgroundColor3 = COLORS.btnRed
+bannedHeader.LayoutOrder = nextOrder("Banned")
+bannedHeader.Parent = bannedTab
+local bhCorner = Instance.new("UICorner")
+bhCorner.CornerRadius = UDim.new(0, 6)
+bhCorner.Parent = bannedHeader
+
+local banCols = { { "Player", 0.25 }, { "Reason", 0.30 }, { "Banned By", 0.20 }, { "Date", 0.15 }, { "", 0.10 } }
+local bxOff = 0
+for _, col in ipairs(banCols) do
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(col[2], 0, 1, 0)
+	lbl.Position = UDim2.new(bxOff, 4, 0, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = col[1]
+	lbl.TextColor3 = COLORS.text
+	lbl.TextSize = 11
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.Parent = bannedHeader
+	bxOff = bxOff + col[2]
+end
+
+local banListOrder = nextOrder("Banned")
+
+local function clearBanRows()
+	for _, row in ipairs(bannedRows) do
+		row:Destroy()
+	end
+	bannedRows = {}
+end
+
+refreshBanList = function()
+	clearBanRows()
+	if not getBanListFunc then return end
+
+	local ok, list = pcall(function()
+		return getBanListFunc:InvokeServer()
+	end)
+	if not ok or not list or type(list) ~= "table" then return end
+
+	if #list == 0 then
+		local emptyLabel = Instance.new("TextLabel")
+		emptyLabel.Size = UDim2.new(1, 0, 0, 30)
+		emptyLabel.BackgroundColor3 = COLORS.section
+		emptyLabel.Text = "  Inga bannade spelare"
+		emptyLabel.TextColor3 = COLORS.dimText
+		emptyLabel.TextSize = 12
+		emptyLabel.Font = Enum.Font.Gotham
+		emptyLabel.TextXAlignment = Enum.TextXAlignment.Left
+		emptyLabel.LayoutOrder = banListOrder
+		emptyLabel.Parent = bannedTab
+		local ec = Instance.new("UICorner")
+		ec.CornerRadius = UDim.new(0, 4)
+		ec.Parent = emptyLabel
+		table.insert(bannedRows, emptyLabel)
+		return
+	end
+
+	for i, entry in ipairs(list) do
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 32)
+		row.BackgroundColor3 = (i % 2 == 0) and COLORS.rowEven or COLORS.rowOdd
+		row.LayoutOrder = banListOrder + i
+		row.Parent = bannedTab
+		local rc = Instance.new("UICorner")
+		rc.CornerRadius = UDim.new(0, 4)
+		rc.Parent = row
+
+		local nameLbl = Instance.new("TextLabel")
+		nameLbl.Size = UDim2.new(0.25, 0, 1, 0)
+		nameLbl.Position = UDim2.new(0, 6, 0, 0)
+		nameLbl.BackgroundTransparency = 1
+		nameLbl.Text = entry.name or "?"
+		nameLbl.TextColor3 = COLORS.text
+		nameLbl.TextSize = 11
+		nameLbl.Font = Enum.Font.GothamBold
+		nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+		nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+		nameLbl.Parent = row
+
+		local reasonLbl = Instance.new("TextLabel")
+		reasonLbl.Size = UDim2.new(0.30, 0, 1, 0)
+		reasonLbl.Position = UDim2.new(0.25, 4, 0, 0)
+		reasonLbl.BackgroundTransparency = 1
+		reasonLbl.Text = entry.reason or ""
+		reasonLbl.TextColor3 = COLORS.dimText
+		reasonLbl.TextSize = 11
+		reasonLbl.Font = Enum.Font.Gotham
+		reasonLbl.TextXAlignment = Enum.TextXAlignment.Left
+		reasonLbl.TextTruncate = Enum.TextTruncate.AtEnd
+		reasonLbl.Parent = row
+
+		local byLbl = Instance.new("TextLabel")
+		byLbl.Size = UDim2.new(0.20, 0, 1, 0)
+		byLbl.Position = UDim2.new(0.55, 4, 0, 0)
+		byLbl.BackgroundTransparency = 1
+		byLbl.Text = entry.bannedBy or "?"
+		byLbl.TextColor3 = COLORS.dimText
+		byLbl.TextSize = 11
+		byLbl.Font = Enum.Font.Gotham
+		byLbl.TextXAlignment = Enum.TextXAlignment.Left
+		byLbl.Parent = row
+
+		local dateLbl = Instance.new("TextLabel")
+		dateLbl.Size = UDim2.new(0.15, 0, 1, 0)
+		dateLbl.Position = UDim2.new(0.75, 4, 0, 0)
+		dateLbl.BackgroundTransparency = 1
+		dateLbl.Text = entry.timestamp and os.date("%m/%d", entry.timestamp) or "?"
+		dateLbl.TextColor3 = COLORS.dimText
+		dateLbl.TextSize = 11
+		dateLbl.Font = Enum.Font.Gotham
+		dateLbl.TextXAlignment = Enum.TextXAlignment.Left
+		dateLbl.Parent = row
+
+		local unbanBtn = Instance.new("TextButton")
+		unbanBtn.Size = UDim2.new(0.09, -2, 0, 22)
+		unbanBtn.Position = UDim2.new(0.90, 2, 0.5, -11)
+		unbanBtn.BackgroundColor3 = COLORS.btnGreen
+		unbanBtn.Text = "Unban"
+		unbanBtn.TextColor3 = COLORS.text
+		unbanBtn.TextSize = 10
+		unbanBtn.Font = Enum.Font.GothamBold
+		unbanBtn.Parent = row
+		local uc = Instance.new("UICorner")
+		uc.CornerRadius = UDim.new(0, 4)
+		uc.Parent = unbanBtn
+
+		unbanBtn.MouseButton1Click:Connect(function()
+			adminRemote:FireServer("UnbanPlayer", tostring(entry.userId))
+			flashButton(unbanBtn, true)
+			task.delay(0.5, function() refreshBanList() end)
+		end)
+
+		table.insert(bannedRows, row)
+	end
+end
+
+-- Refresh ban list when switching to Banned tab
+-- (handled in switchTab below)
+
+-- =====================================================
+-- TAB 5: LOGS - admin action log
 -- =====================================================
 local logsTab = tabFrames["Logs"]
 local logEntries = {}

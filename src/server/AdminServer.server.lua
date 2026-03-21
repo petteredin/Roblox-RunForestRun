@@ -122,6 +122,125 @@ local function sanitizeNumber(val)
 end
 
 -- =====================
+-- BAN SYSTEM (global, persistent via DataStore)
+-- =====================
+local banStore = nil
+pcall(function()
+	banStore = DataStoreService:GetDataStore("BannedPlayers")
+end)
+
+-- Lokal cache av bannade spelare (synkas med DataStore)
+local bannedPlayers = {} -- [UserId] = { name = "...", reason = "...", bannedBy = "...", timestamp = ... }
+
+-- Ladda ban-lista från DataStore vid start
+local function loadBanList()
+	if not banStore then return end
+	local ok, data = pcall(function()
+		return banStore:GetAsync("BanList")
+	end)
+	if ok and data and type(data) == "table" then
+		bannedPlayers = data
+		print("[ADMIN] Loaded " .. tostring(#(function() local c = 0; for _ in pairs(bannedPlayers) do c = c + 1 end; return c end)()) .. " banned players")
+	end
+end
+
+local function saveBanList()
+	if not banStore then return end
+	task.spawn(function()
+		pcall(function()
+			banStore:SetAsync("BanList", bannedPlayers)
+		end)
+	end)
+end
+
+local function isPlayerBanned(userId)
+	return bannedPlayers[tostring(userId)] ~= nil
+end
+
+local function banPlayer(targetUserId, targetName, reason, adminPlayer)
+	local key = tostring(targetUserId)
+	bannedPlayers[key] = {
+		name = targetName,
+		reason = reason or "Ingen anledning angiven",
+		bannedBy = adminPlayer.Name,
+		bannedById = adminPlayer.UserId,
+		timestamp = os.time(),
+	}
+	saveBanList()
+
+	-- Kick spelaren om de är online
+	local target = Players:GetPlayerByUserId(targetUserId)
+	if target then
+		target:Kick("Du har blivit bannad: " .. (reason or "Ingen anledning angiven"))
+	end
+
+	-- Publicera globalt så andra servrar också kickar
+	pcall(function()
+		local data = game:GetService("HttpService"):JSONEncode({
+			cmd = "BanPlayer",
+			args = { userId = targetUserId, name = targetName, reason = reason },
+		})
+		MessagingService:PublishAsync("AdminCommand", data)
+	end)
+end
+
+local function unbanPlayer(targetUserId)
+	local key = tostring(targetUserId)
+	local entry = bannedPlayers[key]
+	bannedPlayers[key] = nil
+	saveBanList()
+
+	-- Publicera globalt
+	pcall(function()
+		local data = game:GetService("HttpService"):JSONEncode({
+			cmd = "UnbanPlayer",
+			args = { userId = targetUserId },
+		})
+		MessagingService:PublishAsync("AdminCommand", data)
+	end)
+
+	return entry
+end
+
+-- Ladda ban-lista vid uppstart
+loadBanList()
+
+-- Kicka bannade spelare vid join
+Players.PlayerAdded:Connect(function(p)
+	if isPlayerBanned(p.UserId) then
+		local entry = bannedPlayers[tostring(p.UserId)]
+		local reason = entry and entry.reason or "Bannad"
+		p:Kick("Du är bannad: " .. reason)
+	end
+end)
+
+-- RemoteFunction för att hämta ban-listan (admin only)
+local getBanListFunc = ReplicatedStorage:FindFirstChild("GetBanList")
+if not getBanListFunc then
+	getBanListFunc = Instance.new("RemoteFunction")
+	getBanListFunc.Name = "GetBanList"
+	getBanListFunc.Parent = ReplicatedStorage
+end
+
+getBanListFunc.OnServerInvoke = function(requestingPlayer)
+	if not ADMINS[requestingPlayer.UserId] then return {} end
+	-- Returnera en lista för UI:n
+	local list = {}
+	for odId, entry in pairs(bannedPlayers) do
+		table.insert(list, {
+			userId = tonumber(odId),
+			name = entry.name or "Unknown",
+			reason = entry.reason or "",
+			bannedBy = entry.bannedBy or "Unknown",
+			timestamp = entry.timestamp or 0,
+		})
+	end
+	-- Sortera nyast först
+	table.sort(list, function(a, b) return (a.timestamp or 0) > (b.timestamp or 0) end)
+	return list
+end
+
+-- =====================
 -- REMOTE EVENT
 -- =====================
 local adminRemote = ReplicatedStorage:FindFirstChild("AdminRemote")
@@ -164,6 +283,21 @@ pcall(function()
 			GameManager.spawnBrainrot(data.args.name, data.args.mutation)
 		elseif data.cmd == "SpawnWave" then
 			GameManager.triggerWave(data.args.waveName)
+		elseif data.cmd == "BanPlayer" then
+			-- Annan server bannade en spelare - uppdatera lokal cache och kicka om online
+			local key = tostring(data.args.userId)
+			bannedPlayers[key] = {
+				name = data.args.name,
+				reason = data.args.reason,
+				bannedBy = "Remote",
+				timestamp = os.time(),
+			}
+			local target = Players:GetPlayerByUserId(data.args.userId)
+			if target then
+				target:Kick("Du har blivit bannad: " .. (data.args.reason or ""))
+			end
+		elseif data.cmd == "UnbanPlayer" then
+			bannedPlayers[tostring(data.args.userId)] = nil
 		end
 	end)
 end)
@@ -441,6 +575,48 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			ADMINS[target.UserId] = true
 			logAction(player, cmd, target.Name, "granted admin")
 			adminResponse:FireClient(player, true, "Gav admin till: " .. target.DisplayName)
+		end
+
+	-- =====================
+	-- BAN PLAYER
+	-- =====================
+	elseif cmd == "BanPlayer" then
+		local targetName = sanitizeString(args[1])
+		local reason = sanitizeString(args[2], 200) or "Ingen anledning angiven"
+		if not targetName or #targetName == 0 then
+			adminResponse:FireClient(player, false, "Ange ett spelarnamn att banna")
+			return
+		end
+		local target = findPlayer(targetName)
+		if target then
+			if ADMINS[target.UserId] then
+				adminResponse:FireClient(player, false, "Kan inte banna en admin")
+				return
+			end
+			logAction(player, cmd, target.Name, "reason=" .. reason)
+			banPlayer(target.UserId, target.Name, reason, player)
+			adminResponse:FireClient(player, true, "Bannade " .. target.DisplayName .. ": " .. reason)
+		else
+			-- Spelaren är inte online - försök banna via namn (kräver UserId)
+			adminResponse:FireClient(player, false, "Spelaren '" .. targetName .. "' hittades inte (måste vara online)")
+		end
+
+	-- =====================
+	-- UNBAN PLAYER
+	-- =====================
+	elseif cmd == "UnbanPlayer" then
+		local userIdStr = sanitizeString(args[1])
+		local userId = tonumber(userIdStr)
+		if not userId then
+			adminResponse:FireClient(player, false, "Ogiltigt UserId")
+			return
+		end
+		local entry = unbanPlayer(userId)
+		if entry then
+			logAction(player, cmd, entry.name or tostring(userId), "unbanned")
+			adminResponse:FireClient(player, true, "Avbannade " .. (entry.name or tostring(userId)))
+		else
+			adminResponse:FireClient(player, false, "Spelaren var inte bannad")
 		end
 
 	-- =====================

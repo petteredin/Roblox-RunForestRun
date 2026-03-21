@@ -584,8 +584,15 @@ local function createMemberRow(p, order)
 	adminToggleBtn.MouseButton1Click:Connect(function()
 		print("[ADMIN CLIENT] Toggle admin clicked for:", p.Name, "UserId:", p.UserId)
 		adminRemote:FireServer("ToggleAdmin", p.Name)
-		flashButton(adminToggleBtn, true)
-		showStatus("Sent ToggleAdmin for " .. p.Name, true)
+		-- Toggle button color immediately as visual feedback
+		local wasAdmin = adminToggleBtn.BackgroundColor3 == COLORS.header
+		if wasAdmin then
+			adminToggleBtn.BackgroundColor3 = COLORS.tabInactive
+			adminToggleBtn.TextColor3 = COLORS.dimText
+		else
+			adminToggleBtn.BackgroundColor3 = COLORS.header
+			adminToggleBtn.TextColor3 = COLORS.textDark
+		end
 	end)
 
 	kickBtn.MouseButton1Click:Connect(function()

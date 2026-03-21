@@ -402,7 +402,10 @@ end)
 -- =====================
 -- KOMMANDOHANTERING
 -- =====================
+print("[ADMIN SERVER] OnServerEvent handler registered on:", adminRemote:GetFullName(), "ClassName:", adminRemote.ClassName)
+
 adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
+	print("[ADMIN SERVER RAW] Received ANY command:", tostring(cmd), "from:", player.Name, "UserId:", player.UserId)
 	-- Säkerhetskontroll: är spelaren admin?
 	if not ADMINS[player.UserId] then
 		warn(string.format("[ADMIN SECURITY] Obehörig åtkomst av %s (%d) - cmd: %s",

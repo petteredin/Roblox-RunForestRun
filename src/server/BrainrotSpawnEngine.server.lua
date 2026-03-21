@@ -378,6 +378,12 @@ local function getEvoMult(player)
 end
 
 -- =====================
+-- SPEED CONSTANTS (behövs av admin-handlers)
+-- =====================
+local BASE_WALK_SPEED      = 16
+local SPEED_INCREMENT      = 1 / 100  -- +1% per second (100s = double speed)
+
+-- =====================
 -- ADMIN BINDABLE EVENTS
 -- Lyssnar på kommandon från AdminServer
 -- =====================
@@ -475,8 +481,6 @@ end
 -- SPEED ACCELERATOR
 -- =====================
 
-local BASE_WALK_SPEED      = 16
-local SPEED_INCREMENT      = 1 / 100  -- +1% per second (100s = double speed)
 local playerSpeedTime      = {}       -- tracks seconds spent in game
 local playerRebirthInfoSent = {}      -- tracks if rebirth info was sent to client
 

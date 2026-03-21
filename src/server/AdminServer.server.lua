@@ -5,22 +5,32 @@
 -- Placeras i ServerScriptService.
 -- =============================================
 
+print("[ADMIN SERVER] ====== AdminServer.lua starting ======")
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
 local MessagingService = game:GetService("MessagingService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
--- BindableFunctions som BrainrotSpawnEngine lyssnar på
-local function waitForBindable(name)
-	return ServerScriptService:WaitForChild(name, 15)
-end
+-- BindableFunctions hämtas asynkront så vi inte blockerar startup
+local adminAddCredits  = nil
+local adminSetCredits  = nil
+local adminSetRebirth  = nil
+local adminGiveRebirth = nil
+local adminSetSpeed    = nil
 
-local adminAddCredits  = waitForBindable("AdminAddCredits")
-local adminSetCredits  = waitForBindable("AdminSetCredits")
-local adminSetRebirth  = waitForBindable("AdminSetRebirth")
-local adminGiveRebirth = waitForBindable("AdminGiveRebirth")
-local adminSetSpeed    = waitForBindable("AdminSetSpeed")
+task.spawn(function()
+	adminAddCredits  = ServerScriptService:WaitForChild("AdminAddCredits", 30)
+	adminSetCredits  = ServerScriptService:WaitForChild("AdminSetCredits", 30)
+	adminSetRebirth  = ServerScriptService:WaitForChild("AdminSetRebirth", 30)
+	adminGiveRebirth = ServerScriptService:WaitForChild("AdminGiveRebirth", 30)
+	adminSetSpeed    = ServerScriptService:WaitForChild("AdminSetSpeed", 30)
+	print("[ADMIN SERVER] BindableFunctions loaded:",
+		adminAddCredits ~= nil, adminSetCredits ~= nil,
+		adminSetRebirth ~= nil, adminGiveRebirth ~= nil,
+		adminSetSpeed ~= nil)
+end)
 
 -- =====================
 -- WHITELIST (hardkodade ägare som alltid är admin)

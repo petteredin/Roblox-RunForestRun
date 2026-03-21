@@ -308,6 +308,8 @@ getRebirthInfoFunc.OnServerInvoke = function(player)
 	if not req then
 		req = generateRebirthReq(player)
 	end
+	-- Also update the physical sign billboard
+	updateRebirthSign(player)
 	return playerRebirth[player] or 0, req.brainrots, req.cost
 end
 
@@ -906,8 +908,21 @@ rebirthInfo.TextXAlignment          = Enum.TextXAlignment.Left
 rebirthInfo.Font                    = Enum.Font.GothamBold
 rebirthInfo.Parent                  = rebirthBg
 
--- Default text (client will overwrite with player-specific requirements)
-rebirthInfo.Text = "Loading requirements..."
+-- Server-side function to update the rebirth sign billboard directly
+local function updateRebirthSign(player)
+	local req = playerRebirthReq[player]
+	if not req then
+		rebirthInfo.Text = "No requirements yet..."
+		return
+	end
+	local lines = "Requires:\n"
+	for i, name in ipairs(req.brainrots) do
+		lines = lines .. "  " .. i .. ". " .. name .. "\n"
+	end
+	lines = lines .. "\nCost: " .. tostring(req.cost) .. " credits"
+	rebirthInfo.Text = lines
+end
+rebirthInfo.Text = "Waiting for player..."
 
 local rebirthClick = Instance.new("ClickDetector")
 rebirthClick.MaxActivationDistance = 12
@@ -1012,9 +1027,11 @@ rebirthClick.MouseClick:Connect(function(clickingPlayer)
 	if nextLevel < MAX_REBIRTHS then
 		local nextReq = generateRebirthReq(clickingPlayer)
 		rebirthInfoEvent:FireClient(clickingPlayer, nextLevel, nextReq.brainrots, nextReq.cost)
+		updateRebirthSign(clickingPlayer)
 	else
 		playerRebirthReq[clickingPlayer] = nil
 		rebirthInfoEvent:FireClient(clickingPlayer, nextLevel, {}, 0)
+		rebirthInfo.Text = "MAX REBIRTH REACHED!"
 	end
 end)
 
@@ -1855,8 +1872,9 @@ local function onPlayerAdded(player)
 	createSlotParts(player)
 	startCreditTick(player)
 
-	-- Generate rebirth requirements (sent to client on CharacterAdded when client is ready)
+	-- Generate rebirth requirements and update the physical sign
 	generateRebirthReq(player)
+	updateRebirthSign(player)
 
 	player.CharacterAdded:Connect(function(character)
 		task.wait(1)

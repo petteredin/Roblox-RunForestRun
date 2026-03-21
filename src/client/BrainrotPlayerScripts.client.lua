@@ -164,7 +164,7 @@ end)
 local speedUpdateEvent   = game.ReplicatedStorage:WaitForChild("SpeedUpdate")
 local rebirthResultEvent = game.ReplicatedStorage:WaitForChild("RebirthResult")
 local rebirthInfoEvent   = game.ReplicatedStorage:WaitForChild("RebirthInfo")
-local getRebirthInfoFunc = game.ReplicatedStorage:WaitForChild("GetRebirthInfo")
+local getRebirthInfoFunc = game.ReplicatedStorage:WaitForChild("GetRebirthInfo", 10)
 
 local walletGui = Instance.new("ScreenGui")
 walletGui.Name = "WalletGui"
@@ -343,6 +343,10 @@ end)
 
 -- Pull initial rebirth requirements from server (client is ready now)
 task.spawn(function()
+	if not getRebirthInfoFunc then
+		warn("[CLIENT] GetRebirthInfo RemoteFunction not found")
+		return
+	end
 	local ok, level, brainrots, cost = pcall(function()
 		return getRebirthInfoFunc:InvokeServer()
 	end)
@@ -350,6 +354,8 @@ task.spawn(function()
 		rebirthLabel.Text = "Rebirth #" .. (level or 0)
 		updateRebirthReqDisplay(brainrots, cost)
 		updateRebirthSign(brainrots, cost)
+	else
+		warn("[CLIENT] Failed to get rebirth info:", level)
 	end
 end)
 

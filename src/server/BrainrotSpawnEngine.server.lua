@@ -1129,8 +1129,8 @@ local function createPrompt(brainrot, brainrotDef, player)
 	billboard.Name        = "PickupPrompt"
 	billboard.Size        = UDim2.new(0, 80, 0, 50)
 	billboard.StudsOffset = Vector3.new(0, 4, 0)
-	billboard.AlwaysOnTop = false
-	billboard.MaxDistance  = 20
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance  = 40
 	billboard.Enabled     = true
 	billboard.Parent      = attachTo
 

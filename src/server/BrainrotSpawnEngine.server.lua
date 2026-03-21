@@ -195,8 +195,8 @@ local function generateRebirthReq(player)
 	-- Pick 3 random brainrots from catalog (allow duplicates)
 	local names = {}
 	for i = 1, REBIRTH_REQUIRED_COUNT do
-		local idx = math.random(1, #BRAINROT_CATALOG)
-		table.insert(names, BRAINROT_CATALOG[idx].name)
+		local idx = math.random(1, #BRAINROTS)
+		table.insert(names, BRAINROTS[idx].name)
 	end
 
 	playerRebirthReq[player] = { brainrots = names, cost = cost }
@@ -1472,14 +1472,13 @@ remoteEvent.OnServerEvent:Connect(function(player, brainrot, isHolding)
 	if playerHasPickup[player] then return end
 	if not brainrot or not brainrot.Parent then return end
 
+	-- Walk up to find the tagged ancestor (handles any hierarchy depth)
 	local obj = brainrot
-	while obj and obj.Parent and obj.Parent ~= workspace do
-		-- Walk up to find the top-level object (could be in a zone folder now)
-		if obj.Parent == workspace or (obj.Parent and obj.Parent.Parent == workspace) then
-			break
-		end
+	while obj do
+		if CollectionService:HasTag(obj, TAG_SPAWNED_BRAINROT) then break end
 		obj = obj.Parent
 	end
+	if not obj then return end
 	-- Resolve to the Model if the clicked part is inside one
 	if obj and obj.Parent and obj.Parent:IsA("Folder") and obj:IsA("Model") then
 		brainrot = obj

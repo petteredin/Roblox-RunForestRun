@@ -132,6 +132,43 @@ local function startSellAnimation(sellPrice)
 	end)
 end
 
+-- Popup label (must be defined before event handlers that call showPopup)
+local popupLabel = Instance.new("TextLabel")
+popupLabel.Size = UDim2.new(0, 220, 0, 30)
+popupLabel.Position = UDim2.new(0, 16, 0, 330)
+popupLabel.BackgroundTransparency = 1
+popupLabel.Text = ""
+popupLabel.TextXAlignment = Enum.TextXAlignment.Left
+popupLabel.TextScaled = true
+popupLabel.Font = Enum.Font.GothamBold
+popupLabel.TextTransparency = 1
+-- Parent set later after walletGui is created
+
+local popupConnection = nil
+
+local function showPopup(text, color)
+	if popupConnection then
+		popupConnection:Disconnect()
+		popupConnection = nil
+	end
+	popupLabel.Text = text
+	popupLabel.TextColor3 = color or Color3.fromRGB(100, 255, 100)
+	popupLabel.TextTransparency = 0
+	popupLabel.Position = UDim2.new(0, 16, 0, 330)
+	local startTime = tick()
+	local duration = 1.8
+	popupConnection = RunService.RenderStepped:Connect(function()
+		local t = math.min((tick() - startTime) / duration, 1)
+		popupLabel.TextTransparency = t
+		popupLabel.Position = UDim2.new(0, 16, 0, 330 - t * 24)
+		if t >= 1 then
+			popupConnection:Disconnect()
+			popupConnection = nil
+			popupLabel.Text = ""
+		end
+	end)
+end
+
 progressEvent.OnClientEvent:Connect(function(progress)
 	if progress <= 0 then
 		if not isSelling then resetBar() end
@@ -370,42 +407,8 @@ rebirthResultEvent.OnClientEvent:Connect(function(success, dataOrLevel, newWalle
 	end
 end)
 
-local popupLabel = Instance.new("TextLabel")
-popupLabel.Size = UDim2.new(0, 220, 0, 30)
-popupLabel.Position = UDim2.new(0, 16, 0, 330)
-popupLabel.BackgroundTransparency = 1
-popupLabel.Text = ""
-popupLabel.TextXAlignment = Enum.TextXAlignment.Left
-popupLabel.TextScaled = true
-popupLabel.Font = Enum.Font.GothamBold
-popupLabel.TextTransparency = 1
+-- popupLabel parented to walletGui now that it exists
 popupLabel.Parent = walletGui
-
-local popupConnection = nil
-
--- FIX v0.24: showPopup is now local
-local function showPopup(text, color)
-	if popupConnection then
-		popupConnection:Disconnect()
-		popupConnection = nil
-	end
-	popupLabel.Text = text
-	popupLabel.TextColor3 = color or Color3.fromRGB(100, 255, 100)
-	popupLabel.TextTransparency = 0
-	popupLabel.Position = UDim2.new(0, 16, 0, 202)
-	local startTime = tick()
-	local duration = 1.8
-	popupConnection = RunService.RenderStepped:Connect(function()
-		local t = math.min((tick() - startTime) / duration, 1)
-		popupLabel.TextTransparency = t
-		popupLabel.Position = UDim2.new(0, 16, 0, 330 - t * 24)
-		if t >= 1 then
-			popupConnection:Disconnect()
-			popupConnection = nil
-			popupLabel.Text = ""
-		end
-	end)
-end
 
 player.CharacterAdded:Connect(function()
 	walletTotal = 0

@@ -1170,11 +1170,60 @@ closeBtn.MouseButton1Click:Connect(function()
 end)
 
 -- =====================
+-- UNDO SYSTEM
+-- =====================
+local lastUndoData = nil -- { undoCmd = "...", undoArgs = {...}, desc = "..." }
+
+-- Undo-knapp (bredvid statusraden, längst ner)
+local undoBtn = Instance.new("TextButton")
+undoBtn.Name = "UndoButton"
+undoBtn.Size = UDim2.new(0, 80, 0, 24)
+undoBtn.Position = UDim2.new(1, -88, 1, -28)
+undoBtn.BackgroundColor3 = Color3.fromRGB(220, 160, 40)
+undoBtn.Text = "↩ Undo"
+undoBtn.TextColor3 = COLORS.textDark
+undoBtn.TextSize = 12
+undoBtn.Font = Enum.Font.GothamBold
+undoBtn.Visible = false
+undoBtn.Parent = panelFrame
+local undoCorner = Instance.new("UICorner")
+undoCorner.CornerRadius = UDim.new(0, 6)
+undoCorner.Parent = undoBtn
+
+-- Justera statusraden så den inte överlappar undo-knappen
+statusLabel.Size = UDim2.new(1, -108, 0, 24)
+
+undoBtn.MouseButton1Click:Connect(function()
+	if not lastUndoData then return end
+	local data = lastUndoData
+	lastUndoData = nil
+	undoBtn.Visible = false
+	showStatus("Ångrar: " .. (data.desc or "..."), true)
+	adminRemote:FireServer(data.undoCmd, unpack(data.undoArgs))
+end)
+
+-- =====================
 -- RESPONS FRÅN SERVERN
 -- =====================
-adminResponse.OnClientEvent:Connect(function(success, message)
+adminResponse.OnClientEvent:Connect(function(success, message, undoData)
 	showStatus(message or (success and "OK" or "Fel"), success)
 	addLogEntry(message or (success and "OK" or "Fel"), not success)
+
+	-- Visa undo-knapp om servern skickade undo-data
+	if success and undoData and type(undoData) == "table" and undoData.undoCmd then
+		lastUndoData = undoData
+		undoBtn.Visible = true
+		-- Auto-dölj undo efter 30 sekunder
+		local currentData = undoData
+		task.delay(30, function()
+			if lastUndoData == currentData then
+				lastUndoData = nil
+				undoBtn.Visible = false
+			end
+		end)
+	else
+		-- Ej undo-bar åtgärd (kick, etc.) - behåll eventuell existerande undo
+	end
 end)
 
 -- Start on Members tab

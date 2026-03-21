@@ -462,10 +462,11 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			adminResponse:FireClient(player, false, "Server not ready - try again")
 			return
 		end
-		local ok, err = adminAddCredits:Invoke(target, amount)
+		local ok, err, prevValue = adminAddCredits:Invoke(target, amount)
 		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
 		if ok then
-			adminResponse:FireClient(player, true, "Lade till " .. amount .. " credits till " .. target.Name)
+			adminResponse:FireClient(player, true, "Lade till " .. amount .. " credits till " .. target.Name,
+				{ undoCmd = "SetCredits", undoArgs = { target.Name, prevValue }, desc = "Undo: Återställ credits till " .. tostring(prevValue) })
 		else
 			adminResponse:FireClient(player, false, err or "Okänt fel")
 		end
@@ -492,10 +493,11 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			adminResponse:FireClient(player, false, "Server not ready - try again")
 			return
 		end
-		local ok, err = adminSetCredits:Invoke(target, amount)
+		local ok, err, prevValue = adminSetCredits:Invoke(target, amount)
 		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
 		if ok then
-			adminResponse:FireClient(player, true, "Satte credits till " .. amount .. " för " .. target.Name)
+			adminResponse:FireClient(player, true, "Satte credits till " .. amount .. " för " .. target.Name,
+				{ undoCmd = "SetCredits", undoArgs = { target.Name, prevValue }, desc = "Undo: Återställ credits till " .. tostring(prevValue) })
 		else
 			adminResponse:FireClient(player, false, err or "Okänt fel")
 		end
@@ -522,10 +524,11 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			adminResponse:FireClient(player, false, "Server not ready - try again")
 			return
 		end
-		local ok, err = adminSetRebirth:Invoke(target, amount)
+		local ok, err, prevValue = adminSetRebirth:Invoke(target, amount)
 		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
 		if ok then
-			adminResponse:FireClient(player, true, "Satte rebirth till " .. amount .. " för " .. target.Name)
+			adminResponse:FireClient(player, true, "Satte rebirth till " .. amount .. " för " .. target.Name,
+				{ undoCmd = "SetRebirth", undoArgs = { target.Name, prevValue }, desc = "Undo: Återställ rebirth till " .. tostring(prevValue) })
 		else
 			adminResponse:FireClient(player, false, err or "Okänt fel")
 		end
@@ -547,10 +550,11 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			adminResponse:FireClient(player, false, "Server not ready - try again")
 			return
 		end
-		local ok, err = adminGiveRebirth:Invoke(target)
+		local ok, err, prevValue = adminGiveRebirth:Invoke(target)
 		logAction(player, cmd, target.Name)
 		if ok then
-			adminResponse:FireClient(player, true, "Gav rebirth till " .. target.Name)
+			adminResponse:FireClient(player, true, "Gav rebirth till " .. target.Name,
+				{ undoCmd = "SetRebirth", undoArgs = { target.Name, prevValue }, desc = "Undo: Återställ rebirth till " .. tostring(prevValue) })
 		else
 			adminResponse:FireClient(player, false, err or "Okänt fel")
 		end
@@ -577,10 +581,11 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			adminResponse:FireClient(player, false, "Server not ready - try again")
 			return
 		end
-		local ok, err = adminSetSpeed:Invoke(target, multiplier)
+		local ok, err, prevValue = adminSetSpeed:Invoke(target, multiplier)
 		logAction(player, cmd, target.Name, "multiplier=" .. tostring(multiplier))
 		if ok then
-			adminResponse:FireClient(player, true, "Satte speed till " .. multiplier .. "x för " .. target.Name)
+			adminResponse:FireClient(player, true, "Satte speed till " .. multiplier .. "x för " .. target.Name,
+				{ undoCmd = "SetSpeed", undoArgs = { target.Name, prevValue }, desc = "Undo: Återställ speed till " .. string.format("%.2f", prevValue or 0) .. "x" })
 		else
 			adminResponse:FireClient(player, false, err or "Okänt fel")
 		end
@@ -727,7 +732,8 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			end
 			logAction(player, cmd, target.Name, "reason=" .. reason)
 			banPlayer(target.UserId, target.Name, reason, player)
-			adminResponse:FireClient(player, true, "Bannade " .. target.DisplayName .. ": " .. reason)
+			adminResponse:FireClient(player, true, "Bannade " .. target.DisplayName .. ": " .. reason,
+				{ undoCmd = "UnbanPlayer", undoArgs = { tostring(target.UserId) }, desc = "Undo: Avbanna " .. target.DisplayName })
 		else
 			-- Spelaren är inte online - försök banna via namn (kräver UserId)
 			adminResponse:FireClient(player, false, "Spelaren '" .. targetName .. "' hittades inte (måste vara online)")

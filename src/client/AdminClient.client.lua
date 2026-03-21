@@ -338,10 +338,116 @@ local function flashButton(btn, success)
 end
 
 -- =====================
--- SEKTION: Target Player (global input)
+-- SEKTION: Target Player (global input med autocomplete)
 -- =====================
 local targetSection = createSection("Target Player")
 local targetInput = createInput(targetSection, "Player name (blank = yourself)", 1)
+
+-- Autocomplete dropdown (skapas utanför targetSection för att kunna överlappa)
+local autocompleteFrame = Instance.new("Frame")
+autocompleteFrame.Name = "AutocompleteDropdown"
+autocompleteFrame.Size = UDim2.new(1, -20, 0, 0) -- Bredd matchar input, höjd dynamisk
+autocompleteFrame.AutomaticSize = Enum.AutomaticSize.Y
+autocompleteFrame.BackgroundColor3 = COLORS.input
+autocompleteFrame.BorderSizePixel = 0
+autocompleteFrame.Visible = false
+autocompleteFrame.ZIndex = 100
+autocompleteFrame.LayoutOrder = 2
+autocompleteFrame.Parent = targetSection
+local acCorner = Instance.new("UICorner")
+acCorner.CornerRadius = UDim.new(0, 6)
+acCorner.Parent = autocompleteFrame
+local acStroke = Instance.new("UIStroke")
+acStroke.Color = COLORS.header
+acStroke.Thickness = 1
+acStroke.Parent = autocompleteFrame
+local acLayout = Instance.new("UIListLayout")
+acLayout.Padding = UDim.new(0, 0)
+acLayout.SortOrder = Enum.SortOrder.LayoutOrder
+acLayout.Parent = autocompleteFrame
+
+local MAX_SUGGESTIONS = 5
+
+local function clearAutocomplete()
+	for _, child in ipairs(autocompleteFrame:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+	autocompleteFrame.Visible = false
+end
+
+local function updateAutocomplete(query)
+	clearAutocomplete()
+	if query == "" then return end
+
+	local lowerQuery = query:lower()
+	local matches = {}
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player or true then -- Inkludera alla, även sig själv
+			local name = p.Name:lower()
+			local display = p.DisplayName:lower()
+			if name:find(lowerQuery, 1, true) or display:find(lowerQuery, 1, true) then
+				table.insert(matches, p)
+			end
+		end
+		if #matches >= MAX_SUGGESTIONS then break end
+	end
+
+	if #matches == 0 then return end
+	-- Visa inte dropdown om exakt match redan finns
+	if #matches == 1 and (matches[1].Name:lower() == lowerQuery or matches[1].DisplayName:lower() == lowerQuery) then
+		return
+	end
+
+	for i, matchPlayer in ipairs(matches) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, 0, 0, 28)
+		btn.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(55, 55, 70) or Color3.fromRGB(45, 45, 60)
+		btn.BackgroundTransparency = 0
+		btn.Text = "  " .. matchPlayer.DisplayName .. " (@" .. matchPlayer.Name .. ")"
+		btn.TextColor3 = COLORS.text
+		btn.TextSize = 12
+		btn.Font = Enum.Font.Gotham
+		btn.TextXAlignment = Enum.TextXAlignment.Left
+		btn.LayoutOrder = i
+		btn.ZIndex = 101
+		btn.Parent = autocompleteFrame
+
+		-- Avrundade hörn på första/sista
+		if i == 1 or i == #matches then
+			local bc = Instance.new("UICorner")
+			bc.CornerRadius = UDim.new(0, 6)
+			bc.Parent = btn
+		end
+
+		btn.MouseButton1Click:Connect(function()
+			targetInput.Text = matchPlayer.Name
+			clearAutocomplete()
+		end)
+	end
+
+	autocompleteFrame.Visible = true
+end
+
+-- Koppla autocomplete till targetInput
+targetInput:GetPropertyChangedSignal("Text"):Connect(function()
+	updateAutocomplete(targetInput.Text)
+end)
+
+targetInput.Focused:Connect(function()
+	if targetInput.Text ~= "" then
+		updateAutocomplete(targetInput.Text)
+	end
+end)
+
+targetInput.FocusLost:Connect(function()
+	-- Liten delay så att knapptryck hinner registreras
+	task.delay(0.15, function()
+		clearAutocomplete()
+	end)
+end)
 
 -- =====================
 -- SEKTION 1: Credits

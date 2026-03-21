@@ -1641,17 +1641,16 @@ end)
 local allTimeStore = DataStoreService:GetDataStore("AllTimeEarnings_v1")
 
 -- LeaderboardWall: Pos (-5, 12, 4.5), Size (2, 22, 59), Orientation (0, -180, 0)
-local WALL_POS  = Vector3.new(-5, 12, 4.5)
-local WALL_Y    = WALL_POS.Y
-local WALL_Z    = WALL_POS.Z
-local WALL_X    = WALL_POS.X
-local WALL_WIDTH = 59  -- Z-axis width
+-- The wall faces +X direction (players approach from +X side)
+-- Board parts sit flush on the +X face of the wall at X = -5 + 1 = -4
+local WALL_CENTER = Vector3.new(-5, 12, 4.5)
+local BOARD_X     = WALL_CENTER.X + 1.2  -- flush with +X face of wall
 
-local function createLedBoard(posX, posY, posZ, title, faceDir)
+local function createLedBoard(posX, posY, posZ, title)
 	local board = Instance.new("Part")
 	board.Name        = title .. "Board"
-	board.Size        = Vector3.new(0.3, 20, 27)
-	board.CFrame      = CFrame.new(posX, posY, posZ) * CFrame.Angles(0, math.rad(180), 0)
+	board.Size        = Vector3.new(27, 20, 0.3)
+	board.Position    = Vector3.new(posX, posY, posZ)
 	board.Anchored    = true
 	board.CanCollide  = false
 	board.BrickColor  = BrickColor.new("Really black")
@@ -1659,7 +1658,7 @@ local function createLedBoard(posX, posY, posZ, title, faceDir)
 	board.Parent      = workspace
 
 	local gui = Instance.new("SurfaceGui")
-	gui.Face           = Enum.NormalId.Front
+	gui.Face           = Enum.NormalId.Back
 	gui.CanvasSize     = Vector2.new(600, 800)
 	gui.AlwaysOnTop    = false
 	gui.LightInfluence = 0
@@ -1792,9 +1791,8 @@ local function createLedBoard(posX, posY, posZ, title, faceDir)
 end
 
 -- Place boards on the LeaderboardWall, side by side (wall is 59 studs wide on Z)
--- Left board at Z - 14.5, right board at Z + 14.5
-local allTimeRows = createLedBoard(WALL_X - 0.5, WALL_Y, WALL_Z - 14.5, "ALL TIME")
-local sessionRows = createLedBoard(WALL_X - 0.5, WALL_Y, WALL_Z + 14.5, "THIS SESSION")
+local allTimeRows = createLedBoard(BOARD_X, WALL_CENTER.Y, WALL_CENTER.Z - 14.5, "ALL TIME")
+local sessionRows = createLedBoard(BOARD_X, WALL_CENTER.Y, WALL_CENTER.Z + 14.5, "THIS SESSION")
 
 local function formatScore(n)
 	if n >= 1000000 then

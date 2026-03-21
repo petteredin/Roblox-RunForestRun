@@ -274,6 +274,7 @@ local playerSelling    = {}
 -- playerRebirth declared earlier (needed by initRebirthReq)
 local playerDepositing = {}
 local playerBaseIndex  = {}
+local playerCollection = {} -- [player] = { ["BrainrotName:MUTATION"] = true }
 local sessionEarnings  = {}
 local slotDepositTime  = {}  -- tracks when each slot was last deposited (grace period for sell)
 
@@ -352,6 +353,12 @@ local rebirthRequestEvent = getOrCreateRemote("RebirthRequested")
 local spawnNotifyEvent    = getOrCreateRemote("SpawnNotify")
 local adminCheckEvent    = getOrCreateRemote("AdminCheck")
 local getRebirthInfoFunc = getOrCreateRemoteFunction("GetRebirthInfo")
+local collectionUpdateEvent = getOrCreateRemote("CollectionUpdate")
+local getCollectionFunc = getOrCreateRemoteFunction("GetCollection")
+
+getCollectionFunc.OnServerInvoke = function(requestingPlayer)
+	return playerCollection[requestingPlayer] or {}
+end
 
 -- Client can pull rebirth requirements when ready
 getRebirthInfoFunc.OnServerInvoke = function(player)
@@ -1308,6 +1315,16 @@ local function attachBrainrotToPlayer(player, brainrot)
 	-- Remove spawned tag since it's now being carried
 	CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
 
+	-- Track collection
+	local bName = brainrot:GetAttribute("BrainrotName") or brainrot.Name
+	local mutation = brainrot:GetAttribute("Mutation") or "NONE"
+	if not playerCollection[player] then playerCollection[player] = {} end
+	local key = bName .. ":" .. mutation
+	if not playerCollection[player][key] then
+		playerCollection[player][key] = true
+		collectionUpdateEvent:FireClient(player, key)
+	end
+
 	if brainrot:IsA("Model") then
 		if not brainrot.PrimaryPart then
 			local firstPart = brainrot:FindFirstChildWhichIsA("BasePart")
@@ -1782,6 +1799,15 @@ local function savePlayerData(player)
 		end
 	end
 
+	-- Save collection
+	local collList = {}
+	if playerCollection[player] then
+		for key in pairs(playerCollection[player]) do
+			table.insert(collList, key)
+		end
+	end
+	data.collection = collList
+
 	local ok, err = pcall(function()
 		playerDataStore:SetAsync("player_" .. player.UserId, data)
 	end)
@@ -2217,6 +2243,14 @@ local function onPlayerAdded(player)
 		end
 	end
 
+	-- Restore collection
+	if savedData and savedData.collection then
+		playerCollection[player] = {}
+		for _, key in ipairs(savedData.collection) do
+			playerCollection[player][key] = true
+		end
+	end
+
 	startCreditTick(player)
 
 	-- Initialize rebirth requirements
@@ -2311,6 +2345,7 @@ Players.PlayerRemoving:Connect(function(player)
 	slotDepositTime[player]  = nil
 	lastPickupTime[player]   = nil
 	playerSpeedTime[player]  = nil
+	playerCollection[player] = nil
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do

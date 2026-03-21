@@ -1012,6 +1012,7 @@ local function getPlayerBrainrotNames(player)
 	return names
 end
 
+-- Remove ALL brainrots from base (used on disconnect etc.)
 local function clearPlayerBase(player)
 	if not playerSlots[player] then return end
 	for i = 1, BASE_SLOTS do
@@ -1040,6 +1041,58 @@ local function clearPlayerBase(player)
 		end
 		carriedBrainrots[player] = nil
 		playerHasPickup[player] = false
+	end
+end
+
+-- Remove only the required brainrots (by rarity) for rebirth, keep the rest
+local function consumeRebirthBrainrots(player, spec)
+	if not playerSlots[player] or not spec then return end
+
+	-- Build a remaining-need counter per rarity
+	local needed = {}
+	for _, group in ipairs(spec) do
+		needed[group.rarity] = (needed[group.rarity] or 0) + group.count
+	end
+
+	-- Find brainrot rarity by name
+	local function getBrainrotRarity(brainrotName)
+		for _, b in ipairs(BRAINROTS) do
+			if b.name == brainrotName then return b.rarity end
+		end
+		return nil
+	end
+
+	-- Pass 1: identify which slots to consume
+	local slotsToRemove = {}
+	for i = 1, BASE_SLOTS do
+		local slot = playerSlots[player][i]
+		if slot and slot.block and slot.block.Parent then
+			local bName = slot.block:GetAttribute("BrainrotName") or slot.block.Name
+			local rarity = getBrainrotRarity(bName)
+			if rarity and needed[rarity] and needed[rarity] > 0 then
+				table.insert(slotsToRemove, i)
+				needed[rarity] = needed[rarity] - 1
+			end
+		end
+	end
+
+	-- Pass 2: destroy only the consumed slots
+	for _, slotIndex in ipairs(slotsToRemove) do
+		local slot = playerSlots[player][slotIndex]
+		if slot and slot.block and slot.block.Parent then
+			CollectionService:RemoveTag(slot.block, TAG_STORED_BRAINROT)
+			slot.block:Destroy()
+		end
+		playerSlots[player][slotIndex] = nil
+		if slotUpgrades[player] then slotUpgrades[player][slotIndex] = 0 end
+		if creditPlates[player] and creditPlates[player][slotIndex] then
+			creditPlates[player][slotIndex].credits = 0
+			creditPlates[player][slotIndex].label.Text = ""
+			if creditPlates[player][slotIndex].billboard then
+				creditPlates[player][slotIndex].billboard.Enabled = false
+			end
+		end
+		setSlotFilled(player, slotIndex, nil)
 	end
 end
 
@@ -1094,9 +1147,9 @@ rebirthClick.MouseClick:Connect(function(clickingPlayer)
 		return
 	end
 
-	-- All requirements met! Execute rebirth
+	-- All requirements met! Execute rebirth - only consume required brainrots
 	playerWallet[clickingPlayer] = wallet - req.cost
-	clearPlayerBase(clickingPlayer)
+	consumeRebirthBrainrots(clickingPlayer, req.spec)
 	local nextLevel = currentRebirth + 1
 	playerRebirth[clickingPlayer] = nextLevel
 

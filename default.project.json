@@ -6,6 +6,12 @@
       "$className": "ServerScriptService",
       "BrainrotSpawnEngine": {
         "$path": "src/server/BrainrotSpawnEngine.server.lua"
+      },
+      "AdminServer": {
+        "$path": "src/server/AdminServer.server.lua"
+      },
+      "GameManager": {
+        "$path": "src/server/GameManager.lua"
       }
     },
     "StarterPlayer": {
@@ -14,6 +20,9 @@
         "$className": "StarterPlayerScripts",
         "BrainrotPlayerScripts": {
           "$path": "src/client/BrainrotPlayerScripts.client.lua"
+        },
+        "AdminClient": {
+          "$path": "src/client/AdminClient.client.lua"
         }
       }
     },

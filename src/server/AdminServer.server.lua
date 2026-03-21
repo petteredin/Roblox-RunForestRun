@@ -574,7 +574,13 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			-- Lägg till som admin
 			ADMINS[target.UserId] = true
 			logAction(player, cmd, target.Name, "granted admin")
-			adminResponse:FireClient(player, true, "Gav admin till: " .. target.DisplayName)
+			adminResponse:FireClient(player, true, "Gav admin till: " .. target.DisplayName .. " (måste rejoina för panel)")
+
+			-- Visa Owner-knappen för den nya adminen via adminCheckEvent
+			local adminCheckEvent = ReplicatedStorage:FindFirstChild("AdminCheck")
+			if adminCheckEvent then
+				adminCheckEvent:FireClient(target, true)
+			end
 		end
 
 	-- =====================

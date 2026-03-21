@@ -211,6 +211,108 @@ local rebirthInfoEvent    = game.ReplicatedStorage:WaitForChild("RebirthInfo")
 local rebirthRequestEvent = game.ReplicatedStorage:WaitForChild("RebirthRequested")
 local adminCheckEvent     = game.ReplicatedStorage:WaitForChild("AdminCheck", 10)
 local getRebirthInfoFunc  = game.ReplicatedStorage:WaitForChild("GetRebirthInfo", 10)
+local spawnNotifyEvent    = game.ReplicatedStorage:WaitForChild("SpawnNotify", 10)
+
+-- =====================
+-- SPAWN NOTIFICATION STACK (right side)
+-- =====================
+
+local RARITY_NOTIFY_COLORS = {
+	COMMON    = Color3.fromRGB(180, 180, 180),
+	UNCOMMON  = Color3.fromRGB(80, 160, 255),
+	EPIC      = Color3.fromRGB(180, 100, 255),
+	LEGENDARY = Color3.fromRGB(255, 160, 50),
+	MYTHIC    = Color3.fromRGB(255, 80, 80),
+	COSMIC    = Color3.fromRGB(100, 220, 255),
+}
+
+local spawnNotifyGui = Instance.new("ScreenGui")
+spawnNotifyGui.Name = "SpawnNotifyGui"
+spawnNotifyGui.ResetOnSpawn = false
+spawnNotifyGui.Parent = player.PlayerGui
+
+local NOTIFY_HEIGHT   = 32
+local NOTIFY_PADDING  = 4
+local NOTIFY_DURATION = 4
+local NOTIFY_WIDTH    = 280
+local activeNotifs    = {}
+
+local function repositionNotifs()
+	for i, notif in ipairs(activeNotifs) do
+		local targetY = 80 + (i - 1) * (NOTIFY_HEIGHT + NOTIFY_PADDING)
+		notif.frame.Position = UDim2.new(1, -(NOTIFY_WIDTH + 16), 0, targetY)
+	end
+end
+
+local function removeNotif(notif)
+	for i, n in ipairs(activeNotifs) do
+		if n == notif then
+			table.remove(activeNotifs, i)
+			break
+		end
+	end
+	if notif.frame and notif.frame.Parent then
+		notif.frame:Destroy()
+	end
+	repositionNotifs()
+end
+
+local function addSpawnNotif(brainrotName, rarity, zoneIndex)
+	local yPos = 80 + #activeNotifs * (NOTIFY_HEIGHT + NOTIFY_PADDING)
+	local rarityColor = RARITY_NOTIFY_COLORS[rarity] or RARITY_NOTIFY_COLORS.COMMON
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0, NOTIFY_WIDTH, 0, NOTIFY_HEIGHT)
+	frame.Position = UDim2.new(1, -(NOTIFY_WIDTH + 16), 0, yPos)
+	frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+	frame.BackgroundTransparency = 0.2
+	frame.BorderSizePixel = 0
+	frame.Parent = spawnNotifyGui
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+
+	-- Colored left accent bar
+	local accent = Instance.new("Frame")
+	accent.Size = UDim2.new(0, 4, 1, -8)
+	accent.Position = UDim2.new(0, 4, 0, 4)
+	accent.BackgroundColor3 = rarityColor
+	accent.BorderSizePixel = 0
+	accent.Parent = frame
+	Instance.new("UICorner", accent).CornerRadius = UDim.new(0, 2)
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -16, 1, 0)
+	label.Position = UDim2.new(0, 14, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = brainrotName .. " spawned in Zone " .. zoneIndex
+	label.TextColor3 = rarityColor
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBold
+	label.Parent = frame
+
+	local notif = { frame = frame }
+	table.insert(activeNotifs, notif)
+
+	-- Fade out and remove after duration
+	task.delay(NOTIFY_DURATION, function()
+		if not frame or not frame.Parent then return end
+		-- Quick fade out
+		for t = 0, 0.3, 0.03 do
+			if not frame or not frame.Parent then return end
+			frame.BackgroundTransparency = 0.2 + t * 2.5
+			label.TextTransparency = t * 3.3
+			accent.BackgroundTransparency = t * 3.3
+			task.wait(0.03)
+		end
+		removeNotif(notif)
+	end)
+end
+
+if spawnNotifyEvent then
+	spawnNotifyEvent.OnClientEvent:Connect(function(brainrotName, rarity, zoneIndex)
+		addSpawnNotif(brainrotName, rarity, zoneIndex)
+	end)
+end
 
 -- =====================
 -- HUD - TOP LEFT PANEL

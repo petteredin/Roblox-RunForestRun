@@ -349,6 +349,7 @@ local speedUpdateEvent   = getOrCreateRemote("SpeedUpdate")
 local rebirthResultEvent = getOrCreateRemote("RebirthResult")
 local rebirthInfoEvent   = getOrCreateRemote("RebirthInfo")
 local rebirthRequestEvent = getOrCreateRemote("RebirthRequested")
+local spawnNotifyEvent    = getOrCreateRemote("SpawnNotify")
 local adminCheckEvent    = getOrCreateRemote("AdminCheck")
 local getRebirthInfoFunc = getOrCreateRemoteFunction("GetRebirthInfo")
 
@@ -1338,6 +1339,11 @@ local function spawnBrainrotInZone(zoneIndex)
 
 	createPrompt(brainrot, brainrotDef, nil)
 	zoneActive[zoneIndex] += 1
+
+	-- Notify all players about the new spawn
+	local spawnName = brainrotDef and brainrotDef.name or "Brainrot"
+	local spawnRarity = rarity or "COMMON"
+	spawnNotifyEvent:FireAllClients(spawnName, spawnRarity, zoneIndex)
 
 	task.delay(DESPAWN_TIME, function()
 		if not (brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT)) then

@@ -388,10 +388,9 @@ bottomGui.ResetOnSpawn = false
 bottomGui.Parent = player.PlayerGui
 
 -- Bottom left buttons
-local bottomButtons = { "Store", "V.I.P", "Index", "Trade" }
-local bottomIcons   = { "\u{25A6}", "\u{1F464}", "\u{2630}", "\u{1F4E6}" }
+local bottomButtons = { "Store", "V.I.P", "Index" }
+local bottomIcons   = { "\u{25A6}", "\u{1F464}", "\u{2630}" }
 local bottomColors  = {
-	Color3.fromRGB(40, 40, 50),
 	Color3.fromRGB(40, 40, 50),
 	Color3.fromRGB(40, 40, 50),
 	Color3.fromRGB(40, 40, 50),

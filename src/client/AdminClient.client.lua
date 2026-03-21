@@ -103,8 +103,8 @@ local PANEL_HEIGHT = 620
 local panelFrame = Instance.new("Frame")
 panelFrame.Name = "AdminPanel"
 panelFrame.Size = UDim2.new(0, PANEL_WIDTH, 0, PANEL_HEIGHT)
-panelFrame.Position = UDim2.new(1, PANEL_WIDTH + 20, 0.5, 0) -- Startar utanför skärmen
-panelFrame.AnchorPoint = Vector2.new(0, 0.5)
+panelFrame.Position = UDim2.new(0.5, 0, 1.5, 0) -- Startar utanför skärmen (nedanför)
+panelFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 panelFrame.BackgroundColor3 = COLORS.bg
 panelFrame.BorderSizePixel = 0
 panelFrame.Visible = true
@@ -511,9 +511,9 @@ local function togglePanel()
 	panelOpen = not panelOpen
 	local targetPos
 	if panelOpen then
-		targetPos = UDim2.new(1, -PANEL_WIDTH - 12, 0.5, 0)
+		targetPos = UDim2.new(0.5, 0, 0.5, 0) -- Centrerad på skärmen
 	else
-		targetPos = UDim2.new(1, PANEL_WIDTH + 20, 0.5, 0)
+		targetPos = UDim2.new(0.5, 0, 1.5, 0) -- Utanför skärmen (nedanför)
 	end
 	local tween = TweenService:Create(panelFrame, tweenInfo, { Position = targetPos })
 	tween:Play()

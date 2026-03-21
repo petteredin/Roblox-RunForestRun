@@ -325,12 +325,21 @@ rebirthCostLabel.Font = Enum.Font.GothamBold
 rebirthCostLabel.Parent = rebirthReqFrame
 
 -- Update rebirth requirements display
-local function updateRebirthReqDisplay(brainrots, cost)
-	for i = 1, 3 do
-		if brainrots[i] then
-			rebirthReqLabels[i].Text = "\u{25CF} " .. brainrots[i]
-		else
-			rebirthReqLabels[i].Text = ""
+local function updateRebirthReqDisplay(brainrots, cost, rarityText)
+	-- Show rarity text as main requirement if available
+	if rarityText and rarityText ~= "" then
+		rebirthReqLabels[1].Text = rarityText
+		rebirthReqLabels[1].TextColor3 = Color3.fromRGB(255, 200, 100)
+		rebirthReqLabels[2].Text = ""
+		rebirthReqLabels[3].Text = ""
+	else
+		for i = 1, 3 do
+			if brainrots[i] then
+				rebirthReqLabels[i].Text = "\u{25CF} " .. brainrots[i]
+				rebirthReqLabels[i].TextColor3 = Color3.fromRGB(220, 220, 255)
+			else
+				rebirthReqLabels[i].Text = ""
+			end
 		end
 	end
 	if cost and cost > 0 then
@@ -372,9 +381,9 @@ local function updateRebirthSign(brainrots, cost)
 end
 
 -- Listen for rebirth info from server (push updates after rebirth)
-rebirthInfoEvent.OnClientEvent:Connect(function(currentLevel, brainrots, cost)
+rebirthInfoEvent.OnClientEvent:Connect(function(currentLevel, brainrots, cost, rarityText)
 	rebirthLabel.Text = "Rebirth #" .. currentLevel
-	updateRebirthReqDisplay(brainrots, cost)
+	updateRebirthReqDisplay(brainrots, cost, rarityText)
 	updateRebirthSign(brainrots, cost)
 end)
 
@@ -384,12 +393,12 @@ task.spawn(function()
 		warn("[CLIENT] GetRebirthInfo RemoteFunction not found")
 		return
 	end
-	local ok, level, brainrots, cost = pcall(function()
+	local ok, level, brainrots, cost, rarityText = pcall(function()
 		return getRebirthInfoFunc:InvokeServer()
 	end)
 	if ok and brainrots then
 		rebirthLabel.Text = "Rebirth #" .. (level or 0)
-		updateRebirthReqDisplay(brainrots, cost)
+		updateRebirthReqDisplay(brainrots, cost, rarityText)
 		updateRebirthSign(brainrots, cost)
 	else
 		warn("[CLIENT] Failed to get rebirth info:", level)

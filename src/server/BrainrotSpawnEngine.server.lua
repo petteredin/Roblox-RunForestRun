@@ -183,25 +183,71 @@ local SELL_GRACE_PERIOD             = 5  -- seconds after deposit before sell is
 local REBIRTH_MULT                  = 2.25
 local MAX_REBIRTHS                  = 10
 
-local REBIRTH_BASE_COST             = 500
-local REBIRTH_REQUIRED_COUNT        = 3     -- brainrots required per rebirth
 local playerRebirthReq              = {}    -- per-player current rebirth requirements
 
--- Generate random rebirth requirements for a player's next rebirth
-local function generateRebirthReq(player)
-	local rebirths = playerRebirth[player] or 0
-	local cost = math.floor(REBIRTH_BASE_COST * (REBIRTH_MULT ^ rebirths))
+-- Fixed rebirth requirements per level (same for all players)
+local REBIRTH_REQUIREMENTS = {
+	[1]  = { cost = 500,    brainrots = { { rarity = "UNCOMMON", count = 3 } } },
+	[2]  = { cost = 1125,   brainrots = { { rarity = "UNCOMMON", count = 2 }, { rarity = "EPIC", count = 1 } } },
+	[3]  = { cost = 2531,   brainrots = { { rarity = "EPIC", count = 3 } } },
+	[4]  = { cost = 5695,   brainrots = { { rarity = "EPIC", count = 2 }, { rarity = "LEGENDARY", count = 1 } } },
+	[5]  = { cost = 12814,  brainrots = { { rarity = "LEGENDARY", count = 3 } } },
+	[6]  = { cost = 28831,  brainrots = { { rarity = "LEGENDARY", count = 2 }, { rarity = "MYTHIC", count = 1 } } },
+	[7]  = { cost = 64870,  brainrots = { { rarity = "MYTHIC", count = 3 } } },
+	[8]  = { cost = 145957, brainrots = { { rarity = "MYTHIC", count = 2 }, { rarity = "COSMIC", count = 1 } } },
+	[9]  = { cost = 328402, brainrots = { { rarity = "COSMIC", count = 3 } } },
+	[10] = { cost = 739000, brainrots = { { rarity = "COSMIC", count = 3 } } },
+}
 
-	-- Pick 3 random brainrots from catalog (allow duplicates)
+-- Build display names for a rebirth requirement (picks random examples from rarity pool)
+local function getRebirthRequirement(rebirthLevel)
+	local req = REBIRTH_REQUIREMENTS[rebirthLevel]
+	if not req then return nil end
+
 	local names = {}
-	for i = 1, REBIRTH_REQUIRED_COUNT do
-		local idx = math.random(1, #BRAINROTS)
-		table.insert(names, BRAINROTS[idx].name)
+	for _, group in ipairs(req.brainrots) do
+		local pool = {}
+		for _, b in ipairs(BRAINROTS) do
+			if b.rarity == group.rarity then
+				table.insert(pool, b.name)
+			end
+		end
+		for i = 1, group.count do
+			if #pool > 0 then
+				local idx = math.random(1, #pool)
+				table.insert(names, pool[idx])
+			end
+		end
 	end
 
-	playerRebirthReq[player] = { brainrots = names, cost = cost }
-	print("[REBIRTH] Generated req for", player.Name, ":", table.concat(names, ", "), "| Cost:", cost)
-	return playerRebirthReq[player]
+	return { brainrots = names, cost = req.cost, spec = req.brainrots }
+end
+
+-- Build a rarity summary string for display (e.g. "3x UNCOMMON" or "2x EPIC + 1x LEGENDARY")
+local function getRebirthRarityText(rebirthLevel)
+	local req = REBIRTH_REQUIREMENTS[rebirthLevel]
+	if not req then return "" end
+	local parts = {}
+	for _, group in ipairs(req.brainrots) do
+		table.insert(parts, group.count .. "x " .. group.rarity)
+	end
+	return table.concat(parts, " + ")
+end
+
+-- Initialize rebirth requirements for a player
+local function initRebirthReq(player)
+	local nextLevel = (playerRebirth[player] or 0) + 1
+	if nextLevel > MAX_REBIRTHS then
+		playerRebirthReq[player] = nil
+		return nil
+	end
+	local req = getRebirthRequirement(nextLevel)
+	playerRebirthReq[player] = req
+	if req then
+		print("[REBIRTH] Req for", player.Name, "level", nextLevel, ":",
+			getRebirthRarityText(nextLevel), "| Cost:", req.cost)
+	end
+	return req
 end
 
 -- Rate limiting (seconds between actions)
@@ -307,11 +353,17 @@ local getRebirthInfoFunc = getOrCreateRemoteFunction("GetRebirthInfo")
 getRebirthInfoFunc.OnServerInvoke = function(player)
 	local req = playerRebirthReq[player]
 	if not req then
-		req = generateRebirthReq(player)
+		req = initRebirthReq(player)
 	end
 	-- Also update the physical sign billboard
 	updateRebirthSign(player)
-	return playerRebirth[player] or 0, req.brainrots, req.cost
+	if req then
+		local nextLvl = (playerRebirth[player] or 0) + 1
+		local rarityText = getRebirthRarityText(nextLvl)
+		return playerRebirth[player] or 0, req.brainrots, req.cost, rarityText
+	else
+		return playerRebirth[player] or 0, {}, 0, ""
+	end
 end
 
 -- =====================
@@ -352,7 +404,9 @@ task.spawn(function()
 			if not playerRebirthInfoSent[p] then
 				local req = playerRebirthReq[p]
 				if req then
-					rebirthInfoEvent:FireClient(p, playerRebirth[p] or 0, req.brainrots, req.cost)
+					local nextLvl = (playerRebirth[p] or 0) + 1
+					local rarityText = getRebirthRarityText(nextLvl)
+					rebirthInfoEvent:FireClient(p, playerRebirth[p] or 0, req.brainrots, req.cost, rarityText)
 					playerRebirthInfoSent[p] = true
 				end
 			end
@@ -921,16 +975,21 @@ rebirthInfo.Parent                  = rebirthBg
 
 -- Server-side function to update the rebirth sign billboard directly
 local function updateRebirthSign(player)
+	local nextLevel = (playerRebirth[player] or 0) + 1
+	if nextLevel > MAX_REBIRTHS then
+		rebirthInfo.Text = "MAX REBIRTH\nREACHED!"
+		return
+	end
 	local req = playerRebirthReq[player]
 	if not req then
 		rebirthInfo.Text = "No requirements yet..."
 		return
 	end
-	local lines = "Requires:\n"
-	for i, name in ipairs(req.brainrots) do
-		lines = lines .. "  " .. i .. ". " .. name .. "\n"
-	end
-	lines = lines .. "\nCost: " .. tostring(req.cost) .. " credits"
+	local rarityText = getRebirthRarityText(nextLevel)
+	local lines = "REBIRTH #" .. nextLevel .. "\n"
+	lines = lines .. "──────────────\n"
+	lines = lines .. rarityText .. "\n\n"
+	lines = lines .. "Cost: " .. tostring(req.cost) .. " credits"
 	rebirthInfo.Text = lines
 end
 rebirthInfo.Text = "Walk up to see\nyour requirements"
@@ -990,10 +1049,10 @@ rebirthClick.MouseClick:Connect(function(clickingPlayer)
 		return
 	end
 
-	-- Get or generate this player's current rebirth requirements
 	local req = playerRebirthReq[clickingPlayer]
 	if not req then
-		req = generateRebirthReq(clickingPlayer)
+		rebirthResultEvent:FireClient(clickingPlayer, false, "No requirements found, try rejoining.")
+		return
 	end
 
 	-- Check credits
@@ -1004,24 +1063,33 @@ rebirthClick.MouseClick:Connect(function(clickingPlayer)
 		return
 	end
 
-	-- Check brainrots in base
+	-- Rarity-based validation: count brainrots by rarity in player's base
+	local ownedByRarity = {}
 	local ownedNames = getPlayerBrainrotNames(clickingPlayer)
-	local missing = {}
-	local tempOwned = {}
-	for k, v in pairs(ownedNames) do tempOwned[k] = v end
-
-	for _, requiredName in ipairs(req.brainrots) do
-		if (tempOwned[requiredName] or 0) > 0 then
-			tempOwned[requiredName] = tempOwned[requiredName] - 1
-		else
-			table.insert(missing, requiredName)
+	for brainrotName, count in pairs(ownedNames) do
+		for _, b in ipairs(BRAINROTS) do
+			if b.name == brainrotName then
+				ownedByRarity[b.rarity] = (ownedByRarity[b.rarity] or 0) + count
+				break
+			end
 		end
 	end
 
+	-- Check each rarity group requirement
+	local missing = {}
+	for _, group in ipairs(req.spec) do
+		local owned = ownedByRarity[group.rarity] or 0
+		if owned < group.count then
+			local shortage = group.count - owned
+			table.insert(missing, shortage .. "x " .. group.rarity)
+		end
+		-- Subtract used count so same brainrot isn't counted twice
+		ownedByRarity[group.rarity] = math.max(0, (ownedByRarity[group.rarity] or 0) - group.count)
+	end
+
 	if #missing > 0 then
-		local missingStr = table.concat(missing, ", ")
 		rebirthResultEvent:FireClient(clickingPlayer, false,
-			"Missing brainrots: " .. missingStr)
+			"Missing: " .. table.concat(missing, ", "))
 		return
 	end
 
@@ -1034,11 +1102,14 @@ rebirthClick.MouseClick:Connect(function(clickingPlayer)
 	-- Notify client
 	rebirthResultEvent:FireClient(clickingPlayer, true, nextLevel, playerWallet[clickingPlayer])
 
-	-- Generate NEW random requirements for next rebirth
-	playerRebirthInfoSent[clickingPlayer] = false  -- reset so speed loop resends if needed
+	-- Set requirements for NEXT rebirth
+	playerRebirthInfoSent[clickingPlayer] = false
 	if nextLevel < MAX_REBIRTHS then
-		local nextReq = generateRebirthReq(clickingPlayer)
-		rebirthInfoEvent:FireClient(clickingPlayer, nextLevel, nextReq.brainrots, nextReq.cost)
+		local nextReq = initRebirthReq(clickingPlayer)
+		if nextReq then
+			local rarityText = getRebirthRarityText(nextLevel + 1)
+			rebirthInfoEvent:FireClient(clickingPlayer, nextLevel, nextReq.brainrots, nextReq.cost, rarityText)
+		end
 		updateRebirthSign(clickingPlayer)
 	else
 		playerRebirthReq[clickingPlayer] = nil
@@ -1883,8 +1954,8 @@ local function onPlayerAdded(player)
 	createSlotParts(player)
 	startCreditTick(player)
 
-	-- Generate rebirth requirements and update the physical sign
-	generateRebirthReq(player)
+	-- Initialize rebirth requirements and update the physical sign
+	initRebirthReq(player)
 	updateRebirthSign(player)
 
 	player.CharacterAdded:Connect(function(character)
@@ -1900,7 +1971,9 @@ local function onPlayerAdded(player)
 		task.delay(2, function()
 			local req = playerRebirthReq[player]
 			if req then
-				rebirthInfoEvent:FireClient(player, playerRebirth[player] or 0, req.brainrots, req.cost)
+				local nextLvl = (playerRebirth[player] or 0) + 1
+				local rarityText = getRebirthRarityText(nextLvl)
+				rebirthInfoEvent:FireClient(player, playerRebirth[player] or 0, req.brainrots, req.cost, rarityText)
 			end
 		end)
 	end)
@@ -1917,7 +1990,9 @@ local function onPlayerAdded(player)
 		task.delay(2, function()
 			local req = playerRebirthReq[player]
 			if req then
-				rebirthInfoEvent:FireClient(player, playerRebirth[player] or 0, req.brainrots, req.cost)
+				local nextLvl = (playerRebirth[player] or 0) + 1
+				local rarityText = getRebirthRarityText(nextLvl)
+				rebirthInfoEvent:FireClient(player, playerRebirth[player] or 0, req.brainrots, req.cost, rarityText)
 			end
 		end)
 	end

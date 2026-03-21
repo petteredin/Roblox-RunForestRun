@@ -456,18 +456,18 @@ local function createMemberRow(p, order)
 	rc.CornerRadius = UDim.new(0, 4)
 	rc.Parent = row
 
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Name = "NameLabel"
-	nameLabel.Size = UDim2.new(0.30, 0, 1, 0)
-	nameLabel.Position = UDim2.new(0, 6, 0, 0)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = p.DisplayName
-	nameLabel.TextColor3 = COLORS.text
-	nameLabel.TextSize = 12
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	nameLabel.Parent = row
+	local nameBtn = Instance.new("TextButton")
+	nameBtn.Name = "NameLabel"
+	nameBtn.Size = UDim2.new(0.30, 0, 1, 0)
+	nameBtn.Position = UDim2.new(0, 6, 0, 0)
+	nameBtn.BackgroundTransparency = 1
+	nameBtn.Text = p.DisplayName
+	nameBtn.TextColor3 = COLORS.text
+	nameBtn.TextSize = 12
+	nameBtn.Font = Enum.Font.GothamBold
+	nameBtn.TextXAlignment = Enum.TextXAlignment.Left
+	nameBtn.TextTruncate = Enum.TextTruncate.AtEnd
+	nameBtn.Parent = row
 
 	local creditsLabel = Instance.new("TextLabel")
 	creditsLabel.Name = "CreditsLabel"
@@ -505,31 +505,26 @@ local function createMemberRow(p, order)
 	rebirthLabel.TextXAlignment = Enum.TextXAlignment.Left
 	rebirthLabel.Parent = row
 
-	-- Action buttons (Select, Admin, Kick)
-	local isAdmin = ADMIN_IDS[p.UserId]
+	-- Clickable name -> selects player and switches to Admin tab
+	nameBtn.MouseButton1Click:Connect(function()
+		if targetInput then
+			targetInput.Text = p.Name
+		end
+		switchTab("Admin")
+		showStatus("Selected: " .. p.DisplayName, true)
+	end)
 
-	local selectBtn = Instance.new("TextButton")
-	selectBtn.Name = "SelectBtn"
-	selectBtn.Size = UDim2.new(0.075, -1, 0, 22)
-	selectBtn.Position = UDim2.new(0.77, 2, 0.5, -11)
-	selectBtn.BackgroundColor3 = COLORS.btnBlue
-	selectBtn.Text = "Select"
-	selectBtn.TextColor3 = COLORS.text
-	selectBtn.TextSize = 9
-	selectBtn.Font = Enum.Font.GothamBold
-	selectBtn.Parent = row
-	local sc = Instance.new("UICorner")
-	sc.CornerRadius = UDim.new(0, 4)
-	sc.Parent = selectBtn
+	-- Action buttons (Admin, Kick)
+	local isAdmin = ADMIN_IDS[p.UserId]
 
 	local adminToggleBtn = Instance.new("TextButton")
 	adminToggleBtn.Name = "AdminBtn"
-	adminToggleBtn.Size = UDim2.new(0.075, -1, 0, 22)
-	adminToggleBtn.Position = UDim2.new(0.845, 2, 0.5, -11)
+	adminToggleBtn.Size = UDim2.new(0.10, -2, 0, 22)
+	adminToggleBtn.Position = UDim2.new(0.78, 2, 0.5, -11)
 	adminToggleBtn.BackgroundColor3 = isAdmin and COLORS.header or COLORS.tabInactive
-	adminToggleBtn.Text = isAdmin and "Admin" or "Admin"
+	adminToggleBtn.Text = "Admin"
 	adminToggleBtn.TextColor3 = isAdmin and COLORS.textDark or COLORS.dimText
-	adminToggleBtn.TextSize = 9
+	adminToggleBtn.TextSize = 10
 	adminToggleBtn.Font = Enum.Font.GothamBold
 	adminToggleBtn.Parent = row
 	local ac = Instance.new("UICorner")
@@ -538,25 +533,17 @@ local function createMemberRow(p, order)
 
 	local kickBtn = Instance.new("TextButton")
 	kickBtn.Name = "KickBtn"
-	kickBtn.Size = UDim2.new(0.075, -1, 0, 22)
-	kickBtn.Position = UDim2.new(0.92, 2, 0.5, -11)
+	kickBtn.Size = UDim2.new(0.10, -2, 0, 22)
+	kickBtn.Position = UDim2.new(0.88, 2, 0.5, -11)
 	kickBtn.BackgroundColor3 = COLORS.btnRed
 	kickBtn.Text = "Kick"
 	kickBtn.TextColor3 = COLORS.text
-	kickBtn.TextSize = 9
+	kickBtn.TextSize = 10
 	kickBtn.Font = Enum.Font.GothamBold
 	kickBtn.Parent = row
 	local kc = Instance.new("UICorner")
 	kc.CornerRadius = UDim.new(0, 4)
 	kc.Parent = kickBtn
-
-	selectBtn.MouseButton1Click:Connect(function()
-		if targetInput then
-			targetInput.Text = p.Name
-		end
-		switchTab("Admin")
-		showStatus("Selected: " .. p.DisplayName, true)
-	end)
 
 	adminToggleBtn.MouseButton1Click:Connect(function()
 		adminRemote:FireServer("ToggleAdmin", p.Name)

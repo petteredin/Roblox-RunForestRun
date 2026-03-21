@@ -161,9 +161,10 @@ end)
 -- WALLET UI (top left)
 -- =====================
 
-local speedUpdateEvent = game.ReplicatedStorage:WaitForChild("SpeedUpdate")
+local speedUpdateEvent   = game.ReplicatedStorage:WaitForChild("SpeedUpdate")
 local rebirthResultEvent = game.ReplicatedStorage:WaitForChild("RebirthResult")
 local rebirthInfoEvent   = game.ReplicatedStorage:WaitForChild("RebirthInfo")
+local getRebirthInfoFunc = game.ReplicatedStorage:WaitForChild("GetRebirthInfo")
 
 local walletGui = Instance.new("ScreenGui")
 walletGui.Name = "WalletGui"
@@ -333,11 +334,23 @@ local function updateRebirthSign(brainrots, cost)
 	rebirthSignLabel.Text = lines
 end
 
--- Listen for rebirth info from server
+-- Listen for rebirth info from server (push updates after rebirth)
 rebirthInfoEvent.OnClientEvent:Connect(function(currentLevel, brainrots, cost)
 	rebirthLabel.Text = "Rebirth #" .. currentLevel
 	updateRebirthReqDisplay(brainrots, cost)
 	updateRebirthSign(brainrots, cost)
+end)
+
+-- Pull initial rebirth requirements from server (client is ready now)
+task.spawn(function()
+	local ok, level, brainrots, cost = pcall(function()
+		return getRebirthInfoFunc:InvokeServer()
+	end)
+	if ok and brainrots then
+		rebirthLabel.Text = "Rebirth #" .. (level or 0)
+		updateRebirthReqDisplay(brainrots, cost)
+		updateRebirthSign(brainrots, cost)
+	end
 end)
 
 rebirthResultEvent.OnClientEvent:Connect(function(success, dataOrLevel, newWallet)

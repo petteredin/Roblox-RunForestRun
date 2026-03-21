@@ -270,6 +270,16 @@ end
 local remoteEvent   = ReplicatedStorage:WaitForChild("BrainrotPickup")
 local progressEvent = ReplicatedStorage:WaitForChild("BrainrotProgress")
 
+local function getOrCreateRemoteFunction(name)
+	local r = ReplicatedStorage:FindFirstChild(name)
+	if not r then
+		r = Instance.new("RemoteFunction")
+		r.Name = name
+		r.Parent = ReplicatedStorage
+	end
+	return r
+end
+
 local function getOrCreateRemote(name)
 	local r = ReplicatedStorage:FindFirstChild(name)
 	if not r then
@@ -290,6 +300,16 @@ local sellEvent          = getOrCreateRemote("SellRequested")
 local speedUpdateEvent   = getOrCreateRemote("SpeedUpdate")
 local rebirthResultEvent = getOrCreateRemote("RebirthResult")
 local rebirthInfoEvent   = getOrCreateRemote("RebirthInfo")
+local getRebirthInfoFunc = getOrCreateRemoteFunction("GetRebirthInfo")
+
+-- Client can pull rebirth requirements when ready
+getRebirthInfoFunc.OnServerInvoke = function(player)
+	local req = playerRebirthReq[player]
+	if not req then
+		req = generateRebirthReq(player)
+	end
+	return playerRebirth[player] or 0, req.brainrots, req.cost
+end
 
 -- =====================
 -- REBIRTH MULTIPLIER

@@ -1864,6 +1864,13 @@ local function onPlayerAdded(player)
 		if root and basePos then
 			root.CFrame = CFrame.new(basePos + Vector3.new(0, 5, 0))
 		end
+		-- Send rebirth info for initial join (Character already exists)
+		task.delay(2, function()
+			local req = playerRebirthReq[player]
+			if req then
+				rebirthInfoEvent:FireClient(player, playerRebirth[player] or 0, req.brainrots, req.cost)
+			end
+		end)
 	end
 end
 

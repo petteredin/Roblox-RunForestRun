@@ -97,8 +97,8 @@ badgeCorner.Parent = adminBadge
 -- =====================
 -- ADMIN-PANEL (huvudfönster)
 -- =====================
-local PANEL_WIDTH = 340
-local PANEL_HEIGHT = 620
+local PANEL_WIDTH = 640
+local PANEL_HEIGHT = 500
 
 local panelFrame = Instance.new("Frame")
 panelFrame.Name = "AdminPanel"
@@ -161,35 +161,57 @@ local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = closeBtn
 
--- Scrollbar för innehåll
-local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Size = UDim2.new(1, -16, 1, -52)
-scrollFrame.Position = UDim2.new(0, 8, 0, 48)
-scrollFrame.BackgroundTransparency = 1
-scrollFrame.ScrollBarThickness = 4
-scrollFrame.ScrollBarImageColor3 = COLORS.border
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0) -- Uppdateras dynamiskt
-scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-scrollFrame.Parent = panelFrame
+-- Innehållsarea under header
+local contentFrame = Instance.new("Frame")
+contentFrame.Size = UDim2.new(1, -16, 1, -80) -- Plats för header + status
+contentFrame.Position = UDim2.new(0, 8, 0, 48)
+contentFrame.BackgroundTransparency = 1
+contentFrame.Parent = panelFrame
 
-local listLayout = Instance.new("UIListLayout")
-listLayout.Padding = UDim.new(0, 8)
-listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-listLayout.Parent = scrollFrame
+-- Två kolumner sida vid sida
+local COL_WIDTH = UDim2.new(0.5, -4, 1, 0)
+
+local leftCol = Instance.new("ScrollingFrame")
+leftCol.Size = COL_WIDTH
+leftCol.Position = UDim2.new(0, 0, 0, 0)
+leftCol.BackgroundTransparency = 1
+leftCol.ScrollBarThickness = 3
+leftCol.ScrollBarImageColor3 = COLORS.border
+leftCol.CanvasSize = UDim2.new(0, 0, 0, 0)
+leftCol.AutomaticCanvasSize = Enum.AutomaticSize.Y
+leftCol.Parent = contentFrame
+local leftLayout = Instance.new("UIListLayout")
+leftLayout.Padding = UDim.new(0, 6)
+leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
+leftLayout.Parent = leftCol
+
+local rightCol = Instance.new("ScrollingFrame")
+rightCol.Size = COL_WIDTH
+rightCol.Position = UDim2.new(0.5, 4, 0, 0)
+rightCol.BackgroundTransparency = 1
+rightCol.ScrollBarThickness = 3
+rightCol.ScrollBarImageColor3 = COLORS.border
+rightCol.CanvasSize = UDim2.new(0, 0, 0, 0)
+rightCol.AutomaticCanvasSize = Enum.AutomaticSize.Y
+rightCol.Parent = contentFrame
+local rightLayout = Instance.new("UIListLayout")
+rightLayout.Padding = UDim.new(0, 6)
+rightLayout.SortOrder = Enum.SortOrder.LayoutOrder
+rightLayout.Parent = rightCol
 
 -- =====================
--- STATUS-RUTAN (feedback)
+-- STATUS-RUTAN (feedback, längst ned i panelen)
 -- =====================
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, -16, 0, 28)
+statusLabel.Size = UDim2.new(1, -16, 0, 24)
+statusLabel.Position = UDim2.new(0, 8, 1, -28)
 statusLabel.BackgroundColor3 = COLORS.section
 statusLabel.Text = ""
 statusLabel.TextColor3 = COLORS.dimText
 statusLabel.TextSize = 12
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.TextWrapped = true
-statusLabel.LayoutOrder = 0
-statusLabel.Parent = scrollFrame
+statusLabel.Parent = panelFrame
 local statusCorner = Instance.new("UICorner")
 statusCorner.CornerRadius = UDim.new(0, 6)
 statusCorner.Parent = statusLabel
@@ -215,15 +237,16 @@ local function nextOrder()
 	return layoutOrder
 end
 
---- Skapa en sektion med titel
-local function createSection(title)
+--- Skapa en sektion med titel (parent = kolumn)
+local function createSection(title, parent)
+	parent = parent or leftCol
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(1, 0, 0, 0)
 	frame.AutomaticSize = Enum.AutomaticSize.Y
 	frame.BackgroundColor3 = COLORS.section
 	frame.BorderSizePixel = 0
 	frame.LayoutOrder = nextOrder()
-	frame.Parent = scrollFrame
+	frame.Parent = parent
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, 8)
 	c.Parent = frame
@@ -340,7 +363,7 @@ end
 -- =====================
 -- SEKTION: Target Player (global input med autocomplete)
 -- =====================
-local targetSection = createSection("Target Player")
+local targetSection = createSection("Target Player", leftCol)
 local targetInput = createInput(targetSection, "Player name (blank = yourself)", 1)
 
 -- Autocomplete dropdown (skapas utanför targetSection för att kunna överlappa)
@@ -452,7 +475,7 @@ end)
 -- =====================
 -- SEKTION 1: Credits
 -- =====================
-local creditsSection = createSection("Credits")
+local creditsSection = createSection("Credits", leftCol)
 local creditsInput = createInput(creditsSection, "Enter amount", 1)
 local creditsBtns = createButtonRow(creditsSection, {
 	{ text = "Add", color = COLORS.btnGreen },
@@ -476,7 +499,7 @@ end)
 -- =====================
 -- SEKTION 2: Rebirth
 -- =====================
-local rebirthSection = createSection("Rebirth")
+local rebirthSection = createSection("Rebirth", leftCol)
 local rebirthInput = createInput(rebirthSection, "Enter amount (0-10)", 1)
 local rebirthBtns = createButtonRow(rebirthSection, {
 	{ text = "Give +1", color = COLORS.btnGreen },
@@ -498,7 +521,7 @@ end)
 -- =====================
 -- SEKTION 3: Speed
 -- =====================
-local speedSection = createSection("Speed")
+local speedSection = createSection("Speed", leftCol)
 local speedInput = createInput(speedSection, "Enter multiplier (e.g. 2.5)", 1)
 local speedBtn = createButton(speedSection, "Set", COLORS.btnBlue, 2)
 speedBtn.Size = UDim2.new(1, 0, 0, 30)
@@ -513,7 +536,7 @@ end)
 -- =====================
 -- SEKTION 5: Spawn Brainrot
 -- =====================
-local brainrotSection = createSection("Spawn Brainrot")
+local brainrotSection = createSection("Spawn Brainrot", rightCol)
 local brainrotNameInput = createInput(brainrotSection, "Enter brainrot name", 1)
 local brainrotMutInput = createInput(brainrotSection, "Enter mutation (optional)", 2)
 local brainrotBtns = createButtonRow(brainrotSection, {
@@ -536,7 +559,7 @@ end)
 -- =====================
 -- SEKTION 6: Spawn Wave
 -- =====================
-local waveSection = createSection("Spawn Wave")
+local waveSection = createSection("Spawn Wave", rightCol)
 local waveInput = createInput(waveSection, "Enter wave name", 1)
 local waveBtns = createButtonRow(waveSection, {
 	{ text = "Server", color = COLORS.btnGreen },
@@ -558,7 +581,7 @@ end)
 -- =====================
 -- SEKTION 7: Spawn Event
 -- =====================
-local spawnEventSection = createSection("Spawn Event")
+local spawnEventSection = createSection("Spawn Event", rightCol)
 local spawnEventInput = createInput(spawnEventSection, "Enter event name", 1)
 local spawnEventBtns = createButtonRow(spawnEventSection, {
 	{ text = "Server", color = COLORS.btnGreen },
@@ -580,7 +603,7 @@ end)
 -- =====================
 -- SEKTION 8: Kick Player
 -- =====================
-local kickSection = createSection("Kick Player")
+local kickSection = createSection("Kick Player", rightCol)
 local kickReasonInput = createInput(kickSection, "Reason (optional)", 1)
 local kickBtn = createButton(kickSection, "Kick", COLORS.btnRed, 2)
 kickBtn.Size = UDim2.new(1, 0, 0, 30)

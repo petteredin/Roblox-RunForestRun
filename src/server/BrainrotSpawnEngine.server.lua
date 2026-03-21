@@ -886,8 +886,8 @@ rebirthInfo.TextXAlignment          = Enum.TextXAlignment.Left
 rebirthInfo.Font                    = Enum.Font.GothamBold
 rebirthInfo.Parent                  = rebirthBg
 
--- Sign shows generic info; specific requirements shown in player HUD
-rebirthInfo.Text = "Click to Rebirth!\n\nRequires 3 specific brainrots\nin your base + credits.\n\nCost scales 2.25x per rebirth.\nCheck HUD for your requirements!"
+-- Default text (client will overwrite with player-specific requirements)
+rebirthInfo.Text = "Loading requirements..."
 
 local rebirthClick = Instance.new("ClickDetector")
 rebirthClick.MaxActivationDistance = 12

@@ -302,10 +302,42 @@ local function updateRebirthReqDisplay(brainrots, cost)
 	end
 end
 
+-- Find the rebirth station sign in workspace and update it per-player
+local rebirthStationPart = nil
+local rebirthSignLabel = nil
+
+task.spawn(function()
+	rebirthStationPart = workspace:WaitForChild("RebirthStation", 30)
+	if rebirthStationPart then
+		local billboard = rebirthStationPart:FindFirstChildWhichIsA("BillboardGui")
+		if billboard then
+			local bg = billboard:FindFirstChildWhichIsA("Frame")
+			if bg then
+				rebirthSignLabel = bg:FindFirstChild("InfoLabel")
+			end
+		end
+	end
+end)
+
+local function updateRebirthSign(brainrots, cost)
+	if not rebirthSignLabel then return end
+	local lines = "Requires:\n"
+	for i, name in ipairs(brainrots) do
+		lines = lines .. "  " .. i .. ". " .. name .. "\n"
+	end
+	if cost and cost > 0 then
+		lines = lines .. "\nCost: " .. tostring(cost) .. " credits"
+	else
+		lines = lines .. "\nMAX REBIRTH REACHED!"
+	end
+	rebirthSignLabel.Text = lines
+end
+
 -- Listen for rebirth info from server
 rebirthInfoEvent.OnClientEvent:Connect(function(currentLevel, brainrots, cost)
 	rebirthLabel.Text = "Rebirth #" .. currentLevel
 	updateRebirthReqDisplay(brainrots, cost)
+	updateRebirthSign(brainrots, cost)
 end)
 
 rebirthResultEvent.OnClientEvent:Connect(function(success, dataOrLevel, newWallet)

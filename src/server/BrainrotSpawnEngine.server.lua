@@ -1638,7 +1638,154 @@ end)
 -- LEADERBOARDS (now uses UpdateAsync for safety)
 -- =====================
 
-local allTimeStore = DataStoreService:GetDataStore("AllTimeEarnings_v1")
+local allTimeStore  = DataStoreService:GetDataStore("AllTimeEarnings_v1")
+local playerDataStore = DataStoreService:GetDataStore("PlayerData_v1")
+
+-- =====================
+-- PLAYER DATA PERSISTENCE
+-- =====================
+
+local function savePlayerData(player)
+	local data = {
+		wallet     = playerWallet[player] or 0,
+		speedTime  = playerSpeedTime[player] or 0,
+		rebirth    = playerRebirth[player] or 0,
+		credits    = playerCredits[player] or 0,
+		slots      = {},
+		upgrades   = {},
+		plateCredits = {},
+	}
+
+	-- Save slot data (brainrot name, rarity, earnRate, accumulated plate credits)
+	if playerSlots[player] then
+		for i = 1, BASE_SLOTS do
+			local slot = playerSlots[player][i]
+			if slot and slot.block and slot.block.Parent then
+				local bName = slot.block:GetAttribute("BrainrotName") or slot.block.Name
+				local rarity = slot.block:GetAttribute("Rarity") or "COMMON"
+				local earnRate = slot.block:GetAttribute("EarnRate") or (slot.earnRate or 1)
+				data.slots[tostring(i)] = {
+					name     = bName,
+					rarity   = rarity,
+					earnRate = earnRate,
+				}
+			end
+		end
+	end
+
+	-- Save slot upgrades
+	if slotUpgrades[player] then
+		for i = 1, BASE_SLOTS do
+			data.upgrades[tostring(i)] = slotUpgrades[player][i] or 0
+		end
+	end
+
+	-- Save accumulated credit plate credits
+	if creditPlates[player] then
+		for i = 1, BASE_SLOTS do
+			if creditPlates[player][i] then
+				data.plateCredits[tostring(i)] = creditPlates[player][i].credits or 0
+			end
+		end
+	end
+
+	local ok, err = pcall(function()
+		playerDataStore:SetAsync("player_" .. player.UserId, data)
+	end)
+	if not ok then
+		warn("[SAVE] Failed to save data for", player.Name, ":", err)
+	else
+		print("[SAVE] Saved data for", player.Name)
+	end
+end
+
+local function loadPlayerData(player)
+	local ok, data = pcall(function()
+		return playerDataStore:GetAsync("player_" .. player.UserId)
+	end)
+	if not ok or not data then
+		return nil
+	end
+	print("[LOAD] Loaded data for", player.Name)
+	return data
+end
+
+-- Restore a brainrot model into a slot from saved data
+local function restoreBrainrotToSlot(player, slotIndex, savedSlot)
+	local slotPad = slotParts[player] and slotParts[player][slotIndex]
+	if not slotPad then return false end
+
+	local brainrotDef = nil
+	for _, b in ipairs(BRAINROTS) do
+		if b.name == savedSlot.name then
+			brainrotDef = b
+			break
+		end
+	end
+
+	local storedBlock
+	local rarity = savedSlot.rarity or "COMMON"
+	local color = RARITY_COLORS[rarity] or RARITY_COLORS["COMMON"]
+	local earnRate = savedSlot.earnRate or 1
+
+	-- Try to clone the model from ReplicatedStorage
+	if brainrotDef and brainrotDef.modelName then
+		local template = ReplicatedStorage:FindFirstChild(brainrotDef.modelName)
+		if template then
+			storedBlock = template:Clone()
+			if storedBlock:IsA("Model") then
+				if not storedBlock.PrimaryPart then
+					local firstPart = storedBlock:FindFirstChildWhichIsA("BasePart")
+					if firstPart then storedBlock.PrimaryPart = firstPart end
+				end
+				storedBlock:PivotTo(CFrame.new(slotPad.Position + Vector3.new(0, 2, 0)))
+				for _, part in ipairs(storedBlock:GetDescendants()) do
+					if part:IsA("BasePart") then
+						part.Anchored   = true
+						part.CanCollide = false
+					end
+				end
+			else
+				storedBlock.Position   = slotPad.Position + Vector3.new(0, 1.5, 0)
+				storedBlock.Anchored   = true
+				storedBlock.CanCollide = false
+			end
+			storedBlock.Parent = storedFolder
+		end
+	end
+
+	-- Fallback: create a colored block
+	if not storedBlock then
+		storedBlock = Instance.new("Part")
+		storedBlock.Name       = savedSlot.name or "StoredBrainrot"
+		storedBlock.Size       = Vector3.new(2, 2, 2)
+		storedBlock.BrickColor = color
+		storedBlock.Material   = Enum.Material.Neon
+		storedBlock.Anchored   = true
+		storedBlock.CanCollide = false
+		storedBlock.Position   = slotPad.Position + Vector3.new(0, 1.5, 0)
+		storedBlock.Parent     = storedFolder
+	end
+
+	-- Set attributes
+	storedBlock:SetAttribute("BrainrotName", savedSlot.name)
+	storedBlock:SetAttribute("Rarity", rarity)
+	storedBlock:SetAttribute("EarnRate", earnRate)
+	storedBlock:SetAttribute("OwnerUserId", player.UserId)
+	storedBlock:SetAttribute("SlotIndex", slotIndex)
+	if storedBlock:IsA("Model") and storedBlock.PrimaryPart then
+		storedBlock.PrimaryPart:SetAttribute("BrainrotName", savedSlot.name)
+		storedBlock.PrimaryPart:SetAttribute("Rarity", rarity)
+		storedBlock.PrimaryPart:SetAttribute("EarnRate", earnRate)
+	end
+
+	CollectionService:AddTag(storedBlock, TAG_STORED_BRAINROT)
+
+	playerSlots[player][slotIndex] = { color = color, block = storedBlock, earnRate = earnRate }
+	setSlotFilled(player, slotIndex, color)
+
+	return true
+end
 
 -- LeaderboardWall: Pos (-51, 12, 4.5), Size (2, 22, 59), Orientation (0, -180, 0)
 -- Players approach from +X side, so boards go on the +X face
@@ -1928,9 +2075,13 @@ local function onPlayerAdded(player)
 		return
 	end
 
-	playerCredits[player]          = 0
-	playerWallet[player]           = 0
-	playerRebirth[player]          = 0
+	-- Load saved data (or start fresh)
+	local savedData = loadPlayerData(player)
+
+	playerCredits[player]          = savedData and savedData.credits or 0
+	playerWallet[player]           = savedData and savedData.wallet or 0
+	playerRebirth[player]          = savedData and savedData.rebirth or 0
+	playerSpeedTime[player]        = savedData and savedData.speedTime or 0
 	playerSlots[player]            = {}
 	playerSelling[player]          = nil
 	playerDepositing[player]       = false
@@ -1941,21 +2092,46 @@ local function onPlayerAdded(player)
 
 	for i = 1, BASE_SLOTS do
 		playerSlots[player][i]  = nil
-		slotUpgrades[player][i] = 0
+		slotUpgrades[player][i] = savedData and savedData.upgrades
+			and savedData.upgrades[tostring(i)] or 0
 	end
 
 	createSlotParts(player)
+
+	-- Restore saved brainrots into slots
+	if savedData and savedData.slots then
+		for slotStr, savedSlot in pairs(savedData.slots) do
+			local slotIndex = tonumber(slotStr)
+			if slotIndex and savedSlot and savedSlot.name then
+				restoreBrainrotToSlot(player, slotIndex, savedSlot)
+			end
+		end
+	end
+
+	-- Restore accumulated credit plate credits
+	if savedData and savedData.plateCredits then
+		for slotStr, credits in pairs(savedData.plateCredits) do
+			local slotIndex = tonumber(slotStr)
+			if slotIndex and creditPlates[player] and creditPlates[player][slotIndex] then
+				creditPlates[player][slotIndex].credits = credits
+				if credits > 0 then
+					creditPlates[player][slotIndex].label.Text = tostring(credits)
+					if creditPlates[player][slotIndex].billboard then
+						creditPlates[player][slotIndex].billboard.Enabled = true
+					end
+				end
+			end
+		end
+	end
+
 	startCreditTick(player)
 
 	-- Initialize rebirth requirements
 	local req = initRebirthReq(player)
-	print("[REBIRTH DEBUG] Player:", player.Name)
-	if req then
-		print("[REBIRTH DEBUG] brainrots:", table.concat(req.brainrots, ", "))
-		print("[REBIRTH DEBUG] cost:", req.cost)
-		print("[REBIRTH DEBUG] spec:", req.spec and #req.spec or "NO SPEC")
-	else
-		print("[REBIRTH DEBUG] req is NIL - getRebirthRequirement failed!")
+
+	if savedData then
+		print("[LOAD] Restored player", player.Name, "- wallet:", playerWallet[player],
+			"rebirth:", playerRebirth[player], "speedTime:", playerSpeedTime[player])
 	end
 
 	player.CharacterAdded:Connect(function(character)
@@ -1967,7 +2143,7 @@ local function onPlayerAdded(player)
 		end
 		createSlotParts(player)
 
-		-- Send rebirth info after character loads (client script is ready by now)
+		-- Send rebirth info and wallet sync after character loads
 		task.delay(2, function()
 			local req = playerRebirthReq[player]
 			if req then
@@ -1975,6 +2151,8 @@ local function onPlayerAdded(player)
 				local rarityText = getRebirthRarityText(nextLvl)
 				rebirthInfoEvent:FireClient(player, playerRebirth[player] or 0, req.brainrots, req.cost, rarityText)
 			end
+			-- Sync wallet to client
+			collectEvent:FireClient(player, 0, playerWallet[player] or 0)
 		end)
 	end)
 
@@ -1986,7 +2164,7 @@ local function onPlayerAdded(player)
 		if root and basePos then
 			root.CFrame = CFrame.new(basePos + Vector3.new(0, 5, 0))
 		end
-		-- Send rebirth info for initial join (Character already exists)
+		-- Send rebirth info and wallet sync for initial join
 		task.delay(2, function()
 			local req = playerRebirthReq[player]
 			if req then
@@ -1994,6 +2172,7 @@ local function onPlayerAdded(player)
 				local rarityText = getRebirthRarityText(nextLvl)
 				rebirthInfoEvent:FireClient(player, playerRebirth[player] or 0, req.brainrots, req.cost, rarityText)
 			end
+			collectEvent:FireClient(player, 0, playerWallet[player] or 0)
 		end)
 	end
 
@@ -2006,6 +2185,9 @@ end
 Players.PlayerAdded:Connect(onPlayerAdded)
 
 Players.PlayerRemoving:Connect(function(player)
+	-- Save player data before cleanup
+	savePlayerData(player)
+
 	local totalEarned = playerCredits[player] or 0
 	if totalEarned > 0 then
 		task.spawn(function()
@@ -2044,3 +2226,10 @@ end)
 for _, player in ipairs(Players:GetPlayers()) do
 	onPlayerAdded(player)
 end
+
+-- Save all player data on server shutdown
+game:BindToClose(function()
+	for _, player in ipairs(Players:GetPlayers()) do
+		savePlayerData(player)
+	end
+end)

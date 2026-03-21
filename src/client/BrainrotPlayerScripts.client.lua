@@ -580,11 +580,7 @@ end)
 -- Parent popup label to walletGui
 popupLabel.Parent = walletGui
 
-player.CharacterAdded:Connect(function()
-	walletTotal = 0
-	walletLabel.Text = "Credits: 0"
-	rebirthLabel.Text = "Rebirth #0"
-end)
+-- CharacterAdded: don't reset wallet/rebirth, server sends correct values
 
 collectEvent.OnClientEvent:Connect(function(collected, newWalletTotal)
 	walletTotal = newWalletTotal

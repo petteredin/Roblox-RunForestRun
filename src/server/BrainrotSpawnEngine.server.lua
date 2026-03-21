@@ -200,6 +200,7 @@ local function generateRebirthReq(player)
 	end
 
 	playerRebirthReq[player] = { brainrots = names, cost = cost }
+	print("[REBIRTH] Generated req for", player.Name, ":", table.concat(names, ", "), "| Cost:", cost)
 	return playerRebirthReq[player]
 end
 
@@ -932,7 +933,7 @@ local function updateRebirthSign(player)
 	lines = lines .. "\nCost: " .. tostring(req.cost) .. " credits"
 	rebirthInfo.Text = lines
 end
-rebirthInfo.Text = "Waiting for player..."
+rebirthInfo.Text = "Walk up to see\nyour requirements"
 
 local rebirthClick = Instance.new("ClickDetector")
 rebirthClick.MaxActivationDistance = 12

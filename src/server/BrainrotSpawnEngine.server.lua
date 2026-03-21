@@ -1640,10 +1640,9 @@ end)
 
 local allTimeStore = DataStoreService:GetDataStore("AllTimeEarnings_v1")
 
--- LeaderboardWall: Pos (-5, 12, 4.5), Size (2, 22, 59), Orientation (0, -180, 0)
--- The wall faces +X direction (players approach from +X side)
--- Board parts sit flush on the +X face of the wall at X = -5 + 1 = -4
-local WALL_CENTER = Vector3.new(-5, 12, 4.5)
+-- LeaderboardWall: Pos (-51, 12, 4.5), Size (2, 22, 59), Orientation (0, -180, 0)
+-- Players approach from +X side, so boards go on the +X face
+local WALL_CENTER = Vector3.new(-51, 12, 4.5)
 local BOARD_X     = WALL_CENTER.X + 1.2  -- flush with +X face of wall
 
 local function createLedBoard(posX, posY, posZ, title)

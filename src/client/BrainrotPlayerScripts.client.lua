@@ -388,6 +388,13 @@ end)
 
 -- Listen for rebirth info from server (push updates after rebirth)
 rebirthInfoEvent.OnClientEvent:Connect(function(currentLevel, brainrots, cost, rarityText)
+	print("[CLIENT REBIRTH] level:", currentLevel, "cost:", cost, "rarityText:", rarityText)
+	print("[CLIENT REBIRTH] brainrots count:", brainrots and #brainrots or "NIL")
+	if brainrots then
+		for i, name in ipairs(brainrots) do
+			print("[CLIENT REBIRTH] brainrot", i, ":", name)
+		end
+	end
 	rebirthLabel.Text = "Rebirth #" .. currentLevel
 	updateRebirthReqDisplay(brainrots, cost, rarityText)
 

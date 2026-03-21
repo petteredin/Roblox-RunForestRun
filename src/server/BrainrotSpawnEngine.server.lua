@@ -1955,8 +1955,16 @@ local function onPlayerAdded(player)
 	startCreditTick(player)
 
 	-- Initialize rebirth requirements and update the physical sign
-	initRebirthReq(player)
+	local req = initRebirthReq(player)
 	updateRebirthSign(player)
+	print("[REBIRTH DEBUG] Player:", player.Name)
+	if req then
+		print("[REBIRTH DEBUG] brainrots:", table.concat(req.brainrots, ", "))
+		print("[REBIRTH DEBUG] cost:", req.cost)
+		print("[REBIRTH DEBUG] spec:", req.spec and #req.spec or "NO SPEC")
+	else
+		print("[REBIRTH DEBUG] req is NIL - getRebirthRequirement failed!")
+	end
 
 	player.CharacterAdded:Connect(function(character)
 		task.wait(1)

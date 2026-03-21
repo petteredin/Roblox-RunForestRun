@@ -582,8 +582,10 @@ local function createMemberRow(p, order)
 	kc.Parent = kickBtn
 
 	adminToggleBtn.MouseButton1Click:Connect(function()
+		print("[ADMIN CLIENT] Toggle admin clicked for:", p.Name, "UserId:", p.UserId)
 		adminRemote:FireServer("ToggleAdmin", p.Name)
 		flashButton(adminToggleBtn, true)
+		showStatus("Sent ToggleAdmin for " .. p.Name, true)
 	end)
 
 	kickBtn.MouseButton1Click:Connect(function()

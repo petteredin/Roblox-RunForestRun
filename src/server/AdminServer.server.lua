@@ -611,15 +611,18 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 	-- =====================
 	elseif cmd == "ToggleAdmin" then
 		local targetName = sanitizeString(args[1])
+		print("[ADMIN SERVER] ToggleAdmin received, targetName:", targetName)
 		if not targetName or #targetName == 0 then
 			adminResponse:FireClient(player, false, "Ange ett spelarnamn")
 			return
 		end
 		local target = findPlayer(targetName)
+		print("[ADMIN SERVER] findPlayer result:", target and target.Name or "NIL")
 		if not target then
 			adminResponse:FireClient(player, false, "Spelaren '" .. targetName .. "' hittades inte")
 			return
 		end
+		print("[ADMIN SERVER] target.UserId:", target.UserId, "isAdmin:", ADMINS[target.UserId] or false, "isOwner:", OWNER_IDS[target.UserId] or false)
 		if ADMINS[target.UserId] then
 			-- Ta bort admin - ägare kan aldrig tas bort
 			if OWNER_IDS[target.UserId] then

@@ -29,6 +29,9 @@ local OWNER_IDS = {
 	[8327644091] = true, -- Simpleson716
 }
 
+-- Unique counter for log keys to avoid collisions
+local logCounter = 0
+
 -- Runtime admin-lista (laddas från DataStore + owners)
 local ADMINS = {}
 for id in pairs(OWNER_IDS) do
@@ -124,7 +127,8 @@ local function logAction(player, cmd, target, details)
 	if adminLogStore then
 		task.spawn(function()
 			pcall(function()
-				local key = "log_" .. tostring(os.time()) .. "_" .. tostring(player.UserId)
+				logCounter = logCounter + 1
+				local key = "log_" .. tostring(os.time()) .. "_" .. tostring(player.UserId) .. "_" .. tostring(logCounter)
 				adminLogStore:SetAsync(key, entry)
 			end)
 		end)
@@ -367,9 +371,9 @@ pcall(function()
 		if not ok or not data then return end
 
 		if data.cmd == "SpawnBrainrot" then
-			GameManager.spawnBrainrot(data.args.name, data.args.mutation)
+			warn("[ADMIN] SpawnBrainrot not yet implemented via BindableFunctions")
 		elseif data.cmd == "SpawnWave" then
-			GameManager.triggerWave(data.args.waveName)
+			warn("[ADMIN] SpawnWave not yet implemented via BindableFunctions")
 		elseif data.cmd == "BanPlayer" then
 			-- Annan server bannade en spelare - uppdatera lokal cache och kicka om online
 			local key = tostring(data.args.userId)
@@ -441,16 +445,16 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 				return
 			end
 		end
-		if adminAddCredits then
-			local ok, err = adminAddCredits:Invoke(target, amount)
-			logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
-			if ok then
-				adminResponse:FireClient(player, true, "Lade till " .. amount .. " credits till " .. target.Name)
-			else
-				adminResponse:FireClient(player, false, err or "Okänt fel")
-			end
+		if not adminAddCredits then
+			adminResponse:FireClient(player, false, "Server not ready - try again")
+			return
+		end
+		local ok, err = adminAddCredits:Invoke(target, amount)
+		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
+		if ok then
+			adminResponse:FireClient(player, true, "Lade till " .. amount .. " credits till " .. target.Name)
 		else
-			adminResponse:FireClient(player, false, "AdminAddCredits ej tillgänglig")
+			adminResponse:FireClient(player, false, err or "Okänt fel")
 		end
 
 	-- =====================
@@ -471,16 +475,16 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 				return
 			end
 		end
-		if adminSetCredits then
-			local ok, err = adminSetCredits:Invoke(target, amount)
-			logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
-			if ok then
-				adminResponse:FireClient(player, true, "Satte credits till " .. amount .. " för " .. target.Name)
-			else
-				adminResponse:FireClient(player, false, err or "Okänt fel")
-			end
+		if not adminSetCredits then
+			adminResponse:FireClient(player, false, "Server not ready - try again")
+			return
+		end
+		local ok, err = adminSetCredits:Invoke(target, amount)
+		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
+		if ok then
+			adminResponse:FireClient(player, true, "Satte credits till " .. amount .. " för " .. target.Name)
 		else
-			adminResponse:FireClient(player, false, "AdminSetCredits ej tillgänglig")
+			adminResponse:FireClient(player, false, err or "Okänt fel")
 		end
 
 	-- =====================
@@ -501,16 +505,16 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 				return
 			end
 		end
-		if adminSetRebirth then
-			local ok, err = adminSetRebirth:Invoke(target, amount)
-			logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
-			if ok then
-				adminResponse:FireClient(player, true, "Satte rebirth till " .. amount .. " för " .. target.Name)
-			else
-				adminResponse:FireClient(player, false, err or "Okänt fel")
-			end
+		if not adminSetRebirth then
+			adminResponse:FireClient(player, false, "Server not ready - try again")
+			return
+		end
+		local ok, err = adminSetRebirth:Invoke(target, amount)
+		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
+		if ok then
+			adminResponse:FireClient(player, true, "Satte rebirth till " .. amount .. " för " .. target.Name)
 		else
-			adminResponse:FireClient(player, false, "AdminSetRebirth ej tillgänglig")
+			adminResponse:FireClient(player, false, err or "Okänt fel")
 		end
 
 	-- =====================
@@ -526,16 +530,16 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 				return
 			end
 		end
-		if adminGiveRebirth then
-			local ok, err = adminGiveRebirth:Invoke(target)
-			logAction(player, cmd, target.Name)
-			if ok then
-				adminResponse:FireClient(player, true, "Gav rebirth till " .. target.Name)
-			else
-				adminResponse:FireClient(player, false, err or "Okänt fel")
-			end
+		if not adminGiveRebirth then
+			adminResponse:FireClient(player, false, "Server not ready - try again")
+			return
+		end
+		local ok, err = adminGiveRebirth:Invoke(target)
+		logAction(player, cmd, target.Name)
+		if ok then
+			adminResponse:FireClient(player, true, "Gav rebirth till " .. target.Name)
 		else
-			adminResponse:FireClient(player, false, "AdminGiveRebirth ej tillgänglig")
+			adminResponse:FireClient(player, false, err or "Okänt fel")
 		end
 
 	-- =====================
@@ -556,16 +560,16 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 				return
 			end
 		end
-		if adminSetSpeed then
-			local ok, err = adminSetSpeed:Invoke(target, multiplier)
-			logAction(player, cmd, target.Name, "multiplier=" .. tostring(multiplier))
-			if ok then
-				adminResponse:FireClient(player, true, "Satte speed till " .. multiplier .. "x för " .. target.Name)
-			else
-				adminResponse:FireClient(player, false, err or "Okänt fel")
-			end
+		if not adminSetSpeed then
+			adminResponse:FireClient(player, false, "Server not ready - try again")
+			return
+		end
+		local ok, err = adminSetSpeed:Invoke(target, multiplier)
+		logAction(player, cmd, target.Name, "multiplier=" .. tostring(multiplier))
+		if ok then
+			adminResponse:FireClient(player, true, "Satte speed till " .. multiplier .. "x för " .. target.Name)
 		else
-			adminResponse:FireClient(player, false, "AdminSetSpeed ej tillgänglig")
+			adminResponse:FireClient(player, false, err or "Okänt fel")
 		end
 
 	-- =====================
@@ -584,13 +588,9 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			logAction(player, cmd, brainrotName, "scope=Global mutation=" .. mutation)
 			adminResponse:FireClient(player, true, "Spawnade '" .. brainrotName .. "' globalt")
 		else
-			local ok, err = GameManager.spawnBrainrot(brainrotName, mutation)
+			warn("[ADMIN] SpawnBrainrot (local) not yet implemented via BindableFunctions")
 			logAction(player, cmd, brainrotName, "scope=Server mutation=" .. mutation)
-			if ok then
-				adminResponse:FireClient(player, true, "Spawnade '" .. brainrotName .. "' på servern")
-			else
-				adminResponse:FireClient(player, false, err)
-			end
+			adminResponse:FireClient(player, false, "SpawnBrainrot not yet implemented via BindableFunctions")
 		end
 
 	-- =====================
@@ -608,13 +608,9 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			logAction(player, cmd, waveName, "scope=Global")
 			adminResponse:FireClient(player, true, "Triggade våg '" .. waveName .. "' globalt")
 		else
-			local ok, err = GameManager.triggerWave(waveName)
+			warn("[ADMIN] SpawnWave (local) not yet implemented via BindableFunctions")
 			logAction(player, cmd, waveName, "scope=Server")
-			if ok then
-				adminResponse:FireClient(player, true, "Triggade våg '" .. waveName .. "'")
-			else
-				adminResponse:FireClient(player, false, err)
-			end
+			adminResponse:FireClient(player, false, "SpawnWave not yet implemented via BindableFunctions")
 		end
 
 	-- =====================

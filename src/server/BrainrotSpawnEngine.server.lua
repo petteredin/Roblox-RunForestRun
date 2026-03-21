@@ -1196,18 +1196,7 @@ end
 -- RemoteEvent from client HUD button
 rebirthRequestEvent.OnServerEvent:Connect(processRebirth)
 
--- Admin check: send admin status to client on join
-local ADMIN_USER_IDS = { 1 } -- Add admin user IDs here
-local function isAdmin(player)
-	-- Game owner is always admin
-	if game.CreatorType == Enum.CreatorType.User and game.CreatorId == player.UserId then
-		return true
-	end
-	for _, id in ipairs(ADMIN_USER_IDS) do
-		if player.UserId == id then return true end
-	end
-	return false
-end
+-- Admin check is now handled exclusively by AdminServer.server.lua
 
 -- =====================
 -- PROMPT / NAME TAG
@@ -2281,10 +2270,7 @@ local function onPlayerAdded(player)
 		end)
 	end
 
-	-- Send admin status to client
-	task.delay(2, function()
-		adminCheckEvent:FireClient(player, isAdmin(player))
-	end)
+	-- Admin status is now sent by AdminServer.server.lua
 end
 
 Players.PlayerAdded:Connect(onPlayerAdded)

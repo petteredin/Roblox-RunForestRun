@@ -587,7 +587,17 @@ local function createMemberRow(p, order)
 
 	adminToggleBtn.MouseButton1Click:Connect(function()
 		print("[ADMIN CLIENT] Toggle admin clicked for:", p.Name, "UserId:", p.UserId)
-		adminRemote:FireServer("ToggleAdmin", p.Name)
+		print("[ADMIN CLIENT] adminRemote exists:", adminRemote ~= nil)
+		showStatus("Sending ToggleAdmin for " .. p.Name .. "...", true)
+		local ok, err = pcall(function()
+			adminRemote:FireServer("ToggleAdmin", p.Name)
+		end)
+		if not ok then
+			print("[ADMIN CLIENT] FireServer ERROR:", err)
+			showStatus("FireServer failed: " .. tostring(err), false)
+			return
+		end
+		print("[ADMIN CLIENT] FireServer sent OK, waiting for response...")
 		-- Toggle button color immediately as visual feedback
 		local wasAdmin = adminToggleBtn.BackgroundColor3 == COLORS.header
 		if wasAdmin then
@@ -597,6 +607,12 @@ local function createMemberRow(p, order)
 			adminToggleBtn.BackgroundColor3 = COLORS.header
 			adminToggleBtn.TextColor3 = COLORS.textDark
 		end
+		-- Timeout check - if no response in 3 seconds, server didn't process it
+		task.delay(3, function()
+			if statusLabel.Text == "  Sending ToggleAdmin for " .. p.Name .. "..." then
+				showStatus("No response from server - check server logs", false)
+			end
+		end)
 	end)
 
 	kickBtn.MouseButton1Click:Connect(function()

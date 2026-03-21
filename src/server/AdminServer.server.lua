@@ -23,12 +23,51 @@ local adminGiveRebirth = waitForBindable("AdminGiveRebirth")
 local adminSetSpeed    = waitForBindable("AdminSetSpeed")
 
 -- =====================
--- WHITELIST
--- Ersätt med riktiga UserId:n
+-- WHITELIST (hardkodade ägare som alltid är admin)
 -- =====================
-local ADMINS = {
+local OWNER_IDS = {
 	[8327644091] = true, -- Simpleson716
 }
+
+-- Runtime admin-lista (laddas från DataStore + owners)
+local ADMINS = {}
+for id in pairs(OWNER_IDS) do
+	ADMINS[id] = true
+end
+
+-- Persistent admin storage
+local adminStore = nil
+pcall(function()
+	adminStore = DataStoreService:GetDataStore("AdminList")
+end)
+
+local function loadAdminList()
+	if not adminStore then return end
+	local ok, data = pcall(function()
+		return adminStore:GetAsync("Admins")
+	end)
+	if ok and data and type(data) == "table" then
+		for _, userId in ipairs(data) do
+			ADMINS[userId] = true
+		end
+		print("[ADMIN] Loaded admin list from DataStore")
+	end
+end
+
+local function saveAdminList()
+	if not adminStore then return end
+	task.spawn(function()
+		local list = {}
+		for userId in pairs(ADMINS) do
+			table.insert(list, userId)
+		end
+		pcall(function()
+			adminStore:SetAsync("Admins", list)
+		end)
+	end)
+end
+
+loadAdminList()
 
 -- =====================
 -- RATE LIMITING
@@ -312,6 +351,12 @@ pcall(function()
 			end
 		elseif data.cmd == "UnbanPlayer" then
 			bannedPlayers[tostring(data.args.userId)] = nil
+		elseif data.cmd == "AddAdmin" then
+			ADMINS[data.args.userId] = true
+		elseif data.cmd == "RemoveAdmin" then
+			if not OWNER_IDS[data.args.userId] then
+				ADMINS[data.args.userId] = nil
+			end
 		end
 	end)
 end)
@@ -576,25 +621,43 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			return
 		end
 		if ADMINS[target.UserId] then
-			-- Ta bort admin (kan inte ta bort sig själv)
-			if target.UserId == player.UserId then
-				adminResponse:FireClient(player, false, "Du kan inte ta bort dig själv som admin")
+			-- Ta bort admin - ägare kan aldrig tas bort
+			if OWNER_IDS[target.UserId] then
+				adminResponse:FireClient(player, false, target.DisplayName .. " är ägare och kan inte tas bort som admin")
 				return
 			end
 			ADMINS[target.UserId] = nil
+			saveAdminList()
 			logAction(player, cmd, target.Name, "removed admin")
 			adminResponse:FireClient(player, true, "Tog bort admin: " .. target.DisplayName)
+
+			-- Publicera globalt
+			pcall(function()
+				local data = game:GetService("HttpService"):JSONEncode({
+					cmd = "RemoveAdmin", args = { userId = target.UserId },
+				})
+				MessagingService:PublishAsync("AdminCommand", data)
+			end)
 		else
 			-- Lägg till som admin
 			ADMINS[target.UserId] = true
+			saveAdminList()
 			logAction(player, cmd, target.Name, "granted admin")
-			adminResponse:FireClient(player, true, "Gav admin till: " .. target.DisplayName .. " (måste rejoina för panel)")
+			adminResponse:FireClient(player, true, "Gav admin till: " .. target.DisplayName .. " (globalt, måste rejoina för panel)")
 
-			-- Visa Owner-knappen för den nya adminen via adminCheckEvent
+			-- Visa Owner-knappen för den nya adminen
 			local adminCheckEvent = ReplicatedStorage:FindFirstChild("AdminCheck")
 			if adminCheckEvent then
 				adminCheckEvent:FireClient(target, true)
 			end
+
+			-- Publicera globalt
+			pcall(function()
+				local data = game:GetService("HttpService"):JSONEncode({
+					cmd = "AddAdmin", args = { userId = target.UserId },
+				})
+				MessagingService:PublishAsync("AdminCommand", data)
+			end)
 		end
 
 	-- =====================

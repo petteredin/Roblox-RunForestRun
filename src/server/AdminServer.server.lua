@@ -9,8 +9,18 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
 local MessagingService = game:GetService("MessagingService")
+local ServerScriptService = game:GetService("ServerScriptService")
 
-local GameManager = require(script.Parent:WaitForChild("GameManager"))
+-- BindableFunctions som BrainrotSpawnEngine lyssnar på
+local function waitForBindable(name)
+	return ServerScriptService:WaitForChild(name, 15)
+end
+
+local adminAddCredits  = waitForBindable("AdminAddCredits")
+local adminSetCredits  = waitForBindable("AdminSetCredits")
+local adminSetRebirth  = waitForBindable("AdminSetRebirth")
+local adminGiveRebirth = waitForBindable("AdminGiveRebirth")
+local adminSetSpeed    = waitForBindable("AdminSetSpeed")
 
 -- =====================
 -- WHITELIST
@@ -204,12 +214,16 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 				return
 			end
 		end
-		local ok, err = GameManager.addCredits(target, amount)
-		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
-		if ok then
-			adminResponse:FireClient(player, true, "Lade till " .. amount .. " credits till " .. target.Name)
+		if adminAddCredits then
+			local ok, err = adminAddCredits:Invoke(target, amount)
+			logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
+			if ok then
+				adminResponse:FireClient(player, true, "Lade till " .. amount .. " credits till " .. target.Name)
+			else
+				adminResponse:FireClient(player, false, err or "Okänt fel")
+			end
 		else
-			adminResponse:FireClient(player, false, err)
+			adminResponse:FireClient(player, false, "AdminAddCredits ej tillgänglig")
 		end
 
 	-- =====================
@@ -230,12 +244,16 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 				return
 			end
 		end
-		local ok, err = GameManager.setCredits(target, amount)
-		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
-		if ok then
-			adminResponse:FireClient(player, true, "Satte credits till " .. amount .. " för " .. target.Name)
+		if adminSetCredits then
+			local ok, err = adminSetCredits:Invoke(target, amount)
+			logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
+			if ok then
+				adminResponse:FireClient(player, true, "Satte credits till " .. amount .. " för " .. target.Name)
+			else
+				adminResponse:FireClient(player, false, err or "Okänt fel")
+			end
 		else
-			adminResponse:FireClient(player, false, err)
+			adminResponse:FireClient(player, false, "AdminSetCredits ej tillgänglig")
 		end
 
 	-- =====================
@@ -256,12 +274,16 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 				return
 			end
 		end
-		local ok, err = GameManager.setRebirth(target, amount)
-		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
-		if ok then
-			adminResponse:FireClient(player, true, "Satte rebirth till " .. amount .. " för " .. target.Name)
+		if adminSetRebirth then
+			local ok, err = adminSetRebirth:Invoke(target, amount)
+			logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
+			if ok then
+				adminResponse:FireClient(player, true, "Satte rebirth till " .. amount .. " för " .. target.Name)
+			else
+				adminResponse:FireClient(player, false, err or "Okänt fel")
+			end
 		else
-			adminResponse:FireClient(player, false, err)
+			adminResponse:FireClient(player, false, "AdminSetRebirth ej tillgänglig")
 		end
 
 	-- =====================
@@ -277,12 +299,16 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 				return
 			end
 		end
-		local ok, err = GameManager.giveRebirth(target)
-		logAction(player, cmd, target.Name)
-		if ok then
-			adminResponse:FireClient(player, true, "Gav rebirth till " .. target.Name)
+		if adminGiveRebirth then
+			local ok, err = adminGiveRebirth:Invoke(target)
+			logAction(player, cmd, target.Name)
+			if ok then
+				adminResponse:FireClient(player, true, "Gav rebirth till " .. target.Name)
+			else
+				adminResponse:FireClient(player, false, err or "Okänt fel")
+			end
 		else
-			adminResponse:FireClient(player, false, err)
+			adminResponse:FireClient(player, false, "AdminGiveRebirth ej tillgänglig")
 		end
 
 	-- =====================
@@ -303,12 +329,16 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 				return
 			end
 		end
-		local ok, err = GameManager.setSpeed(target, multiplier)
-		logAction(player, cmd, target.Name, "multiplier=" .. tostring(multiplier))
-		if ok then
-			adminResponse:FireClient(player, true, "Satte speed till " .. multiplier .. "x för " .. target.Name)
+		if adminSetSpeed then
+			local ok, err = adminSetSpeed:Invoke(target, multiplier)
+			logAction(player, cmd, target.Name, "multiplier=" .. tostring(multiplier))
+			if ok then
+				adminResponse:FireClient(player, true, "Satte speed till " .. multiplier .. "x för " .. target.Name)
+			else
+				adminResponse:FireClient(player, false, err or "Okänt fel")
+			end
 		else
-			adminResponse:FireClient(player, false, err)
+			adminResponse:FireClient(player, false, "AdminSetSpeed ej tillgänglig")
 		end
 
 	-- =====================
@@ -358,32 +388,6 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			else
 				adminResponse:FireClient(player, false, err)
 			end
-		end
-
-	-- =====================
-	-- ADD EVENT COINS
-	-- =====================
-	elseif cmd == "AddEventCoins" then
-		local targetName = sanitizeString(args[1])
-		local amount = sanitizeNumber(args[2])
-		if not amount or amount <= 0 then
-			adminResponse:FireClient(player, false, "Ogiltigt belopp")
-			return
-		end
-		local target = player
-		if targetName and #targetName > 0 then
-			target = findPlayer(targetName)
-			if not target then
-				adminResponse:FireClient(player, false, "Spelaren hittades inte")
-				return
-			end
-		end
-		local ok, err = GameManager.addEventCoins(target, amount)
-		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
-		if ok then
-			adminResponse:FireClient(player, true, "Lade till " .. amount .. " event coins till " .. target.Name)
-		else
-			adminResponse:FireClient(player, false, err)
 		end
 
 	-- =====================

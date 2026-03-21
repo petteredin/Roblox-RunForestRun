@@ -496,22 +496,7 @@ rebirthBtns["Set"].MouseButton1Click:Connect(function()
 end)
 
 -- =====================
--- SEKTION 3: Event Coins
--- =====================
-local eventSection = createSection("Event Coins")
-local eventInput = createInput(eventSection, "Enter amount to add", 1)
-local eventBtn = createButton(eventSection, "Add", COLORS.btnGreen, 2)
-eventBtn.Size = UDim2.new(1, 0, 0, 30)
-
-eventBtn.MouseButton1Click:Connect(function()
-	local amount = tonumber(eventInput.Text)
-	if not amount then showStatus("Ange ett giltigt nummer", false) return end
-	adminRemote:FireServer("AddEventCoins", targetInput.Text, amount)
-	flashButton(eventBtn, true)
-end)
-
--- =====================
--- SEKTION 4: Speed
+-- SEKTION 3: Speed
 -- =====================
 local speedSection = createSection("Speed")
 local speedInput = createInput(speedSection, "Enter multiplier (e.g. 2.5)", 1)

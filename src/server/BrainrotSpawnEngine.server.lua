@@ -369,12 +369,106 @@ getRebirthInfoFunc.OnServerInvoke = function(player)
 end
 
 -- =====================
--- REBIRTH MULTIPLIER
+-- REBIRTH MULTIPLIER (behövs av admin-handlers nedan)
 -- =====================
 
 local function getEvoMult(player)
 	local rebirths = playerRebirth[player] or 0
 	return REBIRTH_MULT ^ rebirths
+end
+
+-- =====================
+-- ADMIN BINDABLE EVENTS
+-- Lyssnar på kommandon från AdminServer
+-- =====================
+
+local function getOrCreateBindable(name)
+	local ServerScriptService = game:GetService("ServerScriptService")
+	local b = ServerScriptService:FindFirstChild(name)
+	if not b then
+		b = Instance.new("BindableFunction")
+		b.Name = name
+		b.Parent = ServerScriptService
+	end
+	return b
+end
+
+local adminSetCredits   = getOrCreateBindable("AdminSetCredits")
+local adminAddCredits   = getOrCreateBindable("AdminAddCredits")
+local adminSetRebirth   = getOrCreateBindable("AdminSetRebirth")
+local adminGiveRebirth  = getOrCreateBindable("AdminGiveRebirth")
+local adminSetSpeed     = getOrCreateBindable("AdminSetSpeed")
+
+adminAddCredits.OnInvoke = function(player, amount)
+	if not player or type(amount) ~= "number" then return false, "Ogiltiga argument" end
+	amount = math.floor(amount)
+	if amount <= 0 then return false, "Belopp måste vara positivt" end
+	playerWallet[player] = (playerWallet[player] or 0) + amount
+	creditEvent:FireClient(player, playerWallet[player])
+	return true, nil
+end
+
+adminSetCredits.OnInvoke = function(player, amount)
+	if not player or type(amount) ~= "number" then return false, "Ogiltiga argument" end
+	amount = math.floor(math.max(0, amount))
+	playerWallet[player] = amount
+	creditEvent:FireClient(player, playerWallet[player])
+	return true, nil
+end
+
+adminSetRebirth.OnInvoke = function(player, amount)
+	if not player or type(amount) ~= "number" then return false, "Ogiltiga argument" end
+	amount = math.floor(amount)
+	if amount < 0 or amount > MAX_REBIRTHS then return false, "Rebirth måste vara 0-" .. MAX_REBIRTHS end
+	playerRebirth[player] = amount
+	-- Uppdatera nästa rebirth-krav
+	local req = initRebirthReq(player)
+	if req then
+		local rarityText = getRebirthRarityText(amount + 1)
+		rebirthInfoEvent:FireClient(player, amount, req.brainrots, req.cost, rarityText)
+	else
+		rebirthInfoEvent:FireClient(player, amount, {}, 0, "")
+	end
+	return true, nil
+end
+
+adminGiveRebirth.OnInvoke = function(player)
+	if not player then return false, "Ogiltig spelare" end
+	local current = playerRebirth[player] or 0
+	if current >= MAX_REBIRTHS then return false, "Max rebirth (" .. MAX_REBIRTHS .. ")" end
+	local nextLvl = current + 1
+	playerRebirth[player] = nextLvl
+	local req = initRebirthReq(player)
+	if req then
+		local rarityText = getRebirthRarityText(nextLvl + 1)
+		rebirthInfoEvent:FireClient(player, nextLvl, req.brainrots, req.cost, rarityText)
+	else
+		rebirthInfoEvent:FireClient(player, nextLvl, {}, 0, "")
+	end
+	rebirthResultEvent:FireClient(player, true, nextLvl, playerWallet[player] or 0)
+	return true, nil
+end
+
+adminSetSpeed.OnInvoke = function(player, multiplier)
+	if not player or type(multiplier) ~= "number" then return false, "Ogiltiga argument" end
+	if multiplier <= 0 or multiplier > 200 then return false, "Multiplier 0-200" end
+	-- Beräkna vilken speedTime som ger denna multiplier (utan rebirth-mult)
+	-- totalMult = speedMult * rebirthMult, speedMult = 1 + time * 0.01
+	-- Vi sätter speedTime så att speedMult = multiplier / rebirthMult
+	local rebirthMult = getEvoMult(player)
+	local targetSpeedMult = multiplier / rebirthMult
+	local newTime = math.max(0, (targetSpeedMult - 1) / SPEED_INCREMENT)
+	playerSpeedTime[player] = newTime
+	-- Applicera direkt
+	local character = player.Character
+	if character then
+		local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+		if humanoid then
+			humanoid.WalkSpeed = BASE_WALK_SPEED * multiplier
+		end
+	end
+	speedUpdateEvent:FireClient(player, multiplier)
+	return true, nil
 end
 
 -- =====================

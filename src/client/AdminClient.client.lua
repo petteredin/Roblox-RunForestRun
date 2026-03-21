@@ -12,12 +12,25 @@ local player = Players.LocalPlayer
 
 -- =====================
 -- ADMIN-KONTROLL (klient-sida, enbart för GUI-visning)
+-- Frågar servern om spelaren är admin istället för hardkodad lista
 -- =====================
 local ADMIN_IDS = {
-	[8327644091] = true, -- Simpleson716
+	[8327644091] = true, -- Simpleson716 (fallback)
 }
 
-if not ADMIN_IDS[player.UserId] then
+-- Kolla med servern om vi är admin
+local isAdminFunc = ReplicatedStorage:WaitForChild("IsAdmin", 10)
+local isAdmin = ADMIN_IDS[player.UserId] -- fallback
+if isAdminFunc then
+	local ok, result = pcall(function()
+		return isAdminFunc:InvokeServer()
+	end)
+	if ok then
+		isAdmin = result
+	end
+end
+
+if not isAdmin then
 	return
 end
 

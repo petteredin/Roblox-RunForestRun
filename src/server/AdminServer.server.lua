@@ -241,6 +241,20 @@ getBanListFunc.OnServerInvoke = function(requestingPlayer)
 end
 
 -- =====================
+-- ADMIN CHECK (RemoteFunction för klienten att fråga om den är admin)
+-- =====================
+local isAdminFunc = ReplicatedStorage:FindFirstChild("IsAdmin")
+if not isAdminFunc then
+	isAdminFunc = Instance.new("RemoteFunction")
+	isAdminFunc.Name = "IsAdmin"
+	isAdminFunc.Parent = ReplicatedStorage
+end
+
+isAdminFunc.OnServerInvoke = function(requestingPlayer)
+	return ADMINS[requestingPlayer.UserId] == true
+end
+
+-- =====================
 -- REMOTE EVENT
 -- =====================
 local adminRemote = ReplicatedStorage:FindFirstChild("AdminRemote")

@@ -97,6 +97,9 @@ task.spawn(function()
 				local ownerBtn = gui:FindFirstChild("OwnerButton", true)
 				if ownerBtn then
 					bottomGui = gui
+					-- Vi vet redan att vi är admin (IsAdmin check passerade)
+					-- Gör Owner-knappen synlig direkt
+					ownerBtn.Visible = true
 					-- Lägg en transparent TextButton ovanpå Owner-knappen
 					adminBtn = Instance.new("TextButton")
 					adminBtn.Name = "AdminToggleOverlay"
@@ -107,6 +110,7 @@ task.spawn(function()
 					adminBtn.MouseButton1Click:Connect(function()
 						togglePanel()
 					end)
+					print("[AdminClient] Owner-knappen hittad och synlig")
 					return
 				end
 			end

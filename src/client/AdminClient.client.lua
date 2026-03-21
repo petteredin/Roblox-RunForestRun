@@ -65,38 +65,56 @@ screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- =====================
--- ADMIN-KNAPP (öppna panelen)
--- =====================
-local adminBtn = Instance.new("TextButton")
-adminBtn.Name = "AdminToggle"
-adminBtn.Size = UDim2.new(0, 50, 0, 50)
-adminBtn.Position = UDim2.new(1, -60, 1, -60)
-adminBtn.AnchorPoint = Vector2.new(0, 0)
-adminBtn.BackgroundColor3 = COLORS.header
-adminBtn.Text = "ADM"
-adminBtn.TextColor3 = COLORS.text
-adminBtn.TextSize = 14
-adminBtn.Font = Enum.Font.GothamBold
-adminBtn.Parent = screenGui
+-- Forward declaration
+local togglePanel
 
-local adminBtnCorner = Instance.new("UICorner")
-adminBtnCorner.CornerRadius = UDim.new(0, 8)
-adminBtnCorner.Parent = adminBtn
-
-local adminBadge = Instance.new("TextLabel")
-adminBadge.Size = UDim2.new(0, 40, 0, 16)
-adminBadge.Position = UDim2.new(0.5, 0, 0, -10)
-adminBadge.AnchorPoint = Vector2.new(0.5, 0)
-adminBadge.BackgroundColor3 = COLORS.btnRed
-adminBadge.Text = "ADMIN"
-adminBadge.TextColor3 = COLORS.text
-adminBadge.TextSize = 9
-adminBadge.Font = Enum.Font.GothamBold
-adminBadge.Parent = adminBtn
-local badgeCorner = Instance.new("UICorner")
-badgeCorner.CornerRadius = UDim.new(0, 4)
-badgeCorner.Parent = adminBadge
+-- =====================
+-- ADMIN-KNAPP (hittar Owner-knappen från BrainrotPlayerScripts)
+-- =====================
+-- Skapa en osynlig klickbar knapp som läggs ovanpå Owner-knappen
+local adminBtn = nil
+task.spawn(function()
+	-- Vänta på att Owner-knappen skapas av BrainrotPlayerScripts
+	local playerGui = player:WaitForChild("PlayerGui")
+	local bottomGui = nil
+	for i = 1, 30 do
+		for _, gui in ipairs(playerGui:GetChildren()) do
+			if gui:IsA("ScreenGui") then
+				local ownerBtn = gui:FindFirstChild("OwnerButton", true)
+				if ownerBtn then
+					bottomGui = gui
+					-- Lägg en transparent TextButton ovanpå Owner-knappen
+					adminBtn = Instance.new("TextButton")
+					adminBtn.Name = "AdminToggleOverlay"
+					adminBtn.Size = UDim2.new(1, 0, 1, 0)
+					adminBtn.BackgroundTransparency = 1
+					adminBtn.Text = ""
+					adminBtn.Parent = ownerBtn
+					adminBtn.MouseButton1Click:Connect(function()
+						togglePanel()
+					end)
+					return
+				end
+			end
+		end
+		task.wait(0.5)
+	end
+	-- Fallback: skapa en egen knapp om Owner inte hittas
+	adminBtn = Instance.new("TextButton")
+	adminBtn.Name = "AdminToggle"
+	adminBtn.Size = UDim2.new(0, 50, 0, 50)
+	adminBtn.Position = UDim2.new(1, -60, 1, -60)
+	adminBtn.BackgroundColor3 = COLORS.header
+	adminBtn.Text = "ADM"
+	adminBtn.TextColor3 = COLORS.text
+	adminBtn.TextSize = 14
+	adminBtn.Font = Enum.Font.GothamBold
+	adminBtn.Parent = screenGui
+	Instance.new("UICorner", adminBtn).CornerRadius = UDim.new(0, 8)
+	adminBtn.MouseButton1Click:Connect(function()
+		togglePanel()
+	end)
+end)
 
 -- =====================
 -- ADMIN-PANEL (huvudfönster)
@@ -908,7 +926,7 @@ end
 local panelOpen = false
 local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
-local function togglePanel()
+togglePanel = function()
 	panelOpen = not panelOpen
 	local targetPos
 	if panelOpen then
@@ -920,7 +938,7 @@ local function togglePanel()
 	tween:Play()
 end
 
-adminBtn.MouseButton1Click:Connect(togglePanel)
+-- adminBtn click is connected in the task.spawn above
 closeBtn.MouseButton1Click:Connect(function()
 	if panelOpen then togglePanel() end
 end)

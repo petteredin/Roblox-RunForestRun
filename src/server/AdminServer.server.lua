@@ -17,7 +17,7 @@ local GameManager = require(script.Parent:WaitForChild("GameManager"))
 -- Ersätt med riktiga UserId:n
 -- =====================
 local ADMINS = {
-	[0000000000] = true, -- Placeholder: lägg till dina admin-IDs här
+	[8327644091] = true, -- Simpleson716
 }
 
 -- =====================

@@ -16,7 +16,7 @@ local player = Players.LocalPlayer
 -- Servern tar alla säkerhetsbeslut.
 -- =====================
 local ADMIN_IDS = {
-	[0000000000] = true, -- Placeholder: synkronisera med serverns lista
+	[8327644091] = true, -- Simpleson716
 }
 
 if not ADMIN_IDS[player.UserId] then

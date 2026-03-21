@@ -1835,11 +1835,8 @@ local function onPlayerAdded(player)
 	createSlotParts(player)
 	startCreditTick(player)
 
-	-- Generate and send initial rebirth requirements to client (delay to let client connect)
-	local req = generateRebirthReq(player)
-	task.delay(3, function()
-		rebirthInfoEvent:FireClient(player, playerRebirth[player] or 0, req.brainrots, req.cost)
-	end)
+	-- Generate rebirth requirements (sent to client on CharacterAdded when client is ready)
+	generateRebirthReq(player)
 
 	player.CharacterAdded:Connect(function(character)
 		task.wait(1)
@@ -1849,6 +1846,14 @@ local function onPlayerAdded(player)
 			root.CFrame = CFrame.new(basePos + Vector3.new(0, 5, 0))
 		end
 		createSlotParts(player)
+
+		-- Send rebirth info after character loads (client script is ready by now)
+		task.delay(2, function()
+			local req = playerRebirthReq[player]
+			if req then
+				rebirthInfoEvent:FireClient(player, playerRebirth[player] or 0, req.brainrots, req.cost)
+			end
+		end)
 	end)
 
 	local character = player.Character

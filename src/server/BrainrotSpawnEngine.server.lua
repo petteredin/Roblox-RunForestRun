@@ -348,6 +348,8 @@ local sellEvent          = getOrCreateRemote("SellRequested")
 local speedUpdateEvent   = getOrCreateRemote("SpeedUpdate")
 local rebirthResultEvent = getOrCreateRemote("RebirthResult")
 local rebirthInfoEvent   = getOrCreateRemote("RebirthInfo")
+local rebirthRequestEvent = getOrCreateRemote("RebirthRequested")
+local adminCheckEvent    = getOrCreateRemote("AdminCheck")
 local getRebirthInfoFunc = getOrCreateRemoteFunction("GetRebirthInfo")
 
 -- Client can pull rebirth requirements when ready
@@ -1096,7 +1098,7 @@ local function consumeRebirthBrainrots(player, spec)
 	end
 end
 
-rebirthClick.MouseClick:Connect(function(clickingPlayer)
+local function processRebirth(clickingPlayer)
 	local currentRebirth = playerRebirth[clickingPlayer] or 0
 	if currentRebirth >= MAX_REBIRTHS then
 		rebirthResultEvent:FireClient(clickingPlayer, false, "Max rebirths reached! (10/10)")
@@ -1170,7 +1172,26 @@ rebirthClick.MouseClick:Connect(function(clickingPlayer)
 		rebirthInfoEvent:FireClient(clickingPlayer, nextLevel, {}, 0)
 		rebirthInfo.Text = "MAX REBIRTH REACHED!"
 	end
-end)
+end
+
+-- ClickDetector (physical sign) still works as backup
+rebirthClick.MouseClick:Connect(processRebirth)
+
+-- RemoteEvent from client HUD button
+rebirthRequestEvent.OnServerEvent:Connect(processRebirth)
+
+-- Admin check: send admin status to client on join
+local ADMIN_USER_IDS = { 1 } -- Add admin user IDs here
+local function isAdmin(player)
+	-- Game owner is always admin
+	if game.CreatorType == Enum.CreatorType.User and game.CreatorId == player.UserId then
+		return true
+	end
+	for _, id in ipairs(ADMIN_USER_IDS) do
+		if player.UserId == id then return true end
+	end
+	return false
+end
 
 -- =====================
 -- PROMPT / NAME TAG
@@ -2058,6 +2079,11 @@ local function onPlayerAdded(player)
 			end
 		end)
 	end
+
+	-- Send admin status to client
+	task.delay(2, function()
+		adminCheckEvent:FireClient(player, isAdmin(player))
+	end)
 end
 
 Players.PlayerAdded:Connect(onPlayerAdded)

@@ -646,8 +646,13 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			adminResponse:FireClient(player, false, "Ange ett spelarnamn")
 			return
 		end
+		-- Debug: visa alla spelare
+		print("[ADMIN SERVER] All players on server:")
+		for _, p in ipairs(Players:GetPlayers()) do
+			print("  -", p.Name, "UserId:", p.UserId)
+		end
 		local target = findPlayer(targetName)
-		print("[ADMIN SERVER] findPlayer result:", target and target.Name or "NIL")
+		print("[ADMIN SERVER] findPlayer('" .. targetName .. "') result:", target and target.Name or "NIL")
 		if not target then
 			adminResponse:FireClient(player, false, "Spelaren '" .. targetName .. "' hittades inte")
 			return
@@ -679,6 +684,7 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			adminResponse:FireClient(player, true, "Gav admin till: " .. target.DisplayName .. " (globalt, måste rejoina för panel)")
 
 			-- Visa Owner-knappen för den nya adminen
+			print("[ADMIN SERVER] Firing AdminCheck to", target.Name, "- Owner button should appear")
 			adminCheckEvent:FireClient(target, true)
 
 			-- Publicera globalt

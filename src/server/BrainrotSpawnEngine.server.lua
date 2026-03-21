@@ -1835,9 +1835,11 @@ local function onPlayerAdded(player)
 	createSlotParts(player)
 	startCreditTick(player)
 
-	-- Generate and send initial rebirth requirements to client
+	-- Generate and send initial rebirth requirements to client (delay to let client connect)
 	local req = generateRebirthReq(player)
-	rebirthInfoEvent:FireClient(player, 0, req.brainrots, req.cost)
+	task.delay(3, function()
+		rebirthInfoEvent:FireClient(player, playerRebirth[player] or 0, req.brainrots, req.cost)
+	end)
 
 	player.CharacterAdded:Connect(function(character)
 		task.wait(1)

@@ -505,42 +505,62 @@ local function createMemberRow(p, order)
 	rebirthLabel.TextXAlignment = Enum.TextXAlignment.Left
 	rebirthLabel.Parent = row
 
-	-- Action buttons
+	-- Action buttons (Select, Admin, Kick)
+	local isAdmin = ADMIN_IDS[p.UserId]
+
 	local selectBtn = Instance.new("TextButton")
 	selectBtn.Name = "SelectBtn"
-	selectBtn.Size = UDim2.new(0.11, -2, 0, 22)
-	selectBtn.Position = UDim2.new(0.77, 4, 0.5, -11)
+	selectBtn.Size = UDim2.new(0.075, -1, 0, 22)
+	selectBtn.Position = UDim2.new(0.77, 2, 0.5, -11)
 	selectBtn.BackgroundColor3 = COLORS.btnBlue
 	selectBtn.Text = "Select"
 	selectBtn.TextColor3 = COLORS.text
-	selectBtn.TextSize = 10
+	selectBtn.TextSize = 9
 	selectBtn.Font = Enum.Font.GothamBold
 	selectBtn.Parent = row
 	local sc = Instance.new("UICorner")
 	sc.CornerRadius = UDim.new(0, 4)
 	sc.Parent = selectBtn
 
+	local adminToggleBtn = Instance.new("TextButton")
+	adminToggleBtn.Name = "AdminBtn"
+	adminToggleBtn.Size = UDim2.new(0.075, -1, 0, 22)
+	adminToggleBtn.Position = UDim2.new(0.845, 2, 0.5, -11)
+	adminToggleBtn.BackgroundColor3 = isAdmin and COLORS.header or COLORS.tabInactive
+	adminToggleBtn.Text = isAdmin and "Admin" or "Admin"
+	adminToggleBtn.TextColor3 = isAdmin and COLORS.textDark or COLORS.dimText
+	adminToggleBtn.TextSize = 9
+	adminToggleBtn.Font = Enum.Font.GothamBold
+	adminToggleBtn.Parent = row
+	local ac = Instance.new("UICorner")
+	ac.CornerRadius = UDim.new(0, 4)
+	ac.Parent = adminToggleBtn
+
 	local kickBtn = Instance.new("TextButton")
 	kickBtn.Name = "KickBtn"
-	kickBtn.Size = UDim2.new(0.11, -2, 0, 22)
-	kickBtn.Position = UDim2.new(0.88, 4, 0.5, -11)
+	kickBtn.Size = UDim2.new(0.075, -1, 0, 22)
+	kickBtn.Position = UDim2.new(0.92, 2, 0.5, -11)
 	kickBtn.BackgroundColor3 = COLORS.btnRed
 	kickBtn.Text = "Kick"
 	kickBtn.TextColor3 = COLORS.text
-	kickBtn.TextSize = 10
+	kickBtn.TextSize = 9
 	kickBtn.Font = Enum.Font.GothamBold
 	kickBtn.Parent = row
 	local kc = Instance.new("UICorner")
 	kc.CornerRadius = UDim.new(0, 4)
 	kc.Parent = kickBtn
 
-	-- Target player input reference (set when Admin tab exists)
 	selectBtn.MouseButton1Click:Connect(function()
 		if targetInput then
 			targetInput.Text = p.Name
 		end
 		switchTab("Admin")
 		showStatus("Selected: " .. p.DisplayName, true)
+	end)
+
+	adminToggleBtn.MouseButton1Click:Connect(function()
+		adminRemote:FireServer("ToggleAdmin", p.Name)
+		flashButton(adminToggleBtn, true)
 	end)
 
 	kickBtn.MouseButton1Click:Connect(function()

@@ -414,6 +414,36 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		adminResponse:FireClient(player, true, "Kickade " .. targetName .. ": " .. reason)
 
 	-- =====================
+	-- TOGGLE ADMIN
+	-- =====================
+	elseif cmd == "ToggleAdmin" then
+		local targetName = sanitizeString(args[1])
+		if not targetName or #targetName == 0 then
+			adminResponse:FireClient(player, false, "Ange ett spelarnamn")
+			return
+		end
+		local target = findPlayer(targetName)
+		if not target then
+			adminResponse:FireClient(player, false, "Spelaren '" .. targetName .. "' hittades inte")
+			return
+		end
+		if ADMINS[target.UserId] then
+			-- Ta bort admin (kan inte ta bort sig själv)
+			if target.UserId == player.UserId then
+				adminResponse:FireClient(player, false, "Du kan inte ta bort dig själv som admin")
+				return
+			end
+			ADMINS[target.UserId] = nil
+			logAction(player, cmd, target.Name, "removed admin")
+			adminResponse:FireClient(player, true, "Tog bort admin: " .. target.DisplayName)
+		else
+			-- Lägg till som admin
+			ADMINS[target.UserId] = true
+			logAction(player, cmd, target.Name, "granted admin")
+			adminResponse:FireClient(player, true, "Gav admin till: " .. target.DisplayName)
+		end
+
+	-- =====================
 	-- OKÄNT KOMMANDO
 	-- =====================
 	else

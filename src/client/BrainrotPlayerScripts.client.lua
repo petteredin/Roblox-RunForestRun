@@ -239,7 +239,7 @@ local activeNotifs    = {}
 
 local function repositionNotifs()
 	for i, notif in ipairs(activeNotifs) do
-		local targetY = 80 + (i - 1) * (NOTIFY_HEIGHT + NOTIFY_PADDING)
+		local targetY = 16 + (i - 1) * (NOTIFY_HEIGHT + NOTIFY_PADDING)
 		notif.frame.Position = UDim2.new(1, -(NOTIFY_WIDTH + 16), 0, targetY)
 	end
 end
@@ -258,7 +258,7 @@ local function removeNotif(notif)
 end
 
 local function addSpawnNotif(brainrotName, rarity, zoneIndex)
-	local yPos = 80 + #activeNotifs * (NOTIFY_HEIGHT + NOTIFY_PADDING)
+	local yPos = 16 + #activeNotifs * (NOTIFY_HEIGHT + NOTIFY_PADDING)
 	local rarityColor = RARITY_NOTIFY_COLORS[rarity] or RARITY_NOTIFY_COLORS.COMMON
 
 	local frame = Instance.new("Frame")

@@ -31,6 +31,42 @@ local function getMutation(_player)
 end
 
 -- =====================
+-- MARKETPLACE / GAMEPASSES
+-- =====================
+
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local GAMEPASS_IDS = {
+	ADMIN_PANEL = 0,   -- Replace with real ID from Creator Dashboard
+	DOUBLE_MONEY = 0,
+	VIP = 0,
+}
+
+local LUCK_PRODUCT_IDS = {
+	{ id = 0, mult = 2,   duration = 15 * 60 },
+	{ id = 0, mult = 5,   duration = 30 * 60 },
+	{ id = 0, mult = 10,  duration = 30 * 60 },
+	{ id = 0, mult = 25,  duration = 60 * 60 },
+	{ id = 0, mult = 50,  duration = 60 * 60 },
+	{ id = 0, mult = 100, duration = 120 * 60 },
+}
+
+local playerGamepasses = {} -- [player] = { ADMIN_PANEL = true, DOUBLE_MONEY = true, ... }
+
+-- Server Luck state
+local serverLuckMult = 1
+local serverLuckEndTime = 0
+
+-- Redeem Codes DataStore
+local codeStore = nil
+pcall(function()
+	codeStore = DataStoreService:GetDataStore("RedeemCodes")
+end)
+
+-- Track which codes each player has used (in-memory, keyed by UserId)
+local playerUsedCodes = {} -- [UserId] = { ["CODE_NAME"] = true }
+
+-- =====================
 -- BRAINROT DEFINITIONS
 -- =====================
 
@@ -360,6 +396,86 @@ getCollectionFunc.OnServerInvoke = function(requestingPlayer)
 	return playerCollection[requestingPlayer] or {}
 end
 
+-- Store remotes
+local getGamepassStatusFunc = getOrCreateRemoteFunction("GetGamepassStatus")
+local redeemCodeFunc = getOrCreateRemoteFunction("RedeemCode")
+local getServerLuckFunc = getOrCreateRemoteFunction("GetServerLuck")
+
+getGamepassStatusFunc.OnServerInvoke = function(requestingPlayer)
+	return playerGamepasses[requestingPlayer] or {}
+end
+
+getServerLuckFunc.OnServerInvoke = function(_requestingPlayer)
+	local now = os.time()
+	if serverLuckMult > 1 and serverLuckEndTime > now then
+		return serverLuckMult, serverLuckEndTime - now
+	end
+	return 1, 0
+end
+
+redeemCodeFunc.OnServerInvoke = function(requestingPlayer, codeInput)
+	if type(codeInput) ~= "string" or #codeInput == 0 or #codeInput > 50 then
+		return { success = false, message = "Invalid code" }
+	end
+
+	local codeName = codeInput:upper():gsub("%s+", "")
+
+	if not codeStore then
+		return { success = false, message = "Code system unavailable" }
+	end
+
+	-- Check if player already used this code
+	local userId = requestingPlayer.UserId
+	if playerUsedCodes[userId] and playerUsedCodes[userId][codeName] then
+		return { success = false, message = "You already used this code!" }
+	end
+
+	-- Fetch code data from DataStore
+	local ok, codeData = pcall(function()
+		return codeStore:GetAsync("code_" .. codeName)
+	end)
+
+	if not ok or not codeData or type(codeData) ~= "table" then
+		return { success = false, message = "Invalid code" }
+	end
+
+	-- Check max uses
+	if codeData.maxUses and codeData.maxUses > 0 and (codeData.usedCount or 0) >= codeData.maxUses then
+		return { success = false, message = "Code has expired (max uses reached)" }
+	end
+
+	-- Apply reward
+	local rewardType = codeData.rewardType or "credits"
+	local amount = codeData.amount or 0
+
+	if rewardType == "credits" then
+		playerWallet[requestingPlayer] = (playerWallet[requestingPlayer] or 0) + amount
+		creditEvent:FireClient(requestingPlayer, playerWallet[requestingPlayer])
+	elseif rewardType == "luck" then
+		-- Temporary server luck boost (amount = multiplier, duration from code)
+		local duration = codeData.duration or 300
+		serverLuckMult = math.max(serverLuckMult, amount)
+		serverLuckEndTime = math.max(serverLuckEndTime, os.time() + duration)
+	end
+
+	-- Mark code as used by this player
+	if not playerUsedCodes[userId] then
+		playerUsedCodes[userId] = {}
+	end
+	playerUsedCodes[userId][codeName] = true
+
+	-- Increment usage count
+	pcall(function()
+		codeStore:UpdateAsync("code_" .. codeName, function(old)
+			if not old then return old end
+			old.usedCount = (old.usedCount or 0) + 1
+			return old
+		end)
+	end)
+
+	return { success = true, message = "Redeemed! +" .. amount .. " " .. rewardType }
+end
+
 -- Client can pull rebirth requirements when ready
 getRebirthInfoFunc.OnServerInvoke = function(player)
 	local req = playerRebirthReq[player]
@@ -545,14 +661,27 @@ end
 -- =====================
 
 local function pickRarity(allowedRarities)
+	-- Apply server luck: boost rare spawn weights
+	local currentLuckMult = 1
+	if serverLuckMult > 1 and serverLuckEndTime > os.time() then
+		currentLuckMult = serverLuckMult
+	end
+
 	local totalWeight = 0
+	local weights = {}
 	for _, r in ipairs(allowedRarities) do
-		totalWeight += RARITIES[r].spawnWeight
+		local w = RARITIES[r].spawnWeight
+		-- Luck multiplier boosts rarer rarities (lower base weight = bigger boost)
+		if currentLuckMult > 1 and w < 10 then
+			w = w * currentLuckMult
+		end
+		weights[r] = w
+		totalWeight += w
 	end
 	local roll       = math.random() * totalWeight
 	local cumulative = 0
 	for _, r in ipairs(allowedRarities) do
-		cumulative += RARITIES[r].spawnWeight
+		cumulative += weights[r]
 		if roll <= cumulative then return r end
 	end
 	return allowedRarities[#allowedRarities]
@@ -879,6 +1008,10 @@ local function startCreditTick(player)
 						if plate.billboard then plate.billboard.Enabled = true end
 					end
 				end
+			end
+			-- Apply 2x Money gamepass
+			if totalEarned > 0 and playerGamepasses[player] and playerGamepasses[player]["DOUBLE_MONEY"] then
+				totalEarned = totalEarned * 2
 			end
 			if totalEarned > 0 then
 				playerCredits[player] = (playerCredits[player] or 0) + totalEarned
@@ -2251,6 +2384,19 @@ local function onPlayerAdded(player)
 		end
 	end
 
+	-- Check gamepass ownership
+	playerGamepasses[player] = {}
+	for name, gpId in pairs(GAMEPASS_IDS) do
+		if gpId > 0 then
+			local gpOk, owns = pcall(function()
+				return MarketplaceService:UserOwnsGamePassAsync(player.UserId, gpId)
+			end)
+			if gpOk and owns then
+				playerGamepasses[player][name] = true
+			end
+		end
+	end
+
 	startCreditTick(player)
 
 	-- Initialize rebirth requirements
@@ -2346,6 +2492,8 @@ Players.PlayerRemoving:Connect(function(player)
 	lastPickupTime[player]   = nil
 	playerSpeedTime[player]  = nil
 	playerCollection[player] = nil
+	playerGamepasses[player] = nil
+	playerUsedCodes[player.UserId] = nil
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
@@ -2356,5 +2504,47 @@ end
 game:BindToClose(function()
 	for _, player in ipairs(Players:GetPlayers()) do
 		savePlayerData(player)
+	end
+end)
+
+-- =====================
+-- PROCESS RECEIPT (Developer Products: Server Luck)
+-- =====================
+
+MarketplaceService.ProcessReceipt = function(receiptInfo)
+	local playerId = receiptInfo.PlayerId
+	local productId = receiptInfo.ProductId
+
+	-- Check if this is a luck product
+	for _, luckProduct in ipairs(LUCK_PRODUCT_IDS) do
+		if luckProduct.id > 0 and productId == luckProduct.id then
+			-- Apply server luck boost
+			serverLuckMult = luckProduct.mult
+			serverLuckEndTime = os.time() + luckProduct.duration
+			print("[STORE] Server Luck activated:", luckProduct.mult .. "x for", luckProduct.duration, "seconds by player", playerId)
+			return Enum.ProductPurchaseDecision.PurchaseGranted
+		end
+	end
+
+	-- Unknown product
+	return Enum.ProductPurchaseDecision.NotProcessedYet
+end
+
+-- =====================
+-- GAMEPASS PURCHASE LISTENER
+-- =====================
+
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(thePlayer, gamePassId, wasPurchased)
+	if wasPurchased then
+		for name, gpId in pairs(GAMEPASS_IDS) do
+			if gpId == gamePassId then
+				if not playerGamepasses[thePlayer] then
+					playerGamepasses[thePlayer] = {}
+				end
+				playerGamepasses[thePlayer][name] = true
+				print("[STORE] Player", thePlayer.Name, "purchased gamepass:", name)
+				break
+			end
+		end
 	end
 end)

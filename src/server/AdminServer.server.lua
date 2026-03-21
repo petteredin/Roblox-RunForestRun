@@ -328,6 +328,58 @@ getBanListFunc.OnServerInvoke = function(requestingPlayer)
 end
 
 -- =====================
+-- LIST CODES (RemoteFunction for admin panel)
+-- =====================
+local listCodesFunc = ReplicatedStorage:FindFirstChild("ListCodes")
+if not listCodesFunc then
+	listCodesFunc = Instance.new("RemoteFunction")
+	listCodesFunc.Name = "ListCodes"
+	listCodesFunc.Parent = ReplicatedStorage
+end
+
+listCodesFunc.OnServerInvoke = function(requestingPlayer)
+	if not ADMINS[requestingPlayer.UserId] then return {} end
+
+	local codeStore = nil
+	pcall(function()
+		codeStore = DataStoreService:GetDataStore("RedeemCodes")
+	end)
+	if not codeStore then return {} end
+
+	local ok, index = pcall(function()
+		return codeStore:GetAsync("code_index")
+	end)
+
+	if not ok or not index or type(index) ~= "table" then return {} end
+
+	local list = {}
+	for codeName, data in pairs(index) do
+		-- Fetch current usage count
+		local usedCount = 0
+		pcall(function()
+			local codeData = codeStore:GetAsync("code_" .. codeName)
+			if codeData then
+				usedCount = codeData.usedCount or 0
+			end
+		end)
+
+		table.insert(list, {
+			name = codeName,
+			rewardType = data.rewardType or "credits",
+			amount = data.amount or 0,
+			maxUses = data.maxUses or 0,
+			usedCount = usedCount,
+			createdBy = data.createdBy or "Unknown",
+			createdAt = data.createdAt or 0,
+		})
+	end
+
+	-- Sort newest first
+	table.sort(list, function(a, b) return (a.createdAt or 0) > (b.createdAt or 0) end)
+	return list
+end
+
+-- =====================
 -- ADMIN CHECK (RemoteFunction för klienten att fråga om den är admin)
 -- =====================
 local isAdminFunc = ReplicatedStorage:FindFirstChild("IsAdmin")
@@ -755,6 +807,109 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			adminResponse:FireClient(player, true, "Avbannade " .. (entry.name or tostring(userId)))
 		else
 			adminResponse:FireClient(player, false, "Spelaren var inte bannad")
+		end
+
+	-- =====================
+	-- CREATE CODE
+	-- =====================
+	elseif cmd == "CreateCode" then
+		local codeName = sanitizeString(args[1], 30)
+		local rewardType = sanitizeString(args[2], 20) or "credits"
+		local amount = sanitizeNumber(args[3])
+		local maxUses = sanitizeNumber(args[4]) or 0
+
+		if not codeName or #codeName == 0 then
+			adminResponse:FireClient(player, false, "Enter a code name")
+			return
+		end
+		if not amount or amount <= 0 then
+			adminResponse:FireClient(player, false, "Enter a valid amount")
+			return
+		end
+
+		codeName = codeName:upper():gsub("%s+", "")
+
+		local codeStore = nil
+		pcall(function()
+			codeStore = DataStoreService:GetDataStore("RedeemCodes")
+		end)
+		if not codeStore then
+			adminResponse:FireClient(player, false, "DataStore unavailable")
+			return
+		end
+
+		local codeData = {
+			rewardType = rewardType,
+			amount = amount,
+			maxUses = maxUses,
+			usedCount = 0,
+			createdBy = player.Name,
+			createdAt = os.time(),
+		}
+
+		local ok, err = pcall(function()
+			codeStore:SetAsync("code_" .. codeName, codeData)
+		end)
+
+		if ok then
+			-- Also save to code index for listing
+			pcall(function()
+				codeStore:UpdateAsync("code_index", function(old)
+					local index = old or {}
+					index[codeName] = {
+						rewardType = rewardType,
+						amount = amount,
+						maxUses = maxUses,
+						createdBy = player.Name,
+						createdAt = os.time(),
+					}
+					return index
+				end)
+			end)
+			logAction(player, cmd, codeName, "type=" .. rewardType .. " amount=" .. tostring(amount) .. " maxUses=" .. tostring(maxUses))
+			adminResponse:FireClient(player, true, "Created code: " .. codeName .. " (" .. rewardType .. " x" .. amount .. ")")
+		else
+			adminResponse:FireClient(player, false, "Failed to create code: " .. tostring(err))
+		end
+
+	-- =====================
+	-- DELETE CODE
+	-- =====================
+	elseif cmd == "DeleteCode" then
+		local codeName = sanitizeString(args[1], 30)
+		if not codeName or #codeName == 0 then
+			adminResponse:FireClient(player, false, "Enter a code name")
+			return
+		end
+
+		codeName = codeName:upper():gsub("%s+", "")
+
+		local codeStore = nil
+		pcall(function()
+			codeStore = DataStoreService:GetDataStore("RedeemCodes")
+		end)
+		if not codeStore then
+			adminResponse:FireClient(player, false, "DataStore unavailable")
+			return
+		end
+
+		local ok, err = pcall(function()
+			codeStore:RemoveAsync("code_" .. codeName)
+		end)
+
+		if ok then
+			-- Remove from index
+			pcall(function()
+				codeStore:UpdateAsync("code_index", function(old)
+					if not old then return old end
+					old[codeName] = nil
+					return old
+				end)
+			end)
+			logAction(player, cmd, codeName, "deleted")
+			adminResponse:FireClient(player, true, "Deleted code: " .. codeName)
+		else
+			adminResponse:FireClient(player, false, "Failed to delete code: " .. tostring(err))
 		end
 
 	-- =====================

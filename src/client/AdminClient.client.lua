@@ -929,6 +929,121 @@ kickBtn.MouseButton1Click:Connect(function()
 end)
 
 -- =====================================================
+-- CODES MANAGEMENT (in Admin tab)
+-- =====================================================
+local codesSection = createSection("Redeem Codes", adminTab, "Admin")
+
+local codeNameInput = createInput(codesSection, "Code name", 1)
+local codeRewardTypeInput = createInput(codesSection, "Reward type (credits/luck)", 2)
+local codeAmountInput = createInput(codesSection, "Amount", 3)
+local codeMaxUsesInput = createInput(codesSection, "Max uses (0 = unlimited)", 4)
+
+local codeBtns = createButtonRow(codesSection, {
+	{ text = "Create Code", color = COLORS.btnGreen },
+	{ text = "Delete Code", color = COLORS.btnRed },
+	{ text = "List Codes", color = COLORS.btnBlue },
+}, 5)
+
+codeBtns["Create Code"].MouseButton1Click:Connect(function()
+	local name = codeNameInput.Text
+	if #name == 0 then showStatus("Enter a code name", false) return end
+	local rewardType = codeRewardTypeInput.Text
+	if #rewardType == 0 then rewardType = "credits" end
+	local amount = tonumber(codeAmountInput.Text)
+	if not amount then showStatus("Enter a valid amount", false) return end
+	local maxUses = tonumber(codeMaxUsesInput.Text) or 0
+	adminRemote:FireServer("CreateCode", name, rewardType, amount, maxUses)
+	flashButton(codeBtns["Create Code"], true)
+end)
+
+codeBtns["Delete Code"].MouseButton1Click:Connect(function()
+	local name = codeNameInput.Text
+	if #name == 0 then showStatus("Enter a code name to delete", false) return end
+	adminRemote:FireServer("DeleteCode", name)
+	flashButton(codeBtns["Delete Code"], true)
+end)
+
+-- Code list display
+local codeListFrame = Instance.new("Frame")
+codeListFrame.Size = UDim2.new(1, 0, 0, 0)
+codeListFrame.AutomaticSize = Enum.AutomaticSize.Y
+codeListFrame.BackgroundTransparency = 1
+codeListFrame.LayoutOrder = 6
+codeListFrame.Parent = codesSection
+
+local codeListLayout = Instance.new("UIListLayout")
+codeListLayout.Padding = UDim.new(0, 4)
+codeListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+codeListLayout.Parent = codeListFrame
+
+local listCodesFunc = ReplicatedStorage:WaitForChild("ListCodes", 10)
+
+codeBtns["List Codes"].MouseButton1Click:Connect(function()
+	-- Clear existing list
+	for _, child in ipairs(codeListFrame:GetChildren()) do
+		if child:IsA("Frame") or child:IsA("TextLabel") then
+			child:Destroy()
+		end
+	end
+
+	if not listCodesFunc then
+		showStatus("ListCodes remote not found", false)
+		return
+	end
+
+	flashButton(codeBtns["List Codes"], true)
+	showStatus("Fetching codes...", true)
+
+	local ok, list = pcall(function()
+		return listCodesFunc:InvokeServer()
+	end)
+
+	if not ok or not list or type(list) ~= "table" then
+		showStatus("Failed to fetch codes", false)
+		return
+	end
+
+	if #list == 0 then
+		local emptyLbl = Instance.new("TextLabel")
+		emptyLbl.Size = UDim2.new(1, 0, 0, 24)
+		emptyLbl.BackgroundColor3 = COLORS.rowEven
+		emptyLbl.Text = "  No codes found"
+		emptyLbl.TextColor3 = COLORS.dimText
+		emptyLbl.TextSize = 11
+		emptyLbl.Font = Enum.Font.Gotham
+		emptyLbl.TextXAlignment = Enum.TextXAlignment.Left
+		emptyLbl.LayoutOrder = 1
+		emptyLbl.Parent = codeListFrame
+		Instance.new("UICorner", emptyLbl).CornerRadius = UDim.new(0, 4)
+		showStatus("No codes found", true)
+		return
+	end
+
+	for i, entry in ipairs(list) do
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 28)
+		row.BackgroundColor3 = (i % 2 == 0) and COLORS.rowEven or COLORS.rowOdd
+		row.LayoutOrder = i
+		row.Parent = codeListFrame
+		Instance.new("UICorner", row).CornerRadius = UDim.new(0, 4)
+
+		local lbl = Instance.new("TextLabel")
+		lbl.Size = UDim2.new(1, -8, 1, 0)
+		lbl.Position = UDim2.new(0, 6, 0, 0)
+		lbl.BackgroundTransparency = 1
+		lbl.Text = entry.name .. " | " .. entry.rewardType .. " x" .. tostring(entry.amount) .. " | Uses: " .. tostring(entry.usedCount) .. "/" .. (entry.maxUses > 0 and tostring(entry.maxUses) or "Unlimited") .. " | By: " .. entry.createdBy
+		lbl.TextColor3 = COLORS.text
+		lbl.TextSize = 10
+		lbl.Font = Enum.Font.Gotham
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.TextTruncate = Enum.TextTruncate.AtEnd
+		lbl.Parent = row
+	end
+
+	showStatus("Found " .. #list .. " codes", true)
+end)
+
+-- =====================================================
 -- TAB 4: BANNED - bannade spelare med unban-funktion
 -- =====================================================
 local bannedTab = tabFrames["Banned"]

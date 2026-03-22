@@ -39,7 +39,7 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local GAMEPASS_IDS = {
 	ADMIN_PANEL = 0,           -- Replace with real ID from Creator Dashboard
 	DOUBLE_MONEY = 0,          -- Replace with real ID
-	VIP = 1763788455,          -- 👑 V.I.P Pass 👑 — 150 Robux
+	VIP = 1763788455,          -- V.I.P Pass - 150 Robux
 }
 
 local LUCK_PRODUCT_IDS = {
@@ -64,7 +64,7 @@ local DISCOUNT_RATES = {
 	Default = 0.00,
 }
 
--- Value multipliers (bonus value instead of lower price — Roblox doesn't support per-player pricing)
+-- Value multipliers (bonus value instead of lower price - Roblox doesn't support per-player pricing)
 local VALUE_MULTIPLIERS = {
 	VIP = 1.43,     -- ~43% more value (equivalent to 30% off)
 	Group = 1.18,   -- ~18% more value (equivalent to 15% off)
@@ -107,9 +107,9 @@ local function getPlayerDiscountInfo(player)
 	end
 
 	if isVIP then
-		return { rate = DISCOUNT_RATES.VIP, label = "30% OFF — VIP!", multiplier = VALUE_MULTIPLIERS.VIP, isVIP = true, inGroup = inGroup }
+		return { rate = DISCOUNT_RATES.VIP, label = "30% OFF - VIP!", multiplier = VALUE_MULTIPLIERS.VIP, isVIP = true, inGroup = inGroup }
 	elseif inGroup then
-		return { rate = DISCOUNT_RATES.Group, label = "15% OFF — GROUP!", multiplier = VALUE_MULTIPLIERS.Group, isVIP = false, inGroup = true }
+		return { rate = DISCOUNT_RATES.Group, label = "15% OFF - GROUP!", multiplier = VALUE_MULTIPLIERS.Group, isVIP = false, inGroup = true }
 	else
 		return { rate = DISCOUNT_RATES.Default, label = "", multiplier = VALUE_MULTIPLIERS.Default, isVIP = false, inGroup = false }
 	end
@@ -1081,7 +1081,7 @@ local function startCreditTick(player)
 			if totalEarned > 0 and playerGamepasses[player] and playerGamepasses[player]["DOUBLE_MONEY"] then
 				totalEarned = totalEarned * 2
 			end
-			-- Apply VIP bonus (43% more credits — equivalent to 30% discount)
+			-- Apply VIP bonus (43% more credits - equivalent to 30% discount)
 			if totalEarned > 0 and playerGamepasses[player] and playerGamepasses[player]["VIP"] then
 				totalEarned = math.floor(totalEarned * VALUE_MULTIPLIERS.VIP)
 			end

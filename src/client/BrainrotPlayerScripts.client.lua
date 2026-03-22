@@ -1079,7 +1079,7 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local GAMEPASS_IDS = {
 	ADMIN_PANEL = 0,           -- Replace with real ID from Creator Dashboard
 	DOUBLE_MONEY = 0,          -- Replace with real ID
-	VIP = 1763788455,          -- V.I.P Pass — 150 Robux
+	VIP = 1763788455,          -- V.I.P Pass - 150 Robux
 }
 
 local LUCK_PRODUCT_IDS = {
@@ -1677,7 +1677,7 @@ local vipBannerSub = Instance.new("TextLabel")
 vipBannerSub.Size = UDim2.new(1, -20, 0, 24)
 vipBannerSub.Position = UDim2.new(0, 10, 0, 44)
 vipBannerSub.BackgroundTransparency = 1
-vipBannerSub.Text = "30% discount on ALL store items — permanently!"
+vipBannerSub.Text = "30% discount on ALL store items - permanently!"
 vipBannerSub.TextColor3 = Color3.fromRGB(220, 200, 255)
 vipBannerSub.TextScaled = true
 vipBannerSub.Font = Enum.Font.Gotham
@@ -1744,7 +1744,7 @@ for i, perk in ipairs(vipPerks) do
 	checkLbl.Size = UDim2.new(0, 30, 0, 30)
 	checkLbl.Position = UDim2.new(1, -40, 0, 10)
 	checkLbl.BackgroundTransparency = 1
-	checkLbl.Text = "✓"
+	checkLbl.Text = "OK"
 	checkLbl.TextColor3 = Color3.fromRGB(80, 200, 80)
 	checkLbl.TextScaled = true
 	checkLbl.Font = Enum.Font.GothamBold

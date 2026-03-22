@@ -2042,11 +2042,12 @@ storeOverlayBtn.MouseButton1Click:Connect(function()
 	storeOverlay.Visible = false
 end)
 
--- Connect Store button from bottom bar
+-- Connect Store and V.I.P buttons from bottom bar
 for _, gui in ipairs(bottomGui:GetChildren()) do
 	if gui:IsA("Frame") then
 		for _, child in ipairs(gui:GetChildren()) do
-			if child:IsA("TextLabel") and child.Text == "Store" then
+			if child:IsA("TextLabel") and (child.Text == "Store" or child.Text == "V.I.P") then
+				local tabTarget = child.Text == "V.I.P" and "V.I.P" or "Gamepasses"
 				local clickBtn = Instance.new("TextButton")
 				clickBtn.Size = UDim2.new(1, 0, 1, 0)
 				clickBtn.BackgroundTransparency = 1
@@ -2054,7 +2055,10 @@ for _, gui in ipairs(bottomGui:GetChildren()) do
 				clickBtn.ZIndex = 10
 				clickBtn.Parent = gui
 				clickBtn.MouseButton1Click:Connect(function()
-					toggleStorePanel()
+					if not storePanelOpen then
+						toggleStorePanel()
+					end
+					switchStoreTab(tabTarget)
 				end)
 				break
 			end

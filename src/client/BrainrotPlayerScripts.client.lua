@@ -1164,9 +1164,8 @@ storeTitle.ZIndex = 53
 storeTitle.Parent = storeHeader
 
 -- Tab buttons in header
-local storeTabNames = { "Gamepasses", "V.I.P", "Server Luck", "Codes" }
+local storeTabNames = { "V.I.P", "Server Luck", "Codes" }
 local storeTabColors = {
-	Color3.fromRGB(120, 80, 40),
 	Color3.fromRGB(180, 50, 180),
 	Color3.fromRGB(40, 120, 60),
 	Color3.fromRGB(80, 80, 90),
@@ -1244,7 +1243,7 @@ gpPadding.PaddingLeft = UDim.new(0, 4)
 gpPadding.PaddingRight = UDim.new(0, 4)
 gpPadding.Parent = gamepassFrame
 
-storeTabFrames["Gamepasses"] = gamepassFrame
+storeTabFrames["V.I.P"] = gamepassFrame
 
 -- Gamepass card builder
 local cachedGamepassStatus = {}
@@ -1618,241 +1617,6 @@ for idx, luckInfo in ipairs(LUCK_PRODUCT_IDS) do
 end
 
 -- ==================
--- TAB: V.I.P
--- ==================
-local vipFrame = Instance.new("ScrollingFrame")
-vipFrame.Name = "VIPTab"
-vipFrame.Size = UDim2.new(1, 0, 1, 0)
-vipFrame.BackgroundTransparency = 1
-vipFrame.BorderSizePixel = 0
-vipFrame.ScrollBarThickness = 6
-vipFrame.ScrollBarImageColor3 = Color3.fromRGB(180, 50, 180)
-vipFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-vipFrame.Visible = false
-vipFrame.ZIndex = 52
-vipFrame.Parent = storeContent
-
-storeTabFrames["V.I.P"] = vipFrame
-
-local vipLayout = Instance.new("UIListLayout")
-vipLayout.SortOrder = Enum.SortOrder.LayoutOrder
-vipLayout.Padding = UDim.new(0, 10)
-vipLayout.Parent = vipFrame
-
-local vipPadding = Instance.new("UIPadding")
-vipPadding.PaddingLeft = UDim.new(0, 12)
-vipPadding.PaddingRight = UDim.new(0, 12)
-vipPadding.PaddingTop = UDim.new(0, 12)
-vipPadding.Parent = vipFrame
-
--- VIP Header banner
-local vipBanner = Instance.new("Frame")
-vipBanner.Name = "VIPBanner"
-vipBanner.Size = UDim2.new(1, 0, 0, 80)
-vipBanner.BackgroundColor3 = Color3.fromRGB(80, 20, 100)
-vipBanner.BorderSizePixel = 0
-vipBanner.ZIndex = 53
-vipBanner.LayoutOrder = 0
-vipBanner.Parent = vipFrame
-Instance.new("UICorner", vipBanner).CornerRadius = UDim.new(0, 12)
-
--- Gradient on banner
-local vipGrad = Instance.new("UIGradient")
-vipGrad.Color = ColorSequence.new(Color3.fromRGB(120, 30, 150), Color3.fromRGB(180, 50, 180))
-vipGrad.Rotation = 45
-vipGrad.Parent = vipBanner
-
-local vipBannerTitle = Instance.new("TextLabel")
-vipBannerTitle.Size = UDim2.new(1, -20, 0, 36)
-vipBannerTitle.Position = UDim2.new(0, 10, 0, 8)
-vipBannerTitle.BackgroundTransparency = 1
-vipBannerTitle.Text = "V.I.P MEMBERSHIP"
-vipBannerTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
-vipBannerTitle.TextScaled = true
-vipBannerTitle.Font = Enum.Font.GothamBold
-vipBannerTitle.ZIndex = 54
-vipBannerTitle.Parent = vipBanner
-
-local vipBannerSub = Instance.new("TextLabel")
-vipBannerSub.Size = UDim2.new(1, -20, 0, 24)
-vipBannerSub.Position = UDim2.new(0, 10, 0, 44)
-vipBannerSub.BackgroundTransparency = 1
-vipBannerSub.Text = "30% discount on ALL store items - permanently!"
-vipBannerSub.TextColor3 = Color3.fromRGB(220, 200, 255)
-vipBannerSub.TextScaled = true
-vipBannerSub.Font = Enum.Font.Gotham
-vipBannerSub.ZIndex = 54
-vipBannerSub.Parent = vipBanner
-
--- VIP perks list
-local vipPerks = {
-	{ icon = "$",  title = "30% Store Discount", desc = "Save 30% on ALL store purchases - forever!" },
-	{ icon = "+",  title = "+43% Bonus Credits", desc = "Earn 43% more credits from all sources" },
-	{ icon = "L",  title = "Longer Luck Boosts", desc = "Server Luck purchases last 43% longer" },
-	{ icon = "V",  title = "VIP Chat Tag", desc = "Exclusive golden VIP tag in chat" },
-	{ icon = "*",  title = "VIP Badge", desc = "Show your VIP status on the leaderboard" },
-	{ icon = "G",  title = "Stacks with Group!", desc = "Join our group for extra 15% discount!" },
-}
-
-for i, perk in ipairs(vipPerks) do
-	local perkRow = Instance.new("Frame")
-	perkRow.Name = "Perk_" .. i
-	perkRow.Size = UDim2.new(1, 0, 0, 50)
-	perkRow.BackgroundColor3 = Color3.fromRGB(45, 30, 55)
-	perkRow.BorderSizePixel = 0
-	perkRow.ZIndex = 53
-	perkRow.LayoutOrder = i
-	perkRow.Parent = vipFrame
-	Instance.new("UICorner", perkRow).CornerRadius = UDim.new(0, 10)
-
-	local iconLbl = Instance.new("TextLabel")
-	iconLbl.Size = UDim2.new(0, 44, 0, 44)
-	iconLbl.Position = UDim2.new(0, 6, 0, 3)
-	iconLbl.BackgroundTransparency = 1
-	iconLbl.Text = perk.icon
-	iconLbl.TextScaled = true
-	iconLbl.ZIndex = 54
-	iconLbl.Parent = perkRow
-
-	local titleLbl = Instance.new("TextLabel")
-	titleLbl.Size = UDim2.new(0.6, -60, 0, 24)
-	titleLbl.Position = UDim2.new(0, 56, 0, 4)
-	titleLbl.BackgroundTransparency = 1
-	titleLbl.Text = perk.title
-	titleLbl.TextColor3 = Color3.fromRGB(255, 215, 0)
-	titleLbl.TextScaled = true
-	titleLbl.Font = Enum.Font.GothamBold
-	titleLbl.TextXAlignment = Enum.TextXAlignment.Left
-	titleLbl.ZIndex = 54
-	titleLbl.Parent = perkRow
-
-	local descLbl = Instance.new("TextLabel")
-	descLbl.Size = UDim2.new(0.8, -60, 0, 18)
-	descLbl.Position = UDim2.new(0, 56, 0, 28)
-	descLbl.BackgroundTransparency = 1
-	descLbl.Text = perk.desc
-	descLbl.TextColor3 = Color3.fromRGB(180, 170, 200)
-	descLbl.TextScaled = true
-	descLbl.Font = Enum.Font.Gotham
-	descLbl.TextXAlignment = Enum.TextXAlignment.Left
-	descLbl.ZIndex = 54
-	descLbl.Parent = perkRow
-
-	-- Checkmark for owned VIP
-	local checkLbl = Instance.new("TextLabel")
-	checkLbl.Name = "Check"
-	checkLbl.Size = UDim2.new(0, 30, 0, 30)
-	checkLbl.Position = UDim2.new(1, -40, 0, 10)
-	checkLbl.BackgroundTransparency = 1
-	checkLbl.Text = "OK"
-	checkLbl.TextColor3 = Color3.fromRGB(80, 200, 80)
-	checkLbl.TextScaled = true
-	checkLbl.Font = Enum.Font.GothamBold
-	checkLbl.Visible = false -- shown when VIP owned
-	checkLbl.ZIndex = 54
-	checkLbl.Parent = perkRow
-end
-
--- Buy VIP button at bottom
-local vipBuyFrame = Instance.new("Frame")
-vipBuyFrame.Name = "BuyVIP"
-vipBuyFrame.Size = UDim2.new(1, 0, 0, 60)
-vipBuyFrame.BackgroundColor3 = Color3.fromRGB(40, 100, 40)
-vipBuyFrame.BorderSizePixel = 0
-vipBuyFrame.ZIndex = 53
-vipBuyFrame.LayoutOrder = 100
-vipBuyFrame.Parent = vipFrame
-Instance.new("UICorner", vipBuyFrame).CornerRadius = UDim.new(0, 12)
-
-local vipBuyGrad = Instance.new("UIGradient")
-vipBuyGrad.Color = ColorSequence.new(Color3.fromRGB(40, 140, 40), Color3.fromRGB(60, 180, 60))
-vipBuyGrad.Parent = vipBuyFrame
-
-local vipBuyLabel = Instance.new("TextLabel")
-vipBuyLabel.Name = "BuyLabel"
-vipBuyLabel.Size = UDim2.new(0.6, 0, 1, 0)
-vipBuyLabel.Position = UDim2.new(0, 16, 0, 0)
-vipBuyLabel.BackgroundTransparency = 1
-vipBuyLabel.Text = "BUY V.I.P - 30% OFF Forever!"
-vipBuyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-vipBuyLabel.TextScaled = true
-vipBuyLabel.Font = Enum.Font.GothamBold
-vipBuyLabel.TextXAlignment = Enum.TextXAlignment.Left
-vipBuyLabel.ZIndex = 54
-vipBuyLabel.Parent = vipBuyFrame
-
-local vipPriceBadge = Instance.new("Frame")
-vipPriceBadge.Size = UDim2.new(0, 120, 0, 36)
-vipPriceBadge.Position = UDim2.new(1, -136, 0, 12)
-vipPriceBadge.BackgroundColor3 = Color3.fromRGB(50, 160, 50)
-vipPriceBadge.BorderSizePixel = 0
-vipPriceBadge.ZIndex = 55
-vipPriceBadge.Parent = vipBuyFrame
-Instance.new("UICorner", vipPriceBadge).CornerRadius = UDim.new(0, 8)
-
-local vipPriceText = Instance.new("TextLabel")
-vipPriceText.Size = UDim2.new(1, 0, 1, 0)
-vipPriceText.BackgroundTransparency = 1
-vipPriceText.Text = "R$ 150"
-vipPriceText.TextColor3 = Color3.fromRGB(255, 255, 255)
-vipPriceText.TextScaled = true
-vipPriceText.Font = Enum.Font.GothamBold
-vipPriceText.ZIndex = 56
-vipPriceText.Parent = vipPriceBadge
-
--- VIP buy button (transparent overlay)
-local vipBuyBtn = Instance.new("TextButton")
-vipBuyBtn.Size = UDim2.new(1, 0, 1, 0)
-vipBuyBtn.BackgroundTransparency = 1
-vipBuyBtn.Text = ""
-vipBuyBtn.ZIndex = 56
-vipBuyBtn.Parent = vipBuyFrame
-vipBuyBtn.MouseButton1Click:Connect(function()
-	if GAMEPASS_IDS.VIP > 0 then
-		pcall(function()
-			MarketplaceService:PromptGamePassPurchase(player, GAMEPASS_IDS.VIP)
-		end)
-	end
-end)
-
--- Update VIP tab when opened (check ownership)
-local function updateVIPTab()
-	local ownsVIP = false
-	if getGamepassStatusFunc then
-		local ok, status = pcall(function()
-			return getGamepassStatusFunc:InvokeServer()
-		end)
-		if ok and status then
-			ownsVIP = status.VIP == true
-		end
-	end
-
-	if ownsVIP then
-		-- Show owned state
-		vipBuyLabel.Text = "V.I.P ACTIVE - OWNED"
-		vipPriceText.Text = "OWNED"
-		vipPriceBadge.BackgroundColor3 = Color3.fromRGB(80, 180, 80)
-		-- Show checkmarks on all perks
-		for _, child in ipairs(vipFrame:GetChildren()) do
-			if child:IsA("Frame") and child.Name:find("Perk_") then
-				local check = child:FindFirstChild("Check")
-				if check then check.Visible = true end
-			end
-		end
-	else
-		vipBuyLabel.Text = "BUY V.I.P - 30% OFF Forever!"
-		vipPriceText.Text = "R$ 499"
-		vipPriceBadge.BackgroundColor3 = Color3.fromRGB(50, 160, 50)
-		for _, child in ipairs(vipFrame:GetChildren()) do
-			if child:IsA("Frame") and child.Name:find("Perk_") then
-				local check = child:FindFirstChild("Check")
-				if check then check.Visible = false end
-			end
-		end
-	end
-end
-
--- ==================
 -- TAB 3: CODES
 -- ==================
 local codesFrame = Instance.new("Frame")
@@ -1973,10 +1737,6 @@ local function switchStoreTab(tabName)
 			btn.BackgroundTransparency = 0.5
 		end
 	end
-	-- Update V.I.P ownership status when tab is selected
-	if tabName == "V.I.P" then
-		task.spawn(updateVIPTab)
-	end
 end
 
 for name, btn in pairs(storeTabButtons) do
@@ -1986,7 +1746,7 @@ for name, btn in pairs(storeTabButtons) do
 end
 
 -- Set initial tab
-switchStoreTab("Gamepasses")
+switchStoreTab("V.I.P")
 
 -- ==================
 -- STORE TOGGLE
@@ -2047,7 +1807,7 @@ for _, gui in ipairs(bottomGui:GetChildren()) do
 	if gui:IsA("Frame") then
 		for _, child in ipairs(gui:GetChildren()) do
 			if child:IsA("TextLabel") and (child.Text == "Store" or child.Text == "V.I.P") then
-				local tabTarget = child.Text == "V.I.P" and "V.I.P" or "Gamepasses"
+				local tabTarget = "V.I.P"
 				local clickBtn = Instance.new("TextButton")
 				clickBtn.Size = UDim2.new(1, 0, 1, 0)
 				clickBtn.BackgroundTransparency = 1

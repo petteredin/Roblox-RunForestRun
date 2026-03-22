@@ -37,9 +37,9 @@ end
 local MarketplaceService = game:GetService("MarketplaceService")
 
 local GAMEPASS_IDS = {
-	ADMIN_PANEL = 0,   -- Replace with real ID from Creator Dashboard
-	DOUBLE_MONEY = 0,
-	VIP = 0,
+	ADMIN_PANEL = 0,           -- Replace with real ID from Creator Dashboard
+	DOUBLE_MONEY = 0,          -- Replace with real ID
+	VIP = 1763788455,          -- 👑 V.I.P Pass 👑 — 150 Robux
 }
 
 local LUCK_PRODUCT_IDS = {
@@ -52,6 +52,68 @@ local LUCK_PRODUCT_IDS = {
 }
 
 local playerGamepasses = {} -- [player] = { ADMIN_PANEL = true, DOUBLE_MONEY = true, ... }
+
+-- =====================
+-- DISCOUNT SYSTEM (VIP 30%, Group 15%)
+-- =====================
+local GROUP_ID = 0 -- Replace with actual Roblox Group ID
+
+local DISCOUNT_RATES = {
+	VIP = 0.30,     -- 30% discount for VIP Pass holders
+	Group = 0.15,   -- 15% discount for Group members
+	Default = 0.00,
+}
+
+-- Value multipliers (bonus value instead of lower price — Roblox doesn't support per-player pricing)
+local VALUE_MULTIPLIERS = {
+	VIP = 1.43,     -- ~43% more value (equivalent to 30% off)
+	Group = 1.18,   -- ~18% more value (equivalent to 15% off)
+	Default = 1.0,
+}
+
+local STACK_MULTIPLIERS = false -- true = stack VIP + Group discounts
+
+-- Get the best multiplier for a player
+local function getPlayerMultiplier(player)
+	if not player then return VALUE_MULTIPLIERS.Default end
+	local isVIP = playerGamepasses[player] and playerGamepasses[player]["VIP"]
+	local inGroup = false
+	if GROUP_ID > 0 then
+		pcall(function()
+			inGroup = player:IsInGroup(GROUP_ID)
+		end)
+	end
+
+	if STACK_MULTIPLIERS and isVIP and inGroup then
+		return VALUE_MULTIPLIERS.VIP * VALUE_MULTIPLIERS.Group
+	elseif isVIP then
+		return VALUE_MULTIPLIERS.VIP
+	elseif inGroup then
+		return VALUE_MULTIPLIERS.Group
+	else
+		return VALUE_MULTIPLIERS.Default
+	end
+end
+
+-- Get discount info for a player (used by client)
+local function getPlayerDiscountInfo(player)
+	if not player then return { rate = 0, label = "", multiplier = 1.0 } end
+	local isVIP = playerGamepasses[player] and playerGamepasses[player]["VIP"]
+	local inGroup = false
+	if GROUP_ID > 0 then
+		pcall(function()
+			inGroup = player:IsInGroup(GROUP_ID)
+		end)
+	end
+
+	if isVIP then
+		return { rate = DISCOUNT_RATES.VIP, label = "30% OFF — VIP!", multiplier = VALUE_MULTIPLIERS.VIP, isVIP = true, inGroup = inGroup }
+	elseif inGroup then
+		return { rate = DISCOUNT_RATES.Group, label = "15% OFF — GROUP!", multiplier = VALUE_MULTIPLIERS.Group, isVIP = false, inGroup = true }
+	else
+		return { rate = DISCOUNT_RATES.Default, label = "", multiplier = VALUE_MULTIPLIERS.Default, isVIP = false, inGroup = false }
+	end
+end
 
 -- Server Luck state
 local serverLuckMult = 1
@@ -403,6 +465,12 @@ local getServerLuckFunc = getOrCreateRemoteFunction("GetServerLuck")
 
 getGamepassStatusFunc.OnServerInvoke = function(requestingPlayer)
 	return playerGamepasses[requestingPlayer] or {}
+end
+
+-- Discount info remote
+local getDiscountInfoFunc = getOrCreateRemoteFunction("GetDiscountInfo")
+getDiscountInfoFunc.OnServerInvoke = function(requestingPlayer)
+	return getPlayerDiscountInfo(requestingPlayer)
 end
 
 getServerLuckFunc.OnServerInvoke = function(_requestingPlayer)
@@ -1012,6 +1080,10 @@ local function startCreditTick(player)
 			-- Apply 2x Money gamepass
 			if totalEarned > 0 and playerGamepasses[player] and playerGamepasses[player]["DOUBLE_MONEY"] then
 				totalEarned = totalEarned * 2
+			end
+			-- Apply VIP bonus (43% more credits — equivalent to 30% discount)
+			if totalEarned > 0 and playerGamepasses[player] and playerGamepasses[player]["VIP"] then
+				totalEarned = math.floor(totalEarned * VALUE_MULTIPLIERS.VIP)
 			end
 			if totalEarned > 0 then
 				playerCredits[player] = (playerCredits[player] or 0) + totalEarned
@@ -2397,6 +2469,13 @@ local function onPlayerAdded(player)
 		end
 	end
 
+	-- Set VIP/Group attributes for client to read
+	local discountInfo = getPlayerDiscountInfo(player)
+	player:SetAttribute("Own_VIP", discountInfo.isVIP or false)
+	player:SetAttribute("InGroup", discountInfo.inGroup or false)
+	player:SetAttribute("DiscountRate", discountInfo.rate or 0)
+	player:SetAttribute("DiscountLabel", discountInfo.label or "")
+
 	startCreditTick(player)
 
 	-- Initialize rebirth requirements
@@ -2514,14 +2593,22 @@ end)
 MarketplaceService.ProcessReceipt = function(receiptInfo)
 	local playerId = receiptInfo.PlayerId
 	local productId = receiptInfo.ProductId
+	local player = Players:GetPlayerByUserId(playerId)
+
+	-- Get multiplier for VIP/Group bonus
+	local multiplier = 1.0
+	if player then
+		multiplier = getPlayerMultiplier(player)
+	end
 
 	-- Check if this is a luck product
 	for _, luckProduct in ipairs(LUCK_PRODUCT_IDS) do
 		if luckProduct.id > 0 and productId == luckProduct.id then
-			-- Apply server luck boost
+			-- Apply server luck boost (multiplier extends duration for VIP/Group)
+			local finalDuration = math.floor(luckProduct.duration * multiplier)
 			serverLuckMult = luckProduct.mult
-			serverLuckEndTime = os.time() + luckProduct.duration
-			print("[STORE] Server Luck activated:", luckProduct.mult .. "x for", luckProduct.duration, "seconds by player", playerId)
+			serverLuckEndTime = os.time() + finalDuration
+			print("[STORE] Server Luck activated:", luckProduct.mult .. "x for", finalDuration, "seconds by player", playerId, "(multiplier:", multiplier .. ")")
 			return Enum.ProductPurchaseDecision.PurchaseGranted
 		end
 	end

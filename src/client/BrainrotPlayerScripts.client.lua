@@ -1077,9 +1077,9 @@ end
 local MarketplaceService = game:GetService("MarketplaceService")
 
 local GAMEPASS_IDS = {
-	ADMIN_PANEL = 0,   -- Replace with real ID from Creator Dashboard
-	DOUBLE_MONEY = 0,
-	VIP = 0,
+	ADMIN_PANEL = 0,           -- Replace with real ID from Creator Dashboard
+	DOUBLE_MONEY = 0,          -- Replace with real ID
+	VIP = 1763788455,          -- V.I.P Pass — 150 Robux
 }
 
 local LUCK_PRODUCT_IDS = {
@@ -1461,7 +1461,7 @@ do
 	Instance.new("UICorner", pb).CornerRadius = UDim.new(0, 6)
 	local pl = Instance.new("TextLabel")
 	pl.Size = UDim2.new(1, 0, 1, 0); pl.BackgroundTransparency = 1
-	pl.Text = cachedGamepassStatus["VIP"] and "OWNED \u{2713}" or (GAMEPASS_IDS.VIP > 0 and "R$ 499" or "Coming Soon")
+	pl.Text = cachedGamepassStatus["VIP"] and "OWNED \u{2713}" or (GAMEPASS_IDS.VIP > 0 and "R$ 150" or "Coming Soon")
 	pl.TextColor3 = Color3.fromRGB(255, 255, 255); pl.TextScaled = true
 	pl.Font = Enum.Font.GothamBold; pl.ZIndex = 55; pl.Parent = pb
 
@@ -1677,7 +1677,7 @@ local vipBannerSub = Instance.new("TextLabel")
 vipBannerSub.Size = UDim2.new(1, -20, 0, 24)
 vipBannerSub.Position = UDim2.new(0, 10, 0, 44)
 vipBannerSub.BackgroundTransparency = 1
-vipBannerSub.Text = "Unlock exclusive perks and dominate the game!"
+vipBannerSub.Text = "30% discount on ALL store items — permanently!"
 vipBannerSub.TextColor3 = Color3.fromRGB(220, 200, 255)
 vipBannerSub.TextScaled = true
 vipBannerSub.Font = Enum.Font.Gotham
@@ -1686,12 +1686,12 @@ vipBannerSub.Parent = vipBanner
 
 -- VIP perks list
 local vipPerks = {
-	{ icon = "💰", title = "2x Credit Multiplier", desc = "Earn double credits from all sources" },
-	{ icon = "⚡", title = "1.5x Speed Boost", desc = "Start with 50% faster base speed" },
-	{ icon = "🎒", title = "+5 Extra Base Slots", desc = "Store 15 brainrots instead of 10" },
-	{ icon = "🍀", title = "Luck Boost", desc = "Higher chance for rare brainrot spawns" },
-	{ icon = "🏷️", title = "VIP Chat Tag", desc = "Show off your VIP status in chat" },
-	{ icon = "🔓", title = "Exclusive Zone Access", desc = "Access VIP-only spawn zones" },
+	{ icon = "💰", title = "30% Store Discount", desc = "Save 30% on ALL store purchases — forever!" },
+	{ icon = "📈", title = "+43% Bonus Credits", desc = "Earn 43% more credits from all sources" },
+	{ icon = "🍀", title = "Longer Luck Boosts", desc = "Server Luck purchases last 43% longer" },
+	{ icon = "🏷", title = "VIP Chat Tag", desc = "Exclusive golden VIP tag in chat" },
+	{ icon = "⭐", title = "VIP Badge", desc = "Show your VIP status on the leaderboard" },
+	{ icon = "🎁", title = "Stacks with Group!", desc = "Join our group for extra 15% discount!" },
 }
 
 for i, perk in ipairs(vipPerks) do
@@ -1773,7 +1773,7 @@ vipBuyLabel.Name = "BuyLabel"
 vipBuyLabel.Size = UDim2.new(0.6, 0, 1, 0)
 vipBuyLabel.Position = UDim2.new(0, 16, 0, 0)
 vipBuyLabel.BackgroundTransparency = 1
-vipBuyLabel.Text = "🛒 BUY V.I.P - All Perks Forever!"
+vipBuyLabel.Text = "🛒 BUY V.I.P - 30% OFF Forever!"
 vipBuyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 vipBuyLabel.TextScaled = true
 vipBuyLabel.Font = Enum.Font.GothamBold
@@ -1793,7 +1793,7 @@ Instance.new("UICorner", vipPriceBadge).CornerRadius = UDim.new(0, 8)
 local vipPriceText = Instance.new("TextLabel")
 vipPriceText.Size = UDim2.new(1, 0, 1, 0)
 vipPriceText.BackgroundTransparency = 1
-vipPriceText.Text = "R$ 499"
+vipPriceText.Text = "R$ 150"
 vipPriceText.TextColor3 = Color3.fromRGB(255, 255, 255)
 vipPriceText.TextScaled = true
 vipPriceText.Font = Enum.Font.GothamBold

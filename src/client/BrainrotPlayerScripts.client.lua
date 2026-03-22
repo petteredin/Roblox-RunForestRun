@@ -1666,7 +1666,7 @@ local vipBannerTitle = Instance.new("TextLabel")
 vipBannerTitle.Size = UDim2.new(1, -20, 0, 36)
 vipBannerTitle.Position = UDim2.new(0, 10, 0, 8)
 vipBannerTitle.BackgroundTransparency = 1
-vipBannerTitle.Text = "⭐ V.I.P MEMBERSHIP ⭐"
+vipBannerTitle.Text = "V.I.P MEMBERSHIP"
 vipBannerTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
 vipBannerTitle.TextScaled = true
 vipBannerTitle.Font = Enum.Font.GothamBold
@@ -1686,12 +1686,12 @@ vipBannerSub.Parent = vipBanner
 
 -- VIP perks list
 local vipPerks = {
-	{ icon = "💰", title = "30% Store Discount", desc = "Save 30% on ALL store purchases — forever!" },
-	{ icon = "📈", title = "+43% Bonus Credits", desc = "Earn 43% more credits from all sources" },
-	{ icon = "🍀", title = "Longer Luck Boosts", desc = "Server Luck purchases last 43% longer" },
-	{ icon = "🏷", title = "VIP Chat Tag", desc = "Exclusive golden VIP tag in chat" },
-	{ icon = "⭐", title = "VIP Badge", desc = "Show your VIP status on the leaderboard" },
-	{ icon = "🎁", title = "Stacks with Group!", desc = "Join our group for extra 15% discount!" },
+	{ icon = "$",  title = "30% Store Discount", desc = "Save 30% on ALL store purchases - forever!" },
+	{ icon = "+",  title = "+43% Bonus Credits", desc = "Earn 43% more credits from all sources" },
+	{ icon = "L",  title = "Longer Luck Boosts", desc = "Server Luck purchases last 43% longer" },
+	{ icon = "V",  title = "VIP Chat Tag", desc = "Exclusive golden VIP tag in chat" },
+	{ icon = "*",  title = "VIP Badge", desc = "Show your VIP status on the leaderboard" },
+	{ icon = "G",  title = "Stacks with Group!", desc = "Join our group for extra 15% discount!" },
 }
 
 for i, perk in ipairs(vipPerks) do
@@ -1773,7 +1773,7 @@ vipBuyLabel.Name = "BuyLabel"
 vipBuyLabel.Size = UDim2.new(0.6, 0, 1, 0)
 vipBuyLabel.Position = UDim2.new(0, 16, 0, 0)
 vipBuyLabel.BackgroundTransparency = 1
-vipBuyLabel.Text = "🛒 BUY V.I.P - 30% OFF Forever!"
+vipBuyLabel.Text = "BUY V.I.P - 30% OFF Forever!"
 vipBuyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 vipBuyLabel.TextScaled = true
 vipBuyLabel.Font = Enum.Font.GothamBold
@@ -1829,7 +1829,7 @@ local function updateVIPTab()
 
 	if ownsVIP then
 		-- Show owned state
-		vipBuyLabel.Text = "✅ V.I.P ACTIVE"
+		vipBuyLabel.Text = "V.I.P ACTIVE - OWNED"
 		vipPriceText.Text = "OWNED"
 		vipPriceBadge.BackgroundColor3 = Color3.fromRGB(80, 180, 80)
 		-- Show checkmarks on all perks
@@ -1840,7 +1840,7 @@ local function updateVIPTab()
 			end
 		end
 	else
-		vipBuyLabel.Text = "🛒 BUY V.I.P - All Perks Forever!"
+		vipBuyLabel.Text = "BUY V.I.P - 30% OFF Forever!"
 		vipPriceText.Text = "R$ 499"
 		vipPriceBadge.BackgroundColor3 = Color3.fromRGB(50, 160, 50)
 		for _, child in ipairs(vipFrame:GetChildren()) do

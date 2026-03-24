@@ -468,8 +468,9 @@ end
 -- REMOTES
 -- =====================
 
-local remoteEvent   = ReplicatedStorage:WaitForChild("BrainrotPickup", 10)
-local progressEvent = ReplicatedStorage:WaitForChild("BrainrotProgress", 10)
+-- Use getOrCreateRemote (defined below) after it's available
+local remoteEvent
+local progressEvent
 
 local function getOrCreateRemoteFunction(name)
 	local r = ReplicatedStorage:FindFirstChild(name)
@@ -490,6 +491,10 @@ local function getOrCreateRemote(name)
 	end
 	return r
 end
+
+-- Create pickup/progress remotes (previously used WaitForChild which could return nil)
+remoteEvent   = getOrCreateRemote("BrainrotPickup")
+progressEvent = getOrCreateRemote("BrainrotProgress")
 
 local creditEvent        = getOrCreateRemote("CreditUpdate")
 local depositEvent       = getOrCreateRemote("BrainrotDeposited")
@@ -1493,7 +1498,7 @@ local function processRebirth(clickingPlayer)
 
 	-- Set requirements for NEXT rebirth
 	playerRebirthInfoSent[clickingPlayer] = false
-	if nextLevel < MAX_REBIRTHS then
+	if nextLevel <= MAX_REBIRTHS then
 		local nextReq = initRebirthReq(clickingPlayer)
 		if nextReq then
 			local rarityText = getRebirthRarityText(nextLevel + 1)
@@ -3002,9 +3007,16 @@ MarketplaceService.ProcessReceipt = function(receiptInfo)
 	for _, luckProduct in ipairs(LUCK_PRODUCT_IDS) do
 		if luckProduct.id > 0 and productId == luckProduct.id then
 			-- Apply server luck boost (multiplier extends duration for VIP/Group)
+			-- Never downgrade: only apply if new mult >= current active mult
 			local finalDuration = math.floor(luckProduct.duration * multiplier)
-			serverLuckMult = luckProduct.mult
-			serverLuckEndTime = os.time() + finalDuration
+			local now = os.time()
+			if serverLuckMult > 1 and serverLuckEndTime > now and luckProduct.mult < serverLuckMult then
+				-- Current luck is better — extend the current luck's duration instead
+				serverLuckEndTime = math.max(serverLuckEndTime, now + finalDuration)
+			else
+				serverLuckMult = luckProduct.mult
+				serverLuckEndTime = now + finalDuration
+			end
 			debugPrint("[STORE] Server Luck activated:", luckProduct.mult .. "x for", finalDuration, "seconds by player", playerId, "(multiplier:", multiplier .. ")")
 			return Enum.ProductPurchaseDecision.PurchaseGranted
 		end

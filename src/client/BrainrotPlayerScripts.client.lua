@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local remoteEvent = game.ReplicatedStorage:WaitForChild("BrainrotPickup", 10)
@@ -1456,20 +1457,20 @@ end
 -- ==================
 -- TAB 2: SERVER LUCK
 -- ==================
-local luckFrame = Instance.new("ScrollingFrame")
-luckFrame.Name = "LuckTab"
-luckFrame.Size = UDim2.new(1, 0, 1, 0)
-luckFrame.BackgroundTransparency = 1
-luckFrame.BorderSizePixel = 0
-luckFrame.ScrollBarThickness = 6
-luckFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 120)
-luckFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-luckFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-luckFrame.Visible = false
-luckFrame.ZIndex = 52
-luckFrame.Parent = storeContent
+local luckTabFrame = Instance.new("ScrollingFrame")
+luckTabFrame.Name = "LuckTab"
+luckTabFrame.Size = UDim2.new(1, 0, 1, 0)
+luckTabFrame.BackgroundTransparency = 1
+luckTabFrame.BorderSizePixel = 0
+luckTabFrame.ScrollBarThickness = 6
+luckTabFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 120)
+luckTabFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+luckTabFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+luckTabFrame.Visible = false
+luckTabFrame.ZIndex = 52
+luckTabFrame.Parent = storeContent
 
-storeTabFrames["Server Luck"] = luckFrame
+storeTabFrames["Server Luck"] = luckTabFrame
 
 -- Active luck status
 local luckStatusLabel = Instance.new("TextLabel")
@@ -1484,14 +1485,14 @@ luckStatusLabel.TextScaled = true
 luckStatusLabel.Font = Enum.Font.GothamBold
 luckStatusLabel.ZIndex = 53
 luckStatusLabel.LayoutOrder = 0
-luckStatusLabel.Parent = luckFrame
+luckStatusLabel.Parent = luckTabFrame
 Instance.new("UICorner", luckStatusLabel).CornerRadius = UDim.new(0, 8)
 
 local luckPadding = Instance.new("UIPadding")
 luckPadding.PaddingTop = UDim.new(0, 6)
 luckPadding.PaddingLeft = UDim.new(0, 4)
 luckPadding.PaddingRight = UDim.new(0, 4)
-luckPadding.Parent = luckFrame
+luckPadding.Parent = luckTabFrame
 
 local luckGridFrame = Instance.new("Frame")
 luckGridFrame.Size = UDim2.new(1, 0, 0, 0)
@@ -1499,7 +1500,7 @@ luckGridFrame.AutomaticSize = Enum.AutomaticSize.Y
 luckGridFrame.BackgroundTransparency = 1
 luckGridFrame.LayoutOrder = 1
 luckGridFrame.ZIndex = 52
-luckGridFrame.Parent = luckFrame
+luckGridFrame.Parent = luckTabFrame
 
 local luckGrid = Instance.new("UIGridLayout")
 luckGrid.CellSize = UDim2.new(0.32, 0, 0, 130)
@@ -1511,7 +1512,7 @@ luckGrid.Parent = luckGridFrame
 local luckLayout = Instance.new("UIListLayout")
 luckLayout.Padding = UDim.new(0, 8)
 luckLayout.SortOrder = Enum.SortOrder.LayoutOrder
-luckLayout.Parent = luckFrame
+luckLayout.Parent = luckTabFrame
 
 for idx, luckInfo in ipairs(LUCK_PRODUCT_IDS) do
 	local card = Instance.new("Frame")
@@ -1901,7 +1902,7 @@ local function updateRebirthReqDisplay(brainrots, cost, rarityText)
 		rebirthCostLabel.Text = "Cost: " .. tostring(cost) .. " credits"
 	else
 		rebirthCostLabel.Text = "MAX REBIRTH!"
-		clickToRebirthBtn.Visible = false
+		rebirthReqFrame.Visible = false
 	end
 end
 

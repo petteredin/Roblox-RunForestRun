@@ -1,24 +1,25 @@
 -- =============================================
 -- AdminClient.lua (LocalScript)
--- Admin-panel med flikar: Members, Brainrots, Admin, Logs
--- Placeras i StarterPlayerScripts.
+-- Admin panel with tabs: Members, Brainrots, Admin, Logs
+-- Placed in StarterPlayerScripts.
 -- =============================================
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig", 10))
 
 local player = Players.LocalPlayer
 
 -- =====================
--- ADMIN-KONTROLL (klient-sida, enbart för GUI-visning)
--- Frågar servern om spelaren är admin istället för hardkodad lista
+-- ADMIN CHECK (client-side, GUI display only)
+-- Asks the server if the player is admin instead of using a hardcoded list
 -- =====================
 local ADMIN_IDS = {
 	[8327644091] = true, -- Simpleson716 (fallback)
 }
 
--- Kolla med servern om vi är admin
+-- Check with the server if we are admin
 local isAdminFunc = ReplicatedStorage:WaitForChild("IsAdmin", 10)
 local isAdmin = ADMIN_IDS[player.UserId] -- fallback
 if isAdminFunc then
@@ -41,12 +42,12 @@ local adminRemote = ReplicatedStorage:WaitForChild("AdminRemote", 10)
 local adminResponse = ReplicatedStorage:WaitForChild("AdminResponse", 10)
 
 if not adminRemote or not adminResponse then
-	warn("[AdminClient] Kunde inte hitta AdminRemote/AdminResponse")
+	warn("[AdminClient] Could not find AdminRemote/AdminResponse")
 	return
 end
 
 -- =====================
--- FÄRGTEMA
+-- COLOR THEME
 -- =====================
 local COLORS = {
 	bg         = Color3.fromRGB(30, 30, 40),
@@ -70,7 +71,7 @@ local COLORS = {
 }
 
 -- =====================
--- SKAPA GUI
+-- CREATE GUI
 -- =====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AdminPanelGui"
@@ -83,12 +84,12 @@ local togglePanel
 local refreshBanList
 
 -- =====================
--- ADMIN-KNAPP (hittar Owner-knappen från BrainrotPlayerScripts)
+-- ADMIN BUTTON (finds the Owner button from BrainrotPlayerScripts)
 -- =====================
--- Skapa en osynlig klickbar knapp som läggs ovanpå Owner-knappen
+-- Create an invisible clickable button placed on top of the Owner button
 local adminBtn = nil
 task.spawn(function()
-	-- Vänta på att Owner-knappen skapas av BrainrotPlayerScripts
+	-- Wait for the Owner button to be created by BrainrotPlayerScripts
 	local playerGui = player:WaitForChild("PlayerGui")
 	local bottomGui = nil
 	for i = 1, 30 do
@@ -97,10 +98,10 @@ task.spawn(function()
 				local ownerBtn = gui:FindFirstChild("OwnerButton", true)
 				if ownerBtn then
 					bottomGui = gui
-					-- Vi vet redan att vi är admin (IsAdmin check passerade)
-					-- Gör Owner-knappen synlig direkt
+					-- We already know we are admin (IsAdmin check passed)
+					-- Make the Owner button visible immediately
 					ownerBtn.Visible = true
-					-- Lägg en transparent TextButton ovanpå Owner-knappen
+					-- Place a transparent TextButton on top of the Owner button
 					adminBtn = Instance.new("TextButton")
 					adminBtn.Name = "AdminToggleOverlay"
 					adminBtn.Size = UDim2.new(1, 0, 1, 0)
@@ -110,14 +111,14 @@ task.spawn(function()
 					adminBtn.MouseButton1Click:Connect(function()
 						togglePanel()
 					end)
-					print("[AdminClient] Owner-knappen hittad och synlig")
+					print("[AdminClient] Owner button found and visible")
 					return
 				end
 			end
 		end
 		task.wait(0.5)
 	end
-	-- Fallback: skapa en egen knapp om Owner inte hittas
+	-- Fallback: create our own button if Owner button not found
 	adminBtn = Instance.new("TextButton")
 	adminBtn.Name = "AdminToggle"
 	adminBtn.Size = UDim2.new(0, 50, 0, 50)
@@ -135,7 +136,7 @@ task.spawn(function()
 end)
 
 -- =====================
--- ADMIN-PANEL (huvudfönster)
+-- ADMIN PANEL (main window)
 -- =====================
 local PANEL_WIDTH = 700
 local PANEL_HEIGHT = 520
@@ -454,7 +455,7 @@ local function flashButton(btn, success)
 end
 
 -- =====================================================
--- TAB 1: MEMBERS - lista alla spelare med stats
+-- TAB 1: MEMBERS - list all players with stats
 -- =====================================================
 local membersTab = tabFrames["Members"]
 
@@ -672,107 +673,301 @@ end)
 refreshMembers()
 
 -- =====================================================
--- TAB 2: BRAINROTS - Spawn Brainrot, Wave, Event
+-- TAB 2: BRAINROTS - Spawn Brainrot (dropdown) + Broadcast Message
 -- =====================================================
 local brainrotsTab = tabFrames["Brainrots"]
 
--- Spawn Brainrot
+-- =====================
+-- SPAWN BRAINROT (with dropdown lists)
+-- =====================
 local brainrotSection = createSection("Spawn Brainrot", brainrotsTab, "Brainrots")
-local brainrotNameInput = createInput(brainrotSection, "Enter brainrot name", 1)
-local brainrotMutInput = createInput(brainrotSection, "Enter mutation (optional)", 2)
-local brainrotBtns = createButtonRow(brainrotSection, {
+
+-- Selected state
+local selectedBrainrot = nil
+local selectedMutation = "NONE"
+
+-- Label showing current selection
+local selectionLabel = Instance.new("TextLabel")
+selectionLabel.Size = UDim2.new(1, 0, 0, 22)
+selectionLabel.BackgroundTransparency = 1
+selectionLabel.Text = "Selected: (none)  |  Mutation: Normal"
+selectionLabel.TextColor3 = COLORS.dimText
+selectionLabel.TextScaled = true
+selectionLabel.Font = Enum.Font.Gotham
+selectionLabel.TextXAlignment = Enum.TextXAlignment.Left
+selectionLabel.LayoutOrder = 1
+selectionLabel.Parent = brainrotSection
+
+local function updateSelectionLabel()
+	local bName = selectedBrainrot and selectedBrainrot.name or "(none)"
+	local mLabel = "Normal"
+	for _, m in ipairs(GameConfig.MUTATIONS) do
+		if m.key == selectedMutation then mLabel = m.label break end
+	end
+	selectionLabel.Text = "Selected: " .. bName .. "  |  Mutation: " .. mLabel
+	selectionLabel.TextColor3 = selectedBrainrot and COLORS.success or COLORS.dimText
+end
+
+-- Brainrot list (scrollable)
+local brainrotListLabel = Instance.new("TextLabel")
+brainrotListLabel.Size = UDim2.new(1, 0, 0, 18)
+brainrotListLabel.BackgroundTransparency = 1
+brainrotListLabel.Text = "Choose Brainrot:"
+brainrotListLabel.TextColor3 = COLORS.text
+brainrotListLabel.TextScaled = true
+brainrotListLabel.Font = Enum.Font.GothamBold
+brainrotListLabel.TextXAlignment = Enum.TextXAlignment.Left
+brainrotListLabel.LayoutOrder = 2
+brainrotListLabel.Parent = brainrotSection
+
+local brainrotScroll = Instance.new("ScrollingFrame")
+brainrotScroll.Size = UDim2.new(1, 0, 0, 160)
+brainrotScroll.BackgroundColor3 = COLORS.input
+brainrotScroll.BorderSizePixel = 0
+brainrotScroll.ScrollBarThickness = 5
+brainrotScroll.ScrollBarImageColor3 = COLORS.border
+brainrotScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+brainrotScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+brainrotScroll.LayoutOrder = 3
+brainrotScroll.Parent = brainrotSection
+Instance.new("UICorner", brainrotScroll).CornerRadius = UDim.new(0, 6)
+
+local brainrotListLayout = Instance.new("UIListLayout")
+brainrotListLayout.Padding = UDim.new(0, 2)
+brainrotListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+brainrotListLayout.Parent = brainrotScroll
+
+local brainrotListPadding = Instance.new("UIPadding")
+brainrotListPadding.PaddingTop = UDim.new(0, 2)
+brainrotListPadding.PaddingLeft = UDim.new(0, 2)
+brainrotListPadding.PaddingRight = UDim.new(0, 2)
+brainrotListPadding.Parent = brainrotScroll
+
+local brainrotRowButtons = {}
+for i, b in ipairs(GameConfig.BRAINROTS) do
+	local rarityColor = GameConfig.RARITY_COLORS[b.rarity] or COLORS.dimText
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, 0, 0, 26)
+	btn.BackgroundColor3 = (i % 2 == 0) and COLORS.rowEven or COLORS.rowOdd
+	btn.BorderSizePixel = 0
+	btn.Text = "  " .. b.icon .. "  " .. b.name
+	btn.TextColor3 = rarityColor
+	btn.TextScaled = true
+	btn.Font = Enum.Font.Gotham
+	btn.TextXAlignment = Enum.TextXAlignment.Left
+	btn.LayoutOrder = i
+	btn.Parent = brainrotScroll
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+	brainrotRowButtons[i] = btn
+
+	btn.MouseButton1Click:Connect(function()
+		selectedBrainrot = b
+		-- Highlight selected row, dim others
+		for j, otherBtn in ipairs(brainrotRowButtons) do
+			if j == i then
+				otherBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
+			else
+				otherBtn.BackgroundColor3 = (j % 2 == 0) and COLORS.rowEven or COLORS.rowOdd
+			end
+		end
+		updateSelectionLabel()
+	end)
+end
+
+-- Mutation selector (row of buttons)
+local mutationLabel = Instance.new("TextLabel")
+mutationLabel.Size = UDim2.new(1, 0, 0, 18)
+mutationLabel.BackgroundTransparency = 1
+mutationLabel.Text = "Choose Mutation:"
+mutationLabel.TextColor3 = COLORS.text
+mutationLabel.TextScaled = true
+mutationLabel.Font = Enum.Font.GothamBold
+mutationLabel.TextXAlignment = Enum.TextXAlignment.Left
+mutationLabel.LayoutOrder = 4
+mutationLabel.Parent = brainrotSection
+
+local mutationRow = Instance.new("Frame")
+mutationRow.Size = UDim2.new(1, 0, 0, 30)
+mutationRow.BackgroundTransparency = 1
+mutationRow.LayoutOrder = 5
+mutationRow.Parent = brainrotSection
+
+local mutRowLayout = Instance.new("UIListLayout")
+mutRowLayout.FillDirection = Enum.FillDirection.Horizontal
+mutRowLayout.Padding = UDim.new(0, 4)
+mutRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+mutRowLayout.Parent = mutationRow
+
+local mutationButtons = {}
+for i, m in ipairs(GameConfig.MUTATIONS) do
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 80, 1, 0)
+	btn.BackgroundColor3 = m.color
+	btn.BorderSizePixel = 0
+	btn.Text = m.label
+	btn.TextColor3 = (m.key == "GOLD") and Color3.fromRGB(40, 40, 40) or Color3.fromRGB(255, 255, 255)
+	btn.TextScaled = true
+	btn.Font = Enum.Font.GothamBold
+	btn.LayoutOrder = i
+	btn.Parent = mutationRow
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+	-- Highlight default
+	if m.key == "NONE" then
+		btn.BackgroundTransparency = 0
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 2
+		stroke.Color = COLORS.success
+		stroke.Name = "SelectStroke"
+		stroke.Parent = btn
+	else
+		btn.BackgroundTransparency = 0.3
+	end
+
+	mutationButtons[i] = { btn = btn, key = m.key }
+
+	btn.MouseButton1Click:Connect(function()
+		selectedMutation = m.key
+		for _, mb in ipairs(mutationButtons) do
+			mb.btn.BackgroundTransparency = (mb.key == selectedMutation) and 0 or 0.3
+			local existingStroke = mb.btn:FindFirstChild("SelectStroke")
+			if existingStroke then existingStroke:Destroy() end
+		end
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 2
+		stroke.Color = COLORS.success
+		stroke.Name = "SelectStroke"
+		stroke.Parent = btn
+		updateSelectionLabel()
+	end)
+end
+
+-- Server / Global spawn buttons
+local spawnBtns = createButtonRow(brainrotSection, {
+	{ text = "Server", color = COLORS.btnGreen },
+	{ text = "Global", color = COLORS.btnRed },
+}, 6)
+
+spawnBtns["Server"].MouseButton1Click:Connect(function()
+	if not selectedBrainrot then showStatus("Select a brainrot first", false) return end
+	adminRemote:FireServer("SpawnBrainrot", selectedBrainrot.name, selectedMutation, "Server")
+	flashButton(spawnBtns["Server"], true)
+end)
+
+spawnBtns["Global"].MouseButton1Click:Connect(function()
+	if not selectedBrainrot then showStatus("Select a brainrot first", false) return end
+	adminRemote:FireServer("SpawnBrainrot", selectedBrainrot.name, selectedMutation, "Global")
+	flashButton(spawnBtns["Global"], true)
+end)
+
+-- =====================
+-- BROADCAST MESSAGE
+-- =====================
+local msgSection = createSection("Broadcast Message", brainrotsTab, "Brainrots")
+local msgInput = createInput(msgSection, "Enter message text", 1)
+local msgDurationInput = createInput(msgSection, "Duration in seconds (default: 5)", 2)
+local msgBtns = createButtonRow(msgSection, {
 	{ text = "Server", color = COLORS.btnGreen },
 	{ text = "Global", color = COLORS.btnRed },
 }, 3)
 
-brainrotBtns["Server"].MouseButton1Click:Connect(function()
-	if #brainrotNameInput.Text == 0 then showStatus("Ange brainrot-namn", false) return end
-	adminRemote:FireServer("SpawnBrainrot", brainrotNameInput.Text, brainrotMutInput.Text, "Server")
-	flashButton(brainrotBtns["Server"], true)
+msgBtns["Server"].MouseButton1Click:Connect(function()
+	if #msgInput.Text == 0 then showStatus("Enter a message", false) return end
+	local dur = tonumber(msgDurationInput.Text) or 5
+	adminRemote:FireServer("SendMessage", msgInput.Text, dur, "Server")
+	flashButton(msgBtns["Server"], true)
 end)
 
-brainrotBtns["Global"].MouseButton1Click:Connect(function()
-	if #brainrotNameInput.Text == 0 then showStatus("Ange brainrot-namn", false) return end
-	adminRemote:FireServer("SpawnBrainrot", brainrotNameInput.Text, brainrotMutInput.Text, "Global")
-	flashButton(brainrotBtns["Global"], true)
+msgBtns["Global"].MouseButton1Click:Connect(function()
+	if #msgInput.Text == 0 then showStatus("Enter a message", false) return end
+	local dur = tonumber(msgDurationInput.Text) or 5
+	adminRemote:FireServer("SendMessage", msgInput.Text, dur, "Global")
+	flashButton(msgBtns["Global"], true)
 end)
 
--- Spawn Wave
-local waveSection = createSection("Spawn Wave", brainrotsTab, "Brainrots")
-local waveInput = createInput(waveSection, "Enter wave name", 1)
-local waveBtns = createButtonRow(waveSection, {
+-- ── Grant Luck ──
+local luckSection = createSection("Grant Luck", brainrotsTab, "Brainrots")
+
+-- Luck multiplier selector (scrollable list of buttons)
+local selectedLuckMult = 1
+local luckMultLabel = Instance.new("TextLabel")
+luckMultLabel.Size = UDim2.new(1, -8, 0, 22)
+luckMultLabel.Position = UDim2.new(0, 4, 0, 4)
+luckMultLabel.BackgroundTransparency = 1
+luckMultLabel.Text = "Multiplier: 1x"
+luckMultLabel.TextColor3 = Color3.fromRGB(255, 220, 80)
+luckMultLabel.TextScaled = true
+luckMultLabel.Font = Enum.Font.GothamBold
+luckMultLabel.TextXAlignment = Enum.TextXAlignment.Left
+luckMultLabel.LayoutOrder = 1
+luckMultLabel.Parent = luckSection
+
+local luckBtnFrame = Instance.new("Frame")
+luckBtnFrame.Size = UDim2.new(1, -8, 0, 60)
+luckBtnFrame.Position = UDim2.new(0, 4, 0, 28)
+luckBtnFrame.BackgroundTransparency = 1
+luckBtnFrame.LayoutOrder = 2
+luckBtnFrame.Parent = luckSection
+
+local luckGrid = Instance.new("UIGridLayout")
+luckGrid.CellSize = UDim2.new(0, 55, 0, 26)
+luckGrid.CellPadding = UDim2.new(0, 4, 0, 4)
+luckGrid.FillDirection = Enum.FillDirection.Horizontal
+luckGrid.SortOrder = Enum.SortOrder.LayoutOrder
+luckGrid.Parent = luckBtnFrame
+
+local luckTiers = GameConfig.LUCK_TIERS or { 1, 5, 10, 25, 50, 100, 250, 500, 1000 }
+local luckButtons = {}
+for i, tier in ipairs(luckTiers) do
+	do -- Include all tiers (1x resets luck to off)
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(0, 55, 0, 26)
+		btn.BackgroundColor3 = tier == selectedLuckMult and Color3.fromRGB(80, 160, 60) or Color3.fromRGB(50, 55, 65)
+		btn.BorderSizePixel = 0
+		btn.Text = tier .. "x"
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.TextScaled = true
+		btn.Font = Enum.Font.GothamBold
+		btn.LayoutOrder = i
+		btn.Parent = luckBtnFrame
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+		btn.MouseButton1Click:Connect(function()
+			selectedLuckMult = tier
+			luckMultLabel.Text = "Multiplier: " .. tier .. "x"
+			for _, b in pairs(luckButtons) do
+				b.BackgroundColor3 = Color3.fromRGB(50, 55, 65)
+			end
+			btn.BackgroundColor3 = Color3.fromRGB(80, 160, 60)
+		end)
+		luckButtons[tier] = btn
+	end
+end
+
+local luckDurInput = createInput(luckSection, "Duration in minutes (default: 15)", 3)
+
+local luckBtns = createButtonRow(luckSection, {
 	{ text = "Server", color = COLORS.btnGreen },
 	{ text = "Global", color = COLORS.btnRed },
-}, 2)
+}, 4)
 
-waveBtns["Server"].MouseButton1Click:Connect(function()
-	if #waveInput.Text == 0 then showStatus("Ange vågnamn", false) return end
-	adminRemote:FireServer("SpawnWave", waveInput.Text, "Server")
-	flashButton(waveBtns["Server"], true)
+luckBtns["Server"].MouseButton1Click:Connect(function()
+	local dur = tonumber(luckDurInput.Text) or 15
+	adminRemote:FireServer("GrantLuck", selectedLuckMult, dur, "Server")
+	flashButton(luckBtns["Server"], true)
 end)
 
-waveBtns["Global"].MouseButton1Click:Connect(function()
-	if #waveInput.Text == 0 then showStatus("Ange vågnamn", false) return end
-	adminRemote:FireServer("SpawnWave", waveInput.Text, "Global")
-	flashButton(waveBtns["Global"], true)
-end)
-
--- Spawn Event
-local eventSection = createSection("Spawn Event", brainrotsTab, "Brainrots")
-local eventInput = createInput(eventSection, "Enter event name", 1)
-local eventBtns = createButtonRow(eventSection, {
-	{ text = "Server", color = COLORS.btnGreen },
-	{ text = "Global", color = COLORS.btnRed },
-}, 2)
-
-eventBtns["Server"].MouseButton1Click:Connect(function()
-	if #eventInput.Text == 0 then showStatus("Ange event-namn", false) return end
-	adminRemote:FireServer("SpawnWave", eventInput.Text, "Server")
-	flashButton(eventBtns["Server"], true)
-end)
-
-eventBtns["Global"].MouseButton1Click:Connect(function()
-	if #eventInput.Text == 0 then showStatus("Ange event-namn", false) return end
-	adminRemote:FireServer("SpawnWave", eventInput.Text, "Global")
-	flashButton(eventBtns["Global"], true)
+luckBtns["Global"].MouseButton1Click:Connect(function()
+	local dur = tonumber(luckDurInput.Text) or 15
+	adminRemote:FireServer("GrantLuck", selectedLuckMult, dur, "Global")
+	flashButton(luckBtns["Global"], true)
 end)
 
 -- =====================================================
 -- TAB 3: ADMIN - Target Player, Credits, Rebirth, Speed, Kick
 -- =====================================================
 local adminTab = tabFrames["Admin"]
-
--- Use two columns inside Admin tab
-local adminLeftCol = Instance.new("Frame")
-adminLeftCol.Size = UDim2.new(0.5, -4, 0, 0)
-adminLeftCol.AutomaticSize = Enum.AutomaticSize.Y
-adminLeftCol.BackgroundTransparency = 1
-adminLeftCol.LayoutOrder = 1
-adminLeftCol.Parent = adminTab
-
-local adminLeftLayout = Instance.new("UIListLayout")
-adminLeftLayout.Padding = UDim.new(0, 6)
-adminLeftLayout.SortOrder = Enum.SortOrder.LayoutOrder
-adminLeftLayout.Parent = adminLeftCol
-
-local adminRightCol = Instance.new("Frame")
-adminRightCol.Size = UDim2.new(0.5, -4, 0, 0)
-adminRightCol.Position = UDim2.new(0.5, 4, 0, 0)
-adminRightCol.AutomaticSize = Enum.AutomaticSize.Y
-adminRightCol.BackgroundTransparency = 1
-adminRightCol.LayoutOrder = 1
-adminRightCol.Parent = adminTab
-
-local adminRightLayout = Instance.new("UIListLayout")
-adminRightLayout.Padding = UDim.new(0, 6)
-adminRightLayout.SortOrder = Enum.SortOrder.LayoutOrder
-adminRightLayout.Parent = adminRightCol
-
--- Actually, use single column with full width for cleaner layout
--- Remove the two-column approach, use the tab scrollframe directly
-
-adminLeftCol:Destroy()
-adminRightCol:Destroy()
 
 -- Target Player
 local targetSection = createSection("Target Player", adminTab, "Admin")
@@ -872,14 +1067,14 @@ local creditsBtns = createButtonRow(creditsSection, {
 
 creditsBtns["Add"].MouseButton1Click:Connect(function()
 	local amount = tonumber(creditsInput.Text)
-	if not amount then showStatus("Ange ett giltigt nummer", false) return end
+	if not amount then showStatus("Enter a valid number", false) return end
 	adminRemote:FireServer("AddCredits", targetInput.Text, amount)
 	flashButton(creditsBtns["Add"], true)
 end)
 
 creditsBtns["Set"].MouseButton1Click:Connect(function()
 	local amount = tonumber(creditsInput.Text)
-	if not amount then showStatus("Ange ett giltigt nummer", false) return end
+	if not amount then showStatus("Enter a valid number", false) return end
 	adminRemote:FireServer("SetCredits", targetInput.Text, amount)
 	flashButton(creditsBtns["Set"], true)
 end)
@@ -899,7 +1094,7 @@ end)
 
 rebirthBtns["Set"].MouseButton1Click:Connect(function()
 	local amount = tonumber(rebirthInput.Text)
-	if not amount then showStatus("Ange ett giltigt nummer", false) return end
+	if not amount then showStatus("Enter a valid number", false) return end
 	adminRemote:FireServer("SetRebirth", targetInput.Text, amount)
 	flashButton(rebirthBtns["Set"], true)
 end)
@@ -911,7 +1106,7 @@ local speedBtn = createButton(speedSection, "Set", COLORS.btnBlue, 2)
 
 speedBtn.MouseButton1Click:Connect(function()
 	local mult = tonumber(speedInput.Text)
-	if not mult then showStatus("Ange en giltig multiplier", false) return end
+	if not mult then showStatus("Enter a valid multiplier", false) return end
 	adminRemote:FireServer("SetSpeed", targetInput.Text, mult)
 	flashButton(speedBtn, true)
 end)
@@ -923,7 +1118,7 @@ local kickBtn = createButton(kickSection, "Kick", COLORS.btnRed, 2)
 
 kickBtn.MouseButton1Click:Connect(function()
 	local target = targetInput.Text
-	if #target == 0 then showStatus("Ange spelarnamn i Target-fältet", false) return end
+	if #target == 0 then showStatus("Enter a player name in the Target field", false) return end
 	adminRemote:FireServer("KickPlayer", target, kickReasonInput.Text)
 	flashButton(kickBtn, true)
 end)
@@ -1044,7 +1239,7 @@ codeBtns["List Codes"].MouseButton1Click:Connect(function()
 end)
 
 -- =====================================================
--- TAB 4: BANNED - bannade spelare med unban-funktion
+-- TAB 4: BANNED - banned players with unban functionality
 -- =====================================================
 local bannedTab = tabFrames["Banned"]
 local getBanListFunc = ReplicatedStorage:WaitForChild("GetBanList", 10)
@@ -1069,12 +1264,12 @@ banInfoLabel.Parent = banSection
 local banBtn = createButton(banSection, "Ban Selected Player", COLORS.btnRed, 3)
 banBtn.MouseButton1Click:Connect(function()
 	local target = targetInput.Text
-	if #target == 0 then showStatus("Välj en spelare först (Members -> klicka namn)", false) return end
+	if #target == 0 then showStatus("Select a player first (Members -> click name)", false) return end
 	local reason = banReasonInput.Text
-	if #reason == 0 then reason = "Ingen anledning angiven" end
+	if #reason == 0 then reason = "No reason given" end
 	adminRemote:FireServer("BanPlayer", target, reason)
 	flashButton(banBtn, true)
-	-- Uppdatera listan efter en kort delay
+	-- Refresh the list after a short delay
 	task.delay(1, function() refreshBanList() end)
 end)
 
@@ -1126,7 +1321,7 @@ refreshBanList = function()
 		local emptyLabel = Instance.new("TextLabel")
 		emptyLabel.Size = UDim2.new(1, 0, 0, 30)
 		emptyLabel.BackgroundColor3 = COLORS.section
-		emptyLabel.Text = "  Inga bannade spelare"
+		emptyLabel.Text = "  No banned players"
 		emptyLabel.TextColor3 = COLORS.dimText
 		emptyLabel.TextSize = 12
 		emptyLabel.Font = Enum.Font.Gotham
@@ -1289,7 +1484,7 @@ end)
 -- =====================
 local lastUndoData = nil -- { undoCmd = "...", undoArgs = {...}, desc = "..." }
 
--- Undo-knapp (bredvid statusraden, längst ner)
+-- Undo button (next to the status bar, at the bottom)
 local undoBtn = Instance.new("TextButton")
 undoBtn.Name = "UndoButton"
 undoBtn.Size = UDim2.new(0, 80, 0, 24)
@@ -1305,7 +1500,7 @@ local undoCorner = Instance.new("UICorner")
 undoCorner.CornerRadius = UDim.new(0, 6)
 undoCorner.Parent = undoBtn
 
--- Justera statusraden så den inte överlappar undo-knappen
+-- Adjust the status bar so it doesn't overlap the undo button
 statusLabel.Size = UDim2.new(1, -108, 0, 24)
 
 undoBtn.MouseButton1Click:Connect(function()
@@ -1313,22 +1508,22 @@ undoBtn.MouseButton1Click:Connect(function()
 	local data = lastUndoData
 	lastUndoData = nil
 	undoBtn.Visible = false
-	showStatus("Ångrar: " .. (data.desc or "..."), true)
+	showStatus("Undoing: " .. (data.desc or "..."), true)
 	adminRemote:FireServer(data.undoCmd, unpack(data.undoArgs))
 end)
 
 -- =====================
--- RESPONS FRÅN SERVERN
+-- RESPONSE FROM SERVER
 -- =====================
 adminResponse.OnClientEvent:Connect(function(success, message, undoData)
-	showStatus(message or (success and "OK" or "Fel"), success)
-	addLogEntry(message or (success and "OK" or "Fel"), not success)
+	showStatus(message or (success and "OK" or "Error"), success)
+	addLogEntry(message or (success and "OK" or "Error"), not success)
 
-	-- Visa undo-knapp om servern skickade undo-data
+	-- Show undo button if the server sent undo data
 	if success and undoData and type(undoData) == "table" and undoData.undoCmd then
 		lastUndoData = undoData
 		undoBtn.Visible = true
-		-- Auto-dölj undo efter 30 sekunder
+		-- Auto-hide undo after 30 seconds
 		local currentData = undoData
 		task.delay(30, function()
 			if lastUndoData == currentData then
@@ -1337,11 +1532,11 @@ adminResponse.OnClientEvent:Connect(function(success, message, undoData)
 			end
 		end)
 	else
-		-- Ej undo-bar åtgärd (kick, etc.) - behåll eventuell existerande undo
+		-- Non-undoable action (kick, etc.) - keep any existing undo
 	end
 end)
 
 -- Start on Members tab
 switchTab("Members")
 
-print("[AdminClient] Admin-panel med flikar laddad för", player.Name)
+print("[AdminClient] Admin panel with tabs loaded for", player.Name)

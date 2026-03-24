@@ -1,11 +1,24 @@
 -- =============================================
 -- AdminServer.lua (ServerScript)
--- Huvud-serverscript för admin-panelen.
--- Hanterar alla admin-kommandon med säkerhet.
--- Placeras i ServerScriptService.
+-- Main server script for the admin panel.
+-- Handles all admin commands with security.
+-- Placed in ServerScriptService.
 -- =============================================
 
-print("[ADMIN SERVER] ====== AdminServer.lua starting ======")
+-- Set to true to enable verbose debug prints
+local DEBUG = false
+local function debugPrint(...)
+	if DEBUG then print(...) end
+end
+
+-- Count entries in a dictionary-style table (no # operator for non-arrays)
+local function tableCount(t)
+	local c = 0
+	for _ in pairs(t) do c = c + 1 end
+	return c
+end
+
+debugPrint("[ADMIN SERVER] ====== AdminServer.lua starting ======")
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,27 +26,32 @@ local DataStoreService = game:GetService("DataStoreService")
 local MessagingService = game:GetService("MessagingService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
--- BindableFunctions hämtas asynkront så vi inte blockerar startup
-local adminAddCredits  = nil
-local adminSetCredits  = nil
-local adminSetRebirth  = nil
-local adminGiveRebirth = nil
-local adminSetSpeed    = nil
+-- BindableFunctions fetched asynchronously so we don't block startup
+local adminAddCredits      = nil
+local adminSetCredits      = nil
+local adminSetRebirth      = nil
+local adminGiveRebirth     = nil
+local adminSetSpeed        = nil
+local adminSpawnBrainrot   = nil
+local adminSetLuck         = nil
 
 task.spawn(function()
-	adminAddCredits  = ServerScriptService:WaitForChild("AdminAddCredits", 30)
-	adminSetCredits  = ServerScriptService:WaitForChild("AdminSetCredits", 30)
-	adminSetRebirth  = ServerScriptService:WaitForChild("AdminSetRebirth", 30)
-	adminGiveRebirth = ServerScriptService:WaitForChild("AdminGiveRebirth", 30)
-	adminSetSpeed    = ServerScriptService:WaitForChild("AdminSetSpeed", 30)
-	print("[ADMIN SERVER] BindableFunctions loaded:",
+	adminAddCredits      = ServerScriptService:WaitForChild("AdminAddCredits", 30)
+	adminSetCredits      = ServerScriptService:WaitForChild("AdminSetCredits", 30)
+	adminSetRebirth      = ServerScriptService:WaitForChild("AdminSetRebirth", 30)
+	adminGiveRebirth     = ServerScriptService:WaitForChild("AdminGiveRebirth", 30)
+	adminSetSpeed        = ServerScriptService:WaitForChild("AdminSetSpeed", 30)
+	adminSpawnBrainrot   = ServerScriptService:WaitForChild("AdminSpawnBrainrot", 30)
+	adminSetLuck         = ServerScriptService:WaitForChild("AdminSetLuck", 30)
+	debugPrint("[ADMIN SERVER] BindableFunctions loaded:",
 		adminAddCredits ~= nil, adminSetCredits ~= nil,
 		adminSetRebirth ~= nil, adminGiveRebirth ~= nil,
-		adminSetSpeed ~= nil)
+		adminSetSpeed ~= nil, adminSpawnBrainrot ~= nil,
+		adminSetLuck ~= nil)
 end)
 
 -- =====================
--- WHITELIST (hardkodade ägare som alltid är admin)
+-- WHITELIST (hardcoded owners who are always admin)
 -- =====================
 local OWNER_IDS = {
 	[8327644091] = true, -- Simpleson716
@@ -42,7 +60,7 @@ local OWNER_IDS = {
 -- Unique counter for log keys to avoid collisions
 local logCounter = 0
 
--- Runtime admin-lista (laddas från DataStore + owners)
+-- Runtime admin list (loaded from DataStore + owners)
 local ADMINS = {}
 for id in pairs(OWNER_IDS) do
 	ADMINS[id] = true
@@ -66,11 +84,11 @@ local function loadAdminList()
 		for _, userId in ipairs(data) do
 			ADMINS[userId] = true
 		end
-		print("[ADMIN] Loaded", #data, "admins from DataStore")
+		debugPrint("[ADMIN] Loaded", #data, "admins from DataStore")
 	elseif not ok then
 		warn("[ADMIN] Failed to load admin list:", tostring(data))
 	else
-		print("[ADMIN] No saved admin list found (first run)")
+		debugPrint("[ADMIN] No saved admin list found (first run)")
 	end
 end
 
@@ -85,10 +103,10 @@ local function saveAdminList()
 			table.insert(list, userId)
 		end
 		local ok, err = pcall(function()
-			adminStore:SetAsync("Admins", list)
+			adminStore:UpdateAsync("Admins", function(_old) return list end)
 		end)
 		if ok then
-			print("[ADMIN] Saved admin list:", #list, "admins")
+			debugPrint("[ADMIN] Saved admin list:", #list, "admins")
 		else
 			warn("[ADMIN] Failed to save admin list:", tostring(err))
 		end
@@ -100,7 +118,7 @@ loadAdminList()
 -- =====================
 -- RATE LIMITING
 -- =====================
-local COOLDOWN_TIME = 0.5 -- sekunder mellan kommandon
+local COOLDOWN_TIME = 0.5 -- seconds between commands
 local lastCommandTime = {} -- [UserId] = os.clock()
 
 local function checkCooldown(player)
@@ -130,10 +148,10 @@ local function logAction(player, cmd, target, details)
 		details = details or "",
 		timestamp = os.time(),
 	}
-	print(string.format("[ADMIN] %s (%d) -> %s | target: %s | %s",
+	debugPrint(string.format("[ADMIN] %s (%d) -> %s | target: %s | %s",
 		player.Name, player.UserId, cmd, target or "N/A", details or ""))
 
-	-- Spara till DataStore asynkront
+	-- Save to DataStore asynchronously
 	if adminLogStore then
 		task.spawn(function()
 			pcall(function()
@@ -146,10 +164,10 @@ local function logAction(player, cmd, target, details)
 end
 
 -- =====================
--- HJÄLPFUNKTIONER
+-- HELPER FUNCTIONS
 -- =====================
 
---- Hitta en spelare via namn eller displaynamn
+--- Find a player by name or display name
 local function findPlayer(name)
 	if not name or type(name) ~= "string" or #name == 0 then
 		return nil
@@ -160,7 +178,7 @@ local function findPlayer(name)
 			return p
 		end
 	end
-	-- Partiell matchning som fallback
+	-- Partial match as fallback
 	for _, p in ipairs(Players:GetPlayers()) do
 		if p.Name:lower():find(lowerName, 1, true) or
 			p.DisplayName:lower():find(lowerName, 1, true) then
@@ -170,7 +188,7 @@ local function findPlayer(name)
 	return nil
 end
 
---- Validera och sanera sträng-input
+--- Validate and sanitize string input
 local function sanitizeString(str, maxLen)
 	if type(str) ~= "string" then return nil end
 	maxLen = maxLen or 50
@@ -178,7 +196,7 @@ local function sanitizeString(str, maxLen)
 	return str
 end
 
---- Validera nummer-input
+--- Validate number input
 local function sanitizeNumber(val)
 	if type(val) == "string" then
 		val = tonumber(val)
@@ -197,10 +215,10 @@ pcall(function()
 	banStore = DataStoreService:GetDataStore("BannedPlayers")
 end)
 
--- Lokal cache av bannade spelare (synkas med DataStore)
+-- Local cache of banned players (synced with DataStore)
 local bannedPlayers = {} -- [UserId] = { name = "...", reason = "...", bannedBy = "...", timestamp = ... }
 
--- Ladda ban-lista från DataStore vid start
+-- Load ban list from DataStore at startup
 local function loadBanList()
 	if not banStore then return end
 	local ok, data = pcall(function()
@@ -208,7 +226,7 @@ local function loadBanList()
 	end)
 	if ok and data and type(data) == "table" then
 		bannedPlayers = data
-		print("[ADMIN] Loaded " .. tostring(#(function() local c = 0; for _ in pairs(bannedPlayers) do c = c + 1 end; return c end)()) .. " banned players")
+		debugPrint("[ADMIN] Loaded " .. tostring(tableCount(bannedPlayers)) .. " banned players")
 	end
 end
 
@@ -216,7 +234,7 @@ local function saveBanList()
 	if not banStore then return end
 	task.spawn(function()
 		pcall(function()
-			banStore:SetAsync("BanList", bannedPlayers)
+			banStore:UpdateAsync("BanList", function(_old) return bannedPlayers end)
 		end)
 	end)
 end
@@ -229,20 +247,20 @@ local function banPlayer(targetUserId, targetName, reason, adminPlayer)
 	local key = tostring(targetUserId)
 	bannedPlayers[key] = {
 		name = targetName,
-		reason = reason or "Ingen anledning angiven",
+		reason = reason or "No reason given",
 		bannedBy = adminPlayer.Name,
 		bannedById = adminPlayer.UserId,
 		timestamp = os.time(),
 	}
 	saveBanList()
 
-	-- Kick spelaren om de är online
+	-- Kick the player if they are online
 	local target = Players:GetPlayerByUserId(targetUserId)
 	if target then
-		target:Kick("Du har blivit bannad: " .. (reason or "Ingen anledning angiven"))
+		target:Kick("You have been banned: " .. (reason or "No reason given"))
 	end
 
-	-- Publicera globalt så andra servrar också kickar
+	-- Publish globally so other servers also kick
 	pcall(function()
 		local data = game:GetService("HttpService"):JSONEncode({
 			cmd = "BanPlayer",
@@ -258,7 +276,7 @@ local function unbanPlayer(targetUserId)
 	bannedPlayers[key] = nil
 	saveBanList()
 
-	-- Publicera globalt
+	-- Publish globally
 	pcall(function()
 		local data = game:GetService("HttpService"):JSONEncode({
 			cmd = "UnbanPlayer",
@@ -270,10 +288,10 @@ local function unbanPlayer(targetUserId)
 	return entry
 end
 
--- Ladda ban-lista vid uppstart
+-- Load ban list at startup
 loadBanList()
 
--- Skapa AdminCheck event för att visa Owner-knappen
+-- Create AdminCheck event to show the Owner button
 local adminCheckEvent = ReplicatedStorage:FindFirstChild("AdminCheck")
 if not adminCheckEvent then
 	adminCheckEvent = Instance.new("RemoteEvent")
@@ -281,27 +299,27 @@ if not adminCheckEvent then
 	adminCheckEvent.Parent = ReplicatedStorage
 end
 
--- Hantera spelare vid join: banna eller visa admin-knappen
+-- Handle players on join: ban check or show admin button
 Players.PlayerAdded:Connect(function(p)
 	if isPlayerBanned(p.UserId) then
 		local entry = bannedPlayers[tostring(p.UserId)]
-		local reason = entry and entry.reason or "Bannad"
-		p:Kick("Du är bannad: " .. reason)
+		local reason = entry and entry.reason or "Banned"
+		p:Kick("You are banned: " .. reason)
 		return
 	end
 
-	-- Visa Owner-knappen för admins (med delay så klient-scriptet hinner starta)
+	-- Show Owner button for admins (with delay so the client script has time to start)
 	if ADMINS[p.UserId] then
 		task.delay(3, function()
 			if p and p.Parent then
 				adminCheckEvent:FireClient(p, true)
-				print("[ADMIN] Fired AdminCheck for returning admin:", p.Name)
+				debugPrint("[ADMIN] Fired AdminCheck for returning admin:", p.Name)
 			end
 		end)
 	end
 end)
 
--- RemoteFunction för att hämta ban-listan (admin only)
+-- RemoteFunction to fetch the ban list (admin only)
 local getBanListFunc = ReplicatedStorage:FindFirstChild("GetBanList")
 if not getBanListFunc then
 	getBanListFunc = Instance.new("RemoteFunction")
@@ -311,7 +329,7 @@ end
 
 getBanListFunc.OnServerInvoke = function(requestingPlayer)
 	if not ADMINS[requestingPlayer.UserId] then return {} end
-	-- Returnera en lista för UI:n
+	-- Return a list for the UI
 	local list = {}
 	for odId, entry in pairs(bannedPlayers) do
 		table.insert(list, {
@@ -322,7 +340,7 @@ getBanListFunc.OnServerInvoke = function(requestingPlayer)
 			timestamp = entry.timestamp or 0,
 		})
 	end
-	-- Sortera nyast först
+	-- Sort newest first
 	table.sort(list, function(a, b) return (a.timestamp or 0) > (b.timestamp or 0) end)
 	return list
 end
@@ -380,7 +398,7 @@ listCodesFunc.OnServerInvoke = function(requestingPlayer)
 end
 
 -- =====================
--- ADMIN CHECK (RemoteFunction för klienten att fråga om den är admin)
+-- ADMIN CHECK (RemoteFunction for the client to ask if it is admin)
 -- =====================
 local isAdminFunc = ReplicatedStorage:FindFirstChild("IsAdmin")
 if not isAdminFunc then
@@ -403,12 +421,20 @@ if not adminRemote then
 	adminRemote.Parent = ReplicatedStorage
 end
 
--- Respons-event för feedback till klienten
+-- Response event for feedback to the client
 local adminResponse = ReplicatedStorage:FindFirstChild("AdminResponse")
 if not adminResponse then
 	adminResponse = Instance.new("RemoteEvent")
 	adminResponse.Name = "AdminResponse"
 	adminResponse.Parent = ReplicatedStorage
+end
+
+-- Broadcast message event (server → all clients)
+local adminMessageEvent = ReplicatedStorage:FindFirstChild("AdminMessage")
+if not adminMessageEvent then
+	adminMessageEvent = Instance.new("RemoteEvent")
+	adminMessageEvent.Name = "AdminMessage"
+	adminMessageEvent.Parent = ReplicatedStorage
 end
 
 -- =====================
@@ -424,7 +450,7 @@ local function publishGlobal(cmd, args)
 	end)
 end
 
--- Lyssna på globala kommandon från andra servrar
+-- Listen for global commands from other servers
 pcall(function()
 	MessagingService:SubscribeAsync("AdminCommand", function(message)
 		local ok, data = pcall(function()
@@ -437,7 +463,7 @@ pcall(function()
 		elseif data.cmd == "SpawnWave" then
 			warn("[ADMIN] SpawnWave not yet implemented via BindableFunctions")
 		elseif data.cmd == "BanPlayer" then
-			-- Annan server bannade en spelare - uppdatera lokal cache och kicka om online
+			-- Another server banned a player - update local cache and kick if online
 			local key = tostring(data.args.userId)
 			bannedPlayers[key] = {
 				name = data.args.name,
@@ -447,7 +473,7 @@ pcall(function()
 			}
 			local target = Players:GetPlayerByUserId(data.args.userId)
 			if target then
-				target:Kick("Du har blivit bannad: " .. (data.args.reason or ""))
+				target:Kick("You have been banned: " .. (data.args.reason or ""))
 			end
 		elseif data.cmd == "UnbanPlayer" then
 			bannedPlayers[tostring(data.args.userId)] = nil
@@ -457,35 +483,43 @@ pcall(function()
 			if not OWNER_IDS[data.args.userId] then
 				ADMINS[data.args.userId] = nil
 			end
+		elseif data.cmd == "SendMessage" then
+			-- Broadcast from another server — display on all local clients
+			adminMessageEvent:FireAllClients(data.args.text, data.args.duration)
+		elseif data.cmd == "GrantLuck" then
+			-- Apply luck from another server
+			if adminSetLuck then
+				adminSetLuck:Invoke(data.args.mult, data.args.duration)
+			end
 		end
 	end)
 end)
 
 -- =====================
--- KOMMANDOHANTERING
+-- COMMAND HANDLING
 -- =====================
-print("[ADMIN SERVER] OnServerEvent handler registered on:", adminRemote:GetFullName(), "ClassName:", adminRemote.ClassName)
+debugPrint("[ADMIN SERVER] OnServerEvent handler registered on:", adminRemote:GetFullName(), "ClassName:", adminRemote.ClassName)
 
 adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
-	print("[ADMIN SERVER RAW] Received ANY command:", tostring(cmd), "from:", player.Name, "UserId:", player.UserId)
-	-- Säkerhetskontroll: är spelaren admin?
+	debugPrint("[ADMIN SERVER RAW] Received ANY command:", tostring(cmd), "from:", player.Name, "UserId:", player.UserId)
+	-- Security check: is the player admin?
 	if not ADMINS[player.UserId] then
-		warn(string.format("[ADMIN SECURITY] Obehörig åtkomst av %s (%d) - cmd: %s",
+		warn(string.format("[ADMIN SECURITY] Unauthorized access by %s (%d) - cmd: %s",
 			player.Name, player.UserId, tostring(cmd)))
 		return
 	end
 
 	-- Rate limiting
 	if not checkCooldown(player) then
-		warn(string.format("[ADMIN RATE LIMIT] %s skickar kommandon för snabbt", player.Name))
-		adminResponse:FireClient(player, false, "Vänta lite mellan kommandon (cooldown)")
+		warn(string.format("[ADMIN RATE LIMIT] %s is sending commands too fast", player.Name))
+		adminResponse:FireClient(player, false, "Please wait between commands (cooldown)")
 		return
 	end
 
-	-- Validera cmd
+	-- Validate cmd
 	cmd = sanitizeString(cmd, 30)
 	if not cmd then
-		adminResponse:FireClient(player, false, "Ogiltigt kommando")
+		adminResponse:FireClient(player, false, "Invalid command")
 		return
 	end
 
@@ -498,15 +532,15 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local targetName = sanitizeString(args[1])
 		local amount = sanitizeNumber(args[2])
 		if not amount or amount <= 0 then
-			adminResponse:FireClient(player, false, "Ogiltigt belopp")
+			adminResponse:FireClient(player, false, "Invalid amount")
 			return
 		end
-		-- Om inget mål angivet, använd admin själv
+		-- If no target specified, use admin self
 		local target = player
 		if targetName and #targetName > 0 then
 			target = findPlayer(targetName)
 			if not target then
-				adminResponse:FireClient(player, false, "Spelaren '" .. targetName .. "' hittades inte")
+				adminResponse:FireClient(player, false, "Player '" .. targetName .. "' not found")
 				return
 			end
 		end
@@ -517,10 +551,10 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local ok, err, prevValue = adminAddCredits:Invoke(target, amount)
 		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
 		if ok then
-			adminResponse:FireClient(player, true, "Lade till " .. amount .. " credits till " .. target.Name,
-				{ undoCmd = "SetCredits", undoArgs = { target.Name, prevValue }, desc = "Undo: Återställ credits till " .. tostring(prevValue) })
+			adminResponse:FireClient(player, true, "Added " .. amount .. " credits to " .. target.Name,
+				{ undoCmd = "SetCredits", undoArgs = { target.Name, prevValue }, desc = "Undo: Restore credits to " .. tostring(prevValue) })
 		else
-			adminResponse:FireClient(player, false, err or "Okänt fel")
+			adminResponse:FireClient(player, false, err or "Unknown error")
 		end
 
 	-- =====================
@@ -530,14 +564,14 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local targetName = sanitizeString(args[1])
 		local amount = sanitizeNumber(args[2])
 		if not amount then
-			adminResponse:FireClient(player, false, "Ogiltigt belopp")
+			adminResponse:FireClient(player, false, "Invalid amount")
 			return
 		end
 		local target = player
 		if targetName and #targetName > 0 then
 			target = findPlayer(targetName)
 			if not target then
-				adminResponse:FireClient(player, false, "Spelaren '" .. targetName .. "' hittades inte")
+				adminResponse:FireClient(player, false, "Player '" .. targetName .. "' not found")
 				return
 			end
 		end
@@ -548,10 +582,10 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local ok, err, prevValue = adminSetCredits:Invoke(target, amount)
 		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
 		if ok then
-			adminResponse:FireClient(player, true, "Satte credits till " .. amount .. " för " .. target.Name,
-				{ undoCmd = "SetCredits", undoArgs = { target.Name, prevValue }, desc = "Undo: Återställ credits till " .. tostring(prevValue) })
+			adminResponse:FireClient(player, true, "Set credits to " .. amount .. " for " .. target.Name,
+				{ undoCmd = "SetCredits", undoArgs = { target.Name, prevValue }, desc = "Undo: Restore credits to " .. tostring(prevValue) })
 		else
-			adminResponse:FireClient(player, false, err or "Okänt fel")
+			adminResponse:FireClient(player, false, err or "Unknown error")
 		end
 
 	-- =====================
@@ -561,14 +595,14 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local targetName = sanitizeString(args[1])
 		local amount = sanitizeNumber(args[2])
 		if not amount then
-			adminResponse:FireClient(player, false, "Ogiltigt belopp")
+			adminResponse:FireClient(player, false, "Invalid amount")
 			return
 		end
 		local target = player
 		if targetName and #targetName > 0 then
 			target = findPlayer(targetName)
 			if not target then
-				adminResponse:FireClient(player, false, "Spelaren hittades inte")
+				adminResponse:FireClient(player, false, "Player not found")
 				return
 			end
 		end
@@ -579,10 +613,10 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local ok, err, prevValue = adminSetRebirth:Invoke(target, amount)
 		logAction(player, cmd, target.Name, "amount=" .. tostring(amount))
 		if ok then
-			adminResponse:FireClient(player, true, "Satte rebirth till " .. amount .. " för " .. target.Name,
-				{ undoCmd = "SetRebirth", undoArgs = { target.Name, prevValue }, desc = "Undo: Återställ rebirth till " .. tostring(prevValue) })
+			adminResponse:FireClient(player, true, "Set rebirth to " .. amount .. " for " .. target.Name,
+				{ undoCmd = "SetRebirth", undoArgs = { target.Name, prevValue }, desc = "Undo: Restore rebirth to " .. tostring(prevValue) })
 		else
-			adminResponse:FireClient(player, false, err or "Okänt fel")
+			adminResponse:FireClient(player, false, err or "Unknown error")
 		end
 
 	-- =====================
@@ -594,7 +628,7 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		if targetName and #targetName > 0 then
 			target = findPlayer(targetName)
 			if not target then
-				adminResponse:FireClient(player, false, "Spelaren hittades inte")
+				adminResponse:FireClient(player, false, "Player not found")
 				return
 			end
 		end
@@ -605,10 +639,10 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local ok, err, prevValue = adminGiveRebirth:Invoke(target)
 		logAction(player, cmd, target.Name)
 		if ok then
-			adminResponse:FireClient(player, true, "Gav rebirth till " .. target.Name,
-				{ undoCmd = "SetRebirth", undoArgs = { target.Name, prevValue }, desc = "Undo: Återställ rebirth till " .. tostring(prevValue) })
+			adminResponse:FireClient(player, true, "Gave rebirth to " .. target.Name,
+				{ undoCmd = "SetRebirth", undoArgs = { target.Name, prevValue }, desc = "Undo: Restore rebirth to " .. tostring(prevValue) })
 		else
-			adminResponse:FireClient(player, false, err or "Okänt fel")
+			adminResponse:FireClient(player, false, err or "Unknown error")
 		end
 
 	-- =====================
@@ -618,14 +652,14 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local targetName = sanitizeString(args[1])
 		local multiplier = sanitizeNumber(args[2])
 		if not multiplier then
-			adminResponse:FireClient(player, false, "Ogiltig multiplier")
+			adminResponse:FireClient(player, false, "Invalid multiplier")
 			return
 		end
 		local target = player
 		if targetName and #targetName > 0 then
 			target = findPlayer(targetName)
 			if not target then
-				adminResponse:FireClient(player, false, "Spelaren hittades inte")
+				adminResponse:FireClient(player, false, "Player not found")
 				return
 			end
 		end
@@ -636,10 +670,10 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local ok, err, prevValue = adminSetSpeed:Invoke(target, multiplier)
 		logAction(player, cmd, target.Name, "multiplier=" .. tostring(multiplier))
 		if ok then
-			adminResponse:FireClient(player, true, "Satte speed till " .. multiplier .. "x för " .. target.Name,
-				{ undoCmd = "SetSpeed", undoArgs = { target.Name, prevValue }, desc = "Undo: Återställ speed till " .. string.format("%.2f", prevValue or 0) .. "x" })
+			adminResponse:FireClient(player, true, "Set speed to " .. multiplier .. "x for " .. target.Name,
+				{ undoCmd = "SetSpeed", undoArgs = { target.Name, prevValue }, desc = "Undo: Restore speed to " .. string.format("%.2f", prevValue or 0) .. "x" })
 		else
-			adminResponse:FireClient(player, false, err or "Okänt fel")
+			adminResponse:FireClient(player, false, err or "Unknown error")
 		end
 
 	-- =====================
@@ -650,17 +684,25 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local mutation = sanitizeString(args[2]) or ""
 		local scope = sanitizeString(args[3]) or "Server"
 		if not brainrotName or #brainrotName == 0 then
-			adminResponse:FireClient(player, false, "Ange ett brainrot-namn")
+			adminResponse:FireClient(player, false, "Enter a brainrot name")
 			return
 		end
 		if scope == "Global" then
 			publishGlobal("SpawnBrainrot", { name = brainrotName, mutation = mutation })
 			logAction(player, cmd, brainrotName, "scope=Global mutation=" .. mutation)
-			adminResponse:FireClient(player, true, "Spawnade '" .. brainrotName .. "' globalt")
+			adminResponse:FireClient(player, true, "Spawned '" .. brainrotName .. "' globally")
 		else
-			warn("[ADMIN] SpawnBrainrot (local) not yet implemented via BindableFunctions")
+			if not adminSpawnBrainrot then
+				adminResponse:FireClient(player, false, "Server not ready - try again")
+				return
+			end
+			local ok, err, zoneIndex = adminSpawnBrainrot:Invoke(brainrotName, mutation)
 			logAction(player, cmd, brainrotName, "scope=Server mutation=" .. mutation)
-			adminResponse:FireClient(player, false, "SpawnBrainrot not yet implemented via BindableFunctions")
+			if ok then
+				adminResponse:FireClient(player, true, "Spawned '" .. brainrotName .. "' in zone " .. tostring(zoneIndex))
+			else
+				adminResponse:FireClient(player, false, err or "Unknown error")
+			end
 		end
 
 	-- =====================
@@ -670,13 +712,13 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local waveName = sanitizeString(args[1])
 		local scope = sanitizeString(args[2]) or "Server"
 		if not waveName or #waveName == 0 then
-			adminResponse:FireClient(player, false, "Ange ett vågnamn")
+			adminResponse:FireClient(player, false, "Enter a wave name")
 			return
 		end
 		if scope == "Global" then
 			publishGlobal("SpawnWave", { waveName = waveName })
 			logAction(player, cmd, waveName, "scope=Global")
-			adminResponse:FireClient(player, true, "Triggade våg '" .. waveName .. "' globalt")
+			adminResponse:FireClient(player, true, "Triggered wave '" .. waveName .. "' globally")
 		else
 			warn("[ADMIN] SpawnWave (local) not yet implemented via BindableFunctions")
 			logAction(player, cmd, waveName, "scope=Server")
@@ -688,58 +730,60 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 	-- =====================
 	elseif cmd == "KickPlayer" then
 		local targetName = sanitizeString(args[1])
-		local reason = sanitizeString(args[2], 200) or "Kickad av admin"
+		local reason = sanitizeString(args[2], 200) or "Kicked by admin"
 		if not targetName or #targetName == 0 then
-			adminResponse:FireClient(player, false, "Ange ett spelarnamn att kicka")
+			adminResponse:FireClient(player, false, "Enter a player name to kick")
 			return
 		end
 		local target = findPlayer(targetName)
 		if not target then
-			adminResponse:FireClient(player, false, "Spelaren '" .. targetName .. "' hittades inte")
+			adminResponse:FireClient(player, false, "Player '" .. targetName .. "' not found")
 			return
 		end
 		if ADMINS[target.UserId] then
-			adminResponse:FireClient(player, false, "Kan inte kicka en annan admin")
+			adminResponse:FireClient(player, false, "Cannot kick another admin")
 			return
 		end
 		logAction(player, cmd, target.Name, "reason=" .. reason)
 		target:Kick(reason)
-		adminResponse:FireClient(player, true, "Kickade " .. targetName .. ": " .. reason)
+		adminResponse:FireClient(player, true, "Kicked " .. targetName .. ": " .. reason)
 
 	-- =====================
 	-- TOGGLE ADMIN
 	-- =====================
 	elseif cmd == "ToggleAdmin" then
 		local targetName = sanitizeString(args[1])
-		print("[ADMIN SERVER] ToggleAdmin received, targetName:", targetName)
+		debugPrint("[ADMIN SERVER] ToggleAdmin received, targetName:", targetName)
 		if not targetName or #targetName == 0 then
-			adminResponse:FireClient(player, false, "Ange ett spelarnamn")
+			adminResponse:FireClient(player, false, "Enter a player name")
 			return
 		end
-		-- Debug: visa alla spelare
-		print("[ADMIN SERVER] All players on server:")
-		for _, p in ipairs(Players:GetPlayers()) do
-			print("  -", p.Name, "UserId:", p.UserId)
+		-- Debug: show all players
+		if DEBUG then
+			debugPrint("[ADMIN SERVER] All players on server:")
+			for _, p in ipairs(Players:GetPlayers()) do
+				debugPrint("  -", p.Name, "UserId:", p.UserId)
+			end
 		end
 		local target = findPlayer(targetName)
-		print("[ADMIN SERVER] findPlayer('" .. targetName .. "') result:", target and target.Name or "NIL")
+		debugPrint("[ADMIN SERVER] findPlayer('" .. targetName .. "') result:", target and target.Name or "NIL")
 		if not target then
-			adminResponse:FireClient(player, false, "Spelaren '" .. targetName .. "' hittades inte")
+			adminResponse:FireClient(player, false, "Player '" .. targetName .. "' not found")
 			return
 		end
-		print("[ADMIN SERVER] target.UserId:", target.UserId, "isAdmin:", ADMINS[target.UserId] or false, "isOwner:", OWNER_IDS[target.UserId] or false)
+		debugPrint("[ADMIN SERVER] target.UserId:", target.UserId, "isAdmin:", ADMINS[target.UserId] or false, "isOwner:", OWNER_IDS[target.UserId] or false)
 		if ADMINS[target.UserId] then
-			-- Ta bort admin - ägare kan aldrig tas bort
+			-- Remove admin - owners can never be removed
 			if OWNER_IDS[target.UserId] then
-				adminResponse:FireClient(player, false, target.DisplayName .. " är ägare och kan inte tas bort som admin")
+				adminResponse:FireClient(player, false, target.DisplayName .. " is an owner and cannot be removed as admin")
 				return
 			end
 			ADMINS[target.UserId] = nil
 			saveAdminList()
 			logAction(player, cmd, target.Name, "removed admin")
-			adminResponse:FireClient(player, true, "Tog bort admin: " .. target.DisplayName)
+			adminResponse:FireClient(player, true, "Removed admin: " .. target.DisplayName)
 
-			-- Publicera globalt
+			-- Publish globally
 			pcall(function()
 				local data = game:GetService("HttpService"):JSONEncode({
 					cmd = "RemoveAdmin", args = { userId = target.UserId },
@@ -747,17 +791,17 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 				MessagingService:PublishAsync("AdminCommand", data)
 			end)
 		else
-			-- Lägg till som admin
+			-- Add as admin
 			ADMINS[target.UserId] = true
 			saveAdminList()
 			logAction(player, cmd, target.Name, "granted admin")
-			adminResponse:FireClient(player, true, "Gav admin till: " .. target.DisplayName .. " (globalt, måste rejoina för panel)")
+			adminResponse:FireClient(player, true, "Granted admin to: " .. target.DisplayName .. " (global, must rejoin for panel)")
 
-			-- Visa Owner-knappen för den nya adminen
-			print("[ADMIN SERVER] Firing AdminCheck to", target.Name, "- Owner button should appear")
+			-- Show the Owner button for the new admin
+			debugPrint("[ADMIN SERVER] Firing AdminCheck to", target.Name, "- Owner button should appear")
 			adminCheckEvent:FireClient(target, true)
 
-			-- Publicera globalt
+			-- Publish globally
 			pcall(function()
 				local data = game:GetService("HttpService"):JSONEncode({
 					cmd = "AddAdmin", args = { userId = target.UserId },
@@ -771,24 +815,24 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 	-- =====================
 	elseif cmd == "BanPlayer" then
 		local targetName = sanitizeString(args[1])
-		local reason = sanitizeString(args[2], 200) or "Ingen anledning angiven"
+		local reason = sanitizeString(args[2], 200) or "No reason given"
 		if not targetName or #targetName == 0 then
-			adminResponse:FireClient(player, false, "Ange ett spelarnamn att banna")
+			adminResponse:FireClient(player, false, "Enter a player name to ban")
 			return
 		end
 		local target = findPlayer(targetName)
 		if target then
 			if ADMINS[target.UserId] then
-				adminResponse:FireClient(player, false, "Kan inte banna en admin")
+				adminResponse:FireClient(player, false, "Cannot ban an admin")
 				return
 			end
 			logAction(player, cmd, target.Name, "reason=" .. reason)
 			banPlayer(target.UserId, target.Name, reason, player)
-			adminResponse:FireClient(player, true, "Bannade " .. target.DisplayName .. ": " .. reason,
-				{ undoCmd = "UnbanPlayer", undoArgs = { tostring(target.UserId) }, desc = "Undo: Avbanna " .. target.DisplayName })
+			adminResponse:FireClient(player, true, "Banned " .. target.DisplayName .. ": " .. reason,
+				{ undoCmd = "UnbanPlayer", undoArgs = { tostring(target.UserId) }, desc = "Undo: Unban " .. target.DisplayName })
 		else
-			-- Spelaren är inte online - försök banna via namn (kräver UserId)
-			adminResponse:FireClient(player, false, "Spelaren '" .. targetName .. "' hittades inte (måste vara online)")
+			-- Player is not online - cannot ban by name (requires UserId)
+			adminResponse:FireClient(player, false, "Player '" .. targetName .. "' not found (must be online)")
 		end
 
 	-- =====================
@@ -798,15 +842,15 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local userIdStr = sanitizeString(args[1])
 		local userId = tonumber(userIdStr)
 		if not userId then
-			adminResponse:FireClient(player, false, "Ogiltigt UserId")
+			adminResponse:FireClient(player, false, "Invalid UserId")
 			return
 		end
 		local entry = unbanPlayer(userId)
 		if entry then
 			logAction(player, cmd, entry.name or tostring(userId), "unbanned")
-			adminResponse:FireClient(player, true, "Avbannade " .. (entry.name or tostring(userId)))
+			adminResponse:FireClient(player, true, "Unbanned " .. (entry.name or tostring(userId)))
 		else
-			adminResponse:FireClient(player, false, "Spelaren var inte bannad")
+			adminResponse:FireClient(player, false, "Player was not banned")
 		end
 
 	-- =====================
@@ -846,6 +890,14 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			createdBy = player.Name,
 			createdAt = os.time(),
 		}
+
+		-- Check if code already exists before creating
+		local existingCode = nil
+		pcall(function() existingCode = codeStore:GetAsync("code_" .. codeName) end)
+		if existingCode then
+			adminResponse:FireClient(player, false, "Code '" .. codeName .. "' already exists")
+			return
+		end
 
 		local ok, err = pcall(function()
 			codeStore:SetAsync("code_" .. codeName, codeData)
@@ -913,21 +965,74 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		end
 
 	-- =====================
-	-- OKÄNT KOMMANDO
+	-- SEND MESSAGE (broadcast to all players)
+	-- =====================
+	elseif cmd == "SendMessage" then
+		local messageText = sanitizeString(args[1], 200)
+		local duration = sanitizeNumber(args[2]) or 5
+		local scope = sanitizeString(args[3]) or "Server"
+		if not messageText or #messageText == 0 then
+			adminResponse:FireClient(player, false, "Enter a message")
+			return
+		end
+		duration = math.clamp(duration, 1, 60)
+		logAction(player, cmd, "", "msg=" .. messageText .. " scope=" .. scope)
+		-- Broadcast to all players on this server
+		adminMessageEvent:FireAllClients(messageText, duration)
+		if scope == "Global" then
+			publishGlobal("SendMessage", { text = messageText, duration = duration })
+			adminResponse:FireClient(player, true, "Message sent globally: " .. messageText)
+		else
+			adminResponse:FireClient(player, true, "Message sent to server: " .. messageText)
+		end
+
+	-- =====================
+	-- GRANT LUCK (server-wide luck boost)
+	-- =====================
+	elseif cmd == "GrantLuck" then
+		local mult = sanitizeNumber(args[1])
+		local duration = sanitizeNumber(args[2]) or 15
+		local scope = sanitizeString(args[3]) or "Server"
+		if not mult or mult < 1 then
+			adminResponse:FireClient(player, false, "Invalid luck multiplier")
+			return
+		end
+		duration = math.clamp(duration, 1, 240)
+		local durationSeconds = duration * 60
+		logAction(player, cmd, "", "mult=" .. mult .. "x duration=" .. duration .. "min scope=" .. scope)
+
+		if scope == "Global" then
+			-- Apply locally first
+			if adminSetLuck then
+				adminSetLuck:Invoke(mult, durationSeconds)
+			end
+			publishGlobal("GrantLuck", { mult = mult, duration = durationSeconds })
+			adminResponse:FireClient(player, true, "Luck set to " .. mult .. "x for " .. duration .. " min globally")
+		else
+			if not adminSetLuck then
+				adminResponse:FireClient(player, false, "Server not ready - try again")
+				return
+			end
+			local ok, err = adminSetLuck:Invoke(mult, durationSeconds)
+			if ok then
+				adminResponse:FireClient(player, true, "Luck set to " .. mult .. "x for " .. duration .. " min on this server")
+			else
+				adminResponse:FireClient(player, false, err or "Unknown error")
+			end
+		end
+
+	-- =====================
+	-- UNKNOWN COMMAND
 	-- =====================
 	else
-		warn("[ADMIN] Okänt kommando:", cmd, "från", player.Name)
-		adminResponse:FireClient(player, false, "Okänt kommando: " .. tostring(cmd))
+		warn("[ADMIN] Unknown command:", cmd, "from", player.Name)
+		adminResponse:FireClient(player, false, "Unknown command: " .. tostring(cmd))
 	end
 end)
 
--- Rensa cooldown-data vid disconnect
+-- Clear cooldown data on disconnect
 Players.PlayerRemoving:Connect(function(player)
 	lastCommandTime[player.UserId] = nil
 end)
 
-print("[AdminServer] Laddat och redo. Antal admins:", #(function()
-	local t = {}
-	for k in pairs(ADMINS) do table.insert(t, k) end
-	return t
-end)())
+debugPrint("[AdminServer] Loaded and ready. Admin count:", tableCount(ADMINS))

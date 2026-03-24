@@ -13,14 +13,14 @@ local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
 
 local player = Players.LocalPlayer
-local remoteEvent = game.ReplicatedStorage:WaitForChild("BrainrotPickup")
-local progressEvent = game.ReplicatedStorage:WaitForChild("BrainrotProgress")
-local collectEvent = game.ReplicatedStorage:WaitForChild("CreditsCollected")
-local upgradeResultEvent = game.ReplicatedStorage:WaitForChild("UpgradeResult")
-local sellEvent = game.ReplicatedStorage:WaitForChild("SellRequested")
-local sellProgressEvent = game.ReplicatedStorage:WaitForChild("SellProgress")
-local sellResultEvent = game.ReplicatedStorage:WaitForChild("SellResult")
-local creditUpdateEvent = game.ReplicatedStorage:WaitForChild("CreditUpdate")
+local remoteEvent = game.ReplicatedStorage:WaitForChild("BrainrotPickup", 10)
+local progressEvent = game.ReplicatedStorage:WaitForChild("BrainrotProgress", 10)
+local collectEvent = game.ReplicatedStorage:WaitForChild("CreditsCollected", 10)
+local upgradeResultEvent = game.ReplicatedStorage:WaitForChild("UpgradeResult", 10)
+local sellEvent = game.ReplicatedStorage:WaitForChild("SellRequested", 10)
+local sellProgressEvent = game.ReplicatedStorage:WaitForChild("SellProgress", 10)
+local sellResultEvent = game.ReplicatedStorage:WaitForChild("SellResult", 10)
+local creditUpdateEvent = game.ReplicatedStorage:WaitForChild("CreditUpdate", 10)
 local collectionUpdateEvent = game.ReplicatedStorage:WaitForChild("CollectionUpdate", 10)
 local getCollectionFunc = game.ReplicatedStorage:WaitForChild("GetCollection", 10)
 
@@ -28,57 +28,13 @@ local getCollectionFunc = game.ReplicatedStorage:WaitForChild("GetCollection", 1
 local TAG_SPAWNED_BRAINROT = "SpawnedBrainrot"
 local TAG_STORED_BRAINROT  = "StoredBrainrot"
 
--- Brainrot catalog for Index panel (must match server)
-local INDEX_BRAINROTS = {
-	{ name="Tralalero Tralala", icon="\u{1F988}", rarity="COMMON", baseEarn=10 },
-	{ name="Chimpanzini Bananini", icon="\u{1F412}", rarity="COMMON", baseEarn=9 },
-	{ name="Bobrito Bandito", icon="\u{1F32F}", rarity="COMMON", baseEarn=11 },
-	{ name="Frulli Frulla", icon="\u{1F353}", rarity="COMMON", baseEarn=8 },
-	{ name="Frigo Camelo", icon="\u{1F42A}", rarity="COMMON", baseEarn=12 },
-	{ name="Ballerina Cappuccina", icon="\u{2615}", rarity="UNCOMMON", baseEarn=14 },
-	{ name="Liril\195\172 Laril\195\160", icon="\u{1F335}", rarity="UNCOMMON", baseEarn=16 },
-	{ name="Burbaloni Luliloli", icon="\u{1FAE7}", rarity="UNCOMMON", baseEarn=13 },
-	{ name="Orangutini Ananasini", icon="\u{1F34D}", rarity="UNCOMMON", baseEarn=15 },
-	{ name="Pot Hotspot", icon="\u{1F4F6}", rarity="UNCOMMON", baseEarn=17 },
-	{ name="Cappuccino Assassino", icon="\u{2615}", rarity="EPIC", baseEarn=22 },
-	{ name="Bombardiro Crocodilo", icon="\u{1F40A}", rarity="EPIC", baseEarn=28 },
-	{ name="Brr Brr Patapim", icon="\u{1F438}", rarity="EPIC", baseEarn=25 },
-	{ name="Il Cacto Hipopotamo", icon="\u{1F99B}", rarity="EPIC", baseEarn=20 },
-	{ name="Espressona Signora", icon="\u{1F475}", rarity="EPIC", baseEarn=23 },
-	{ name="Trippi Troppi", icon="\u{1F990}", rarity="LEGENDARY", baseEarn=40 },
-	{ name="Bombombini Gusini", icon="\u{1FABF}", rarity="LEGENDARY", baseEarn=45 },
-	{ name="La Vaca Saturno Saturnita", icon="\u{1F404}", rarity="LEGENDARY", baseEarn=50 },
-	{ name="Glorbo Fruttodrillo", icon="\u{1F40A}", rarity="LEGENDARY", baseEarn=42 },
-	{ name="Rhino Toasterino", icon="\u{1F98F}", rarity="LEGENDARY", baseEarn=38 },
-	{ name="Tung Tung Tung Sahur", icon="\u{1FAB5}", rarity="MYTHIC", baseEarn=70 },
-	{ name="Boneca Ambalabu", icon="\u{1F438}", rarity="MYTHIC", baseEarn=80 },
-	{ name="Garamararamararaman", icon="\u{1F47E}", rarity="MYTHIC", baseEarn=75 },
-	{ name="Ta Ta Ta Ta Ta Sahur", icon="\u{1F941}", rarity="MYTHIC", baseEarn=65 },
-	{ name="Tric Trac Baraboom", icon="\u{1F4A5}", rarity="MYTHIC", baseEarn=72 },
-	{ name="Girafa Celeste", icon="\u{1F992}", rarity="COSMIC", baseEarn=120 },
-	{ name="Trulimero Trulicina", icon="\u{1F30C}", rarity="COSMIC", baseEarn=140 },
-	{ name="Blueberrinni Octopussini", icon="\u{1F419}", rarity="COSMIC", baseEarn=130 },
-	{ name="Graipussi Medussi", icon="\u{1F347}", rarity="COSMIC", baseEarn=110 },
-	{ name="Zibra Zubra Zibralini", icon="\u{1F993}", rarity="COSMIC", baseEarn=135 },
-}
+-- Shared config (single source of truth for brainrots, gamepasses, colors)
+local GameConfig = require(game.ReplicatedStorage:WaitForChild("GameConfig", 10))
 
-local INDEX_RARITY_COLORS = {
-	COMMON    = Color3.fromRGB(180, 180, 180),
-	UNCOMMON  = Color3.fromRGB(80,  160, 255),
-	EPIC      = Color3.fromRGB(180, 100, 255),
-	LEGENDARY = Color3.fromRGB(255, 160, 50),
-	MYTHIC    = Color3.fromRGB(255, 80,  80),
-	COSMIC    = Color3.fromRGB(100, 220, 255),
-}
-
-local INDEX_MUTATIONS = {
-	{ key = "NONE", label = "Normal", color = Color3.fromRGB(180, 180, 180) },
-	{ key = "GOLD", label = "Gold", color = Color3.fromRGB(255, 200, 0) },
-	{ key = "DIAMOND", label = "Diamond", color = Color3.fromRGB(100, 220, 255) },
-	{ key = "RAINBOW", label = "Rainbow", color = Color3.fromRGB(255, 100, 200) },
-}
-
-local INDEX_RARITY_ORDER = { "COMMON", "UNCOMMON", "EPIC", "LEGENDARY", "MYTHIC", "COSMIC" }
+local INDEX_BRAINROTS    = GameConfig.BRAINROTS
+local INDEX_RARITY_COLORS = GameConfig.RARITY_COLORS
+local INDEX_MUTATIONS    = GameConfig.MUTATIONS
+local INDEX_RARITY_ORDER = GameConfig.RARITY_ORDER
 
 local PICKUP_DISTANCE = 8
 local SELL_DISTANCE = 5
@@ -165,11 +121,11 @@ local function startPickupAnimation()
 	container.Visible = true
 	actionLabel.Text = "Hold E to collect"
 	setProgress(0, Color3.fromRGB(80, 200, 255))
-	holdStartTime = tick()
+	holdStartTime = os.clock()
 	if animConnection then animConnection:Disconnect() end
 	animConnection = RunService.RenderStepped:Connect(function()
 		if not holdStartTime then resetBar() return end
-		local elapsed = tick() - holdStartTime
+		local elapsed = os.clock() - holdStartTime
 		setProgress(math.min(elapsed / HOLD_TIME, 1), Color3.fromRGB(80, 200, 255))
 	end)
 end
@@ -178,11 +134,11 @@ local function startSellAnimation(sellPrice)
 	container.Visible = true
 	actionLabel.Text = "Selling for " .. tostring(sellPrice)
 	setProgress(0, Color3.fromRGB(255, 80, 80))
-	sellStartTime = tick()
+	sellStartTime = os.clock()
 	if sellAnimConnection then sellAnimConnection:Disconnect() end
 	sellAnimConnection = RunService.RenderStepped:Connect(function()
 		if not sellStartTime then resetBar() return end
-		local elapsed = tick() - sellStartTime
+		local elapsed = os.clock() - sellStartTime
 		setProgress(math.min(elapsed / HOLD_TIME, 1), Color3.fromRGB(255, 80, 80))
 	end)
 end
@@ -213,10 +169,10 @@ local function showPopup(text, color)
 	popupLabel.TextColor3 = color or Color3.fromRGB(100, 255, 100)
 	popupLabel.TextTransparency = 0
 	popupLabel.Position = UDim2.new(0, 16, 0, 380)
-	local startTime = tick()
+	local startTime = os.clock()
 	local duration = 1.8
 	popupConnection = RunService.RenderStepped:Connect(function()
-		local t = math.min((tick() - startTime) / duration, 1)
+		local t = math.min((os.clock() - startTime) / duration, 1)
 		popupLabel.TextTransparency = t
 		popupLabel.Position = UDim2.new(0, 16, 0, 380 - t * 24)
 		if t >= 1 then
@@ -251,7 +207,9 @@ sellResultEvent.OnClientEvent:Connect(function(slotIndex, sellPrice, newWallet)
 	isSelling = false
 	targetSellSlot = nil
 	walletTotal = newWallet
-	walletLabel.Text = "Credits: " .. walletTotal
+	if walletLabel then
+		walletLabel.Text = "Credits: " .. walletTotal
+	end
 	resetBar()
 	showPopup("Sold for " .. sellPrice .. " credits!", Color3.fromRGB(255, 150, 50))
 end)
@@ -260,10 +218,10 @@ end)
 -- REMOTE EVENTS
 -- =====================
 
-local speedUpdateEvent    = game.ReplicatedStorage:WaitForChild("SpeedUpdate")
-local rebirthResultEvent  = game.ReplicatedStorage:WaitForChild("RebirthResult")
-local rebirthInfoEvent    = game.ReplicatedStorage:WaitForChild("RebirthInfo")
-local rebirthRequestEvent = game.ReplicatedStorage:WaitForChild("RebirthRequested")
+local speedUpdateEvent    = game.ReplicatedStorage:WaitForChild("SpeedUpdate", 10)
+local rebirthResultEvent  = game.ReplicatedStorage:WaitForChild("RebirthResult", 10)
+local rebirthInfoEvent    = game.ReplicatedStorage:WaitForChild("RebirthInfo", 10)
+local rebirthRequestEvent = game.ReplicatedStorage:WaitForChild("RebirthRequested", 10)
 local adminCheckEvent     = game.ReplicatedStorage:WaitForChild("AdminCheck", 10)
 local getRebirthInfoFunc  = game.ReplicatedStorage:WaitForChild("GetRebirthInfo", 10)
 local spawnNotifyEvent    = game.ReplicatedStorage:WaitForChild("SpawnNotify", 10)
@@ -272,25 +230,23 @@ local spawnNotifyEvent    = game.ReplicatedStorage:WaitForChild("SpawnNotify", 1
 -- SPAWN NOTIFICATION STACK (right side)
 -- =====================
 
-local RARITY_NOTIFY_COLORS = {
-	COMMON    = Color3.fromRGB(180, 180, 180),
-	UNCOMMON  = Color3.fromRGB(80, 160, 255),
-	EPIC      = Color3.fromRGB(180, 100, 255),
-	LEGENDARY = Color3.fromRGB(255, 160, 50),
-	MYTHIC    = Color3.fromRGB(255, 80, 80),
-	COSMIC    = Color3.fromRGB(100, 220, 255),
-}
+local RARITY_NOTIFY_COLORS = GameConfig.RARITY_COLORS
 
 local spawnNotifyGui = Instance.new("ScreenGui")
 spawnNotifyGui.Name = "SpawnNotifyGui"
 spawnNotifyGui.ResetOnSpawn = false
 spawnNotifyGui.Parent = player.PlayerGui
 
-local NOTIFY_HEIGHT   = 32
-local NOTIFY_PADDING  = 4
+local NOTIFY_HEIGHT   = 22
+local NOTIFY_PADDING  = 3
 local NOTIFY_DURATION = 4
-local NOTIFY_WIDTH    = 280
+local NOTIFY_WIDTH    = 240
 local activeNotifs    = {}
+
+local MUTATION_COLORS = {}
+for _, m in ipairs(GameConfig.MUTATIONS) do
+	MUTATION_COLORS[m.key] = m.color
+end
 
 local function repositionNotifs()
 	for i, notif in ipairs(activeNotifs) do
@@ -312,9 +268,20 @@ local function removeNotif(notif)
 	repositionNotifs()
 end
 
-local function addSpawnNotif(brainrotName, rarity, zoneIndex)
+local function addSpawnNotif(brainrotName, rarity, zoneIndex, mutationKey)
+	mutationKey = mutationKey or "NONE"
 	local yPos = 16 + #activeNotifs * (NOTIFY_HEIGHT + NOTIFY_PADDING)
 	local rarityColor = RARITY_NOTIFY_COLORS[rarity] or RARITY_NOTIFY_COLORS.COMMON
+	local mutColor = MUTATION_COLORS[mutationKey] or MUTATION_COLORS.NONE or Color3.fromRGB(180, 180, 180)
+
+	-- Build display text: "Gold Bombardiro Crocodilo · Zone 2"
+	local mutLabel = ""
+	if mutationKey ~= "NONE" then
+		for _, m in ipairs(GameConfig.MUTATIONS) do
+			if m.key == mutationKey then mutLabel = m.label .. " " break end
+		end
+	end
+	local displayText = mutLabel .. brainrotName .. " · Zone " .. zoneIndex
 
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(0, NOTIFY_WIDTH, 0, NOTIFY_HEIGHT)
@@ -323,23 +290,24 @@ local function addSpawnNotif(brainrotName, rarity, zoneIndex)
 	frame.BackgroundTransparency = 0.2
 	frame.BorderSizePixel = 0
 	frame.Parent = spawnNotifyGui
-	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
 
-	-- Colored left accent bar
+	-- Colored left accent bar (mutation color for mutated, rarity color for normal)
+	local accentColor = mutationKey ~= "NONE" and mutColor or rarityColor
 	local accent = Instance.new("Frame")
-	accent.Size = UDim2.new(0, 4, 1, -8)
-	accent.Position = UDim2.new(0, 4, 0, 4)
-	accent.BackgroundColor3 = rarityColor
+	accent.Size = UDim2.new(0, 3, 1, -6)
+	accent.Position = UDim2.new(0, 3, 0, 3)
+	accent.BackgroundColor3 = accentColor
 	accent.BorderSizePixel = 0
 	accent.Parent = frame
 	Instance.new("UICorner", accent).CornerRadius = UDim.new(0, 2)
 
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, -16, 1, 0)
-	label.Position = UDim2.new(0, 14, 0, 0)
+	label.Size = UDim2.new(1, -12, 1, 0)
+	label.Position = UDim2.new(0, 10, 0, 0)
 	label.BackgroundTransparency = 1
-	label.Text = brainrotName .. " spawned in Zone " .. zoneIndex
-	label.TextColor3 = rarityColor
+	label.Text = displayText
+	label.TextColor3 = mutationKey ~= "NONE" and mutColor or rarityColor
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextScaled = true
 	label.Font = Enum.Font.GothamBold
@@ -364,8 +332,8 @@ local function addSpawnNotif(brainrotName, rarity, zoneIndex)
 end
 
 if spawnNotifyEvent then
-	spawnNotifyEvent.OnClientEvent:Connect(function(brainrotName, rarity, zoneIndex)
-		addSpawnNotif(brainrotName, rarity, zoneIndex)
+	spawnNotifyEvent.OnClientEvent:Connect(function(brainrotName, rarity, zoneIndex, mutationKey)
+		addSpawnNotif(brainrotName, rarity, zoneIndex, mutationKey)
 	end)
 end
 
@@ -446,15 +414,41 @@ rebirthLabel.Font = Enum.Font.GothamBold
 rebirthLabel.Parent = rebirthFrame
 
 -- =====================
+-- LUCK DISPLAY (between Rebirth and Next Rebirth)
+-- =====================
+
+local luckFrame = Instance.new("Frame")
+luckFrame.Size = UDim2.new(0, 190, 0, 28)
+luckFrame.Position = UDim2.new(0, 16, 0, 140)
+luckFrame.BackgroundColor3 = Color3.fromRGB(40, 50, 20)
+luckFrame.BackgroundTransparency = 0.25
+luckFrame.BorderSizePixel = 0
+luckFrame.Parent = walletGui
+Instance.new("UICorner", luckFrame).CornerRadius = UDim.new(0, 8)
+
+local luckDisplayLabel = Instance.new("TextLabel")
+luckDisplayLabel.Size = UDim2.new(1, -12, 1, 0)
+luckDisplayLabel.Position = UDim2.new(0, 8, 0, 0)
+luckDisplayLabel.BackgroundTransparency = 1
+luckDisplayLabel.Text = "\u{1F340} Luck 1x"
+luckDisplayLabel.TextColor3 = Color3.fromRGB(180, 220, 80)
+luckDisplayLabel.TextXAlignment = Enum.TextXAlignment.Left
+luckDisplayLabel.TextScaled = true
+luckDisplayLabel.Font = Enum.Font.GothamBold
+luckDisplayLabel.Parent = luckFrame
+
+-- =====================
 -- NEXT REBIRTH BOX (clickable)
 -- =====================
 
-local rebirthReqFrame = Instance.new("Frame")
-rebirthReqFrame.Size = UDim2.new(0, 190, 0, 135)
-rebirthReqFrame.Position = UDim2.new(0, 16, 0, 142)
+local rebirthReqFrame = Instance.new("TextButton")
+rebirthReqFrame.Size = UDim2.new(0, 190, 0, 95)
+rebirthReqFrame.Position = UDim2.new(0, 16, 0, 174)
 rebirthReqFrame.BackgroundColor3 = Color3.fromRGB(25, 15, 50)
 rebirthReqFrame.BackgroundTransparency = 0.1
 rebirthReqFrame.BorderSizePixel = 0
+rebirthReqFrame.Text = ""
+rebirthReqFrame.AutoButtonColor = false
 rebirthReqFrame.Parent = walletGui
 Instance.new("UICorner", rebirthReqFrame).CornerRadius = UDim.new(0, 10)
 
@@ -464,10 +458,15 @@ rebirthStroke.Color = Color3.fromRGB(80, 60, 120)
 rebirthStroke.Thickness = 1.5
 rebirthStroke.Parent = rebirthReqFrame
 
--- Title row: icon + "NEXT REBIRTH #X"
+-- Click handler: entire frame triggers rebirth
+rebirthReqFrame.MouseButton1Click:Connect(function()
+	rebirthRequestEvent:FireServer()
+end)
+
+-- Title row: "NEXT REBIRTH #X"
 local rebirthReqTitle = Instance.new("TextLabel")
-rebirthReqTitle.Size = UDim2.new(0.6, 0, 0, 20)
-rebirthReqTitle.Position = UDim2.new(0, 8, 0, 6)
+rebirthReqTitle.Size = UDim2.new(1, -12, 0, 18)
+rebirthReqTitle.Position = UDim2.new(0, 8, 0, 4)
 rebirthReqTitle.BackgroundTransparency = 1
 rebirthReqTitle.Text = "NEXT REBIRTH #1"
 rebirthReqTitle.TextColor3 = Color3.fromRGB(255, 200, 80)
@@ -476,31 +475,12 @@ rebirthReqTitle.TextScaled = true
 rebirthReqTitle.Font = Enum.Font.GothamBold
 rebirthReqTitle.Parent = rebirthReqFrame
 
--- "CLICK TO REBIRTH" button (top right corner)
-local clickToRebirthBtn = Instance.new("TextButton")
-clickToRebirthBtn.Size = UDim2.new(0, 90, 0, 18)
-clickToRebirthBtn.Position = UDim2.new(1, -94, 0, 7)
-clickToRebirthBtn.BackgroundColor3 = Color3.fromRGB(180, 80, 220)
-clickToRebirthBtn.BackgroundTransparency = 0
-clickToRebirthBtn.BorderSizePixel = 0
-clickToRebirthBtn.Text = "CLICK TO REBIRTH"
-clickToRebirthBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-clickToRebirthBtn.TextScaled = true
-clickToRebirthBtn.Font = Enum.Font.GothamBold
-clickToRebirthBtn.Parent = rebirthReqFrame
-Instance.new("UICorner", clickToRebirthBtn).CornerRadius = UDim.new(0, 6)
-
--- Click handler: fire rebirth request to server
-clickToRebirthBtn.MouseButton1Click:Connect(function()
-	rebirthRequestEvent:FireServer()
-end)
-
--- Requirement label (single line showing rarity requirement)
+-- Requirement labels
 local rebirthReqLabels = {}
 for i = 1, 3 do
 	local lbl = Instance.new("TextLabel")
-	lbl.Size = UDim2.new(1, -16, 0, 16)
-	lbl.Position = UDim2.new(0, 10, 0, 28 + (i - 1) * 18)
+	lbl.Size = UDim2.new(1, -16, 0, 14)
+	lbl.Position = UDim2.new(0, 10, 0, 22 + (i - 1) * 15)
 	lbl.BackgroundTransparency = 1
 	lbl.Text = ""
 	lbl.TextColor3 = Color3.fromRGB(220, 220, 255)
@@ -513,8 +493,8 @@ end
 
 -- Zone hint label
 local rebirthZoneLabel = Instance.new("TextLabel")
-rebirthZoneLabel.Size = UDim2.new(1, -16, 0, 14)
-rebirthZoneLabel.Position = UDim2.new(0, 10, 0, 84)
+rebirthZoneLabel.Size = UDim2.new(1, -16, 0, 12)
+rebirthZoneLabel.Position = UDim2.new(0, 10, 0, 68)
 rebirthZoneLabel.BackgroundTransparency = 1
 rebirthZoneLabel.Text = ""
 rebirthZoneLabel.TextColor3 = Color3.fromRGB(160, 160, 180)
@@ -525,8 +505,8 @@ rebirthZoneLabel.Parent = rebirthReqFrame
 
 -- Cost label
 local rebirthCostLabel = Instance.new("TextLabel")
-rebirthCostLabel.Size = UDim2.new(1, -10, 0, 20)
-rebirthCostLabel.Position = UDim2.new(0, 8, 1, -24)
+rebirthCostLabel.Size = UDim2.new(1, -10, 0, 16)
+rebirthCostLabel.Position = UDim2.new(0, 8, 1, -19)
 rebirthCostLabel.BackgroundTransparency = 1
 rebirthCostLabel.Text = "Cost: ---"
 rebirthCostLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
@@ -1076,20 +1056,8 @@ end
 
 local MarketplaceService = game:GetService("MarketplaceService")
 
-local GAMEPASS_IDS = {
-	ADMIN_PANEL = 0,           -- Replace with real ID from Creator Dashboard
-	DOUBLE_MONEY = 0,          -- Replace with real ID
-	VIP = 1763788455,          -- V.I.P Pass - 150 Robux
-}
-
-local LUCK_PRODUCT_IDS = {
-	{ id = 0, mult = 2,   duration = 15, price = 249 },
-	{ id = 0, mult = 5,   duration = 30, price = 499 },
-	{ id = 0, mult = 10,  duration = 30, price = 999 },
-	{ id = 0, mult = 25,  duration = 60, price = 1999 },
-	{ id = 0, mult = 50,  duration = 60, price = 3999 },
-	{ id = 0, mult = 100, duration = 120, price = 7999 },
-}
+local GAMEPASS_IDS = GameConfig.GAMEPASS_IDS
+local LUCK_PRODUCT_IDS = GameConfig.LUCK_PRODUCTS
 
 local storePanelOpen = false
 local storeActiveTab = "Gamepasses"
@@ -1177,7 +1145,7 @@ for i, tabName in ipairs(storeTabNames) do
 	local tabBtn = Instance.new("TextButton")
 	tabBtn.Name = "Tab_" .. tabName
 	tabBtn.Size = UDim2.new(0, 110, 0, 32)
-	tabBtn.Position = UDim2.new(0, 100 + (i - 1) * 118, 0, 8)
+	tabBtn.Position = UDim2.new(0, 140 + (i - 1) * 118, 0, 8)
 	tabBtn.BackgroundColor3 = storeTabColors[i]
 	tabBtn.BorderSizePixel = 0
 	tabBtn.Text = tabName
@@ -1248,6 +1216,23 @@ storeTabFrames["V.I.P"] = gamepassFrame
 -- Gamepass card builder
 local cachedGamepassStatus = {}
 
+-- Fetch real gamepass info from Roblox (title, description, icon)
+local function fetchGamepassInfo(passId)
+	if passId == 0 then return nil end
+	local ok, info = pcall(function()
+		return MarketplaceService:GetProductInfo(passId, Enum.InfoType.GamePass)
+	end)
+	if ok and info then
+		return {
+			name = info.Name or "",
+			description = info.Description or "",
+			iconImageAssetId = info.IconImageAssetId or 0,
+			priceInRobux = info.PriceInRobux or 0,
+		}
+	end
+	return nil
+end
+
 local function createGamepassCard(info)
 	local card = Instance.new("Frame")
 	card.Size = UDim2.new(info.fullWidth and 1 or 0.485, 0, 0, 120)
@@ -1255,11 +1240,12 @@ local function createGamepassCard(info)
 	card.BorderSizePixel = 0
 	card.LayoutOrder = info.order or 1
 	card.ZIndex = 53
-	card.Parent = gamepassFrame
+	card.Parent = info.parentFrame or gamepassFrame
 	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
 
 	-- Title
 	local titleLbl = Instance.new("TextLabel")
+	titleLbl.Name = "TitleLabel"
 	titleLbl.Size = UDim2.new(0.65, -10, 0, 28)
 	titleLbl.Position = UDim2.new(0, 14, 0, 10)
 	titleLbl.BackgroundTransparency = 1
@@ -1273,6 +1259,7 @@ local function createGamepassCard(info)
 
 	-- Description
 	local descLbl = Instance.new("TextLabel")
+	descLbl.Name = "DescLabel"
 	descLbl.Size = UDim2.new(0.65, -10, 0, 50)
 	descLbl.Position = UDim2.new(0, 14, 0, 38)
 	descLbl.BackgroundTransparency = 1
@@ -1286,17 +1273,29 @@ local function createGamepassCard(info)
 	descLbl.ZIndex = 54
 	descLbl.Parent = card
 
-	-- Icon text (right side)
-	local iconLbl = Instance.new("TextLabel")
-	iconLbl.Size = UDim2.new(0, 80, 0, 60)
-	iconLbl.Position = UDim2.new(1, -140, 0, 10)
-	iconLbl.BackgroundTransparency = 1
-	iconLbl.Text = info.icon or ""
-	iconLbl.TextColor3 = Color3.fromRGB(200, 255, 200)
-	iconLbl.TextScaled = true
-	iconLbl.Font = Enum.Font.GothamBold
-	iconLbl.ZIndex = 54
-	iconLbl.Parent = card
+	-- Icon: use ImageLabel if we have an asset ID, otherwise TextLabel fallback
+	if info.iconImageId and info.iconImageId > 0 then
+		local iconImg = Instance.new("ImageLabel")
+		iconImg.Name = "IconImage"
+		iconImg.Size = UDim2.new(0, 80, 0, 80)
+		iconImg.Position = UDim2.new(1, -140, 0, 10)
+		iconImg.BackgroundTransparency = 1
+		iconImg.Image = "rbxassetid://" .. tostring(info.iconImageId)
+		iconImg.ScaleType = Enum.ScaleType.Fit
+		iconImg.ZIndex = 54
+		iconImg.Parent = card
+	else
+		local iconLbl = Instance.new("TextLabel")
+		iconLbl.Size = UDim2.new(0, 80, 0, 60)
+		iconLbl.Position = UDim2.new(1, -140, 0, 10)
+		iconLbl.BackgroundTransparency = 1
+		iconLbl.Text = info.icon or ""
+		iconLbl.TextColor3 = Color3.fromRGB(200, 255, 200)
+		iconLbl.TextScaled = true
+		iconLbl.Font = Enum.Font.GothamBold
+		iconLbl.ZIndex = 54
+		iconLbl.Parent = card
+	end
 
 	-- Price badge
 	local priceBadge = Instance.new("Frame")
@@ -1335,30 +1334,48 @@ local function createGamepassCard(info)
 	clickBtn.MouseButton1Click:Connect(function()
 		if cachedGamepassStatus[info.gpKey] then return end
 		if info.gpId > 0 then
+			-- PromptGamePassPurchase silently fails in Studio and for
+			-- game owners (you already own everything as the creator).
+			-- Show a notice so it's not confusing during testing.
+			if RunService:IsStudio() then
+				pcall(function()
+					game:GetService("StarterGui"):SetCore("SendNotification", {
+						Title = "Studio Notice",
+						Text = "GamePass purchases don't work in Studio. Test in a live server.",
+						Duration = 4,
+					})
+				end)
+			end
 			pcall(function()
 				MarketplaceService:PromptGamePassPurchase(player, info.gpId)
 			end)
 		end
 	end)
 
-	return card, priceBadge, priceLbl
+	return card, priceBadge, priceLbl, titleLbl, descLbl
 end
 
--- Create gamepass cards
-local gpCards = {
-	{
-		title = "ADMIN PANEL",
-		desc = "Get Admin Commands\nType ;cmds in chat for\na list of commands!",
-		icon = "AP",
-		price = 7499,
-		gpId = GAMEPASS_IDS.ADMIN_PANEL,
-		gpKey = "ADMIN_PANEL",
-		fullWidth = true,
-		order = 1,
-	},
-}
+-- Fetch real VIP pass info from Roblox for title, description, icon
+local vipPassInfo = fetchGamepassInfo(GAMEPASS_IDS.VIP)
+local vipTitle = (vipPassInfo and vipPassInfo.name ~= "") and vipPassInfo.name or "V.I.P PASS"
+local vipDesc  = (vipPassInfo and vipPassInfo.description ~= "") and vipPassInfo.description or "Many benefits\nincluding multi!"
+local vipIcon  = vipPassInfo and vipPassInfo.iconImageAssetId or 0
+local vipPrice = (vipPassInfo and vipPassInfo.priceInRobux > 0) and vipPassInfo.priceInRobux or 150
 
--- Half-width cards in a row
+-- VIP Pass card (full width, featured at top — order 1)
+createGamepassCard({
+	title = vipTitle,
+	desc = vipDesc,
+	icon = "\u{2B50}",
+	iconImageId = vipIcon,
+	price = vipPrice,
+	gpId = GAMEPASS_IDS.VIP,
+	gpKey = "VIP",
+	fullWidth = true,
+	order = 1,
+})
+
+-- Half-width cards in a row (order 2)
 local gpRowFrame = Instance.new("Frame")
 gpRowFrame.Size = UDim2.new(1, 0, 0, 120)
 gpRowFrame.BackgroundTransparency = 1
@@ -1372,8 +1389,19 @@ gpRowLayout.Padding = UDim.new(0, 10)
 gpRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
 gpRowLayout.Parent = gpRowFrame
 
--- Admin Panel card (full width)
-createGamepassCard(gpCards[1])
+-- Admin Panel card (half-width, in row)
+createGamepassCard({
+	title = "ADMIN PANEL",
+	desc = "Get Admin Commands\nType ;cmds in chat for\na list of commands!",
+	icon = "AP",
+	iconImageId = 0,
+	price = 7499,
+	gpId = GAMEPASS_IDS.ADMIN_PANEL,
+	gpKey = "ADMIN_PANEL",
+	fullWidth = false,
+	order = 1,
+	parentFrame = gpRowFrame,
+})
 
 -- 2x Money card (in row)
 do
@@ -1381,7 +1409,7 @@ do
 	card.Size = UDim2.new(0.5, -5, 1, 0)
 	card.BackgroundColor3 = Color3.fromRGB(30, 60, 30)
 	card.BorderSizePixel = 0
-	card.LayoutOrder = 1
+	card.LayoutOrder = 2
 	card.ZIndex = 53
 	card.Parent = gpRowFrame
 	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
@@ -1421,56 +1449,6 @@ do
 		if cachedGamepassStatus["DOUBLE_MONEY"] then return end
 		if GAMEPASS_IDS.DOUBLE_MONEY > 0 then
 			pcall(function() MarketplaceService:PromptGamePassPurchase(player, GAMEPASS_IDS.DOUBLE_MONEY) end)
-		end
-	end)
-end
-
--- VIP card (in row)
-do
-	local card = Instance.new("Frame")
-	card.Size = UDim2.new(0.5, -5, 1, 0)
-	card.BackgroundColor3 = Color3.fromRGB(30, 60, 30)
-	card.BorderSizePixel = 0
-	card.LayoutOrder = 2
-	card.ZIndex = 53
-	card.Parent = gpRowFrame
-	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
-
-	local t = Instance.new("TextLabel")
-	t.Size = UDim2.new(0.6, 0, 0, 28); t.Position = UDim2.new(0, 14, 0, 10)
-	t.BackgroundTransparency = 1; t.Text = "VIP"; t.TextColor3 = Color3.fromRGB(255, 255, 255)
-	t.TextScaled = true; t.Font = Enum.Font.GothamBold; t.TextXAlignment = Enum.TextXAlignment.Left
-	t.ZIndex = 54; t.Parent = card
-
-	local d = Instance.new("TextLabel")
-	d.Size = UDim2.new(0.6, 0, 0, 40); d.Position = UDim2.new(0, 14, 0, 38)
-	d.BackgroundTransparency = 1; d.Text = "Many benefits\nincluding multi!"; d.TextColor3 = Color3.fromRGB(180, 200, 180)
-	d.TextScaled = true; d.Font = Enum.Font.Gotham; d.TextXAlignment = Enum.TextXAlignment.Left
-	d.TextYAlignment = Enum.TextYAlignment.Top; d.TextWrapped = true; d.ZIndex = 54; d.Parent = card
-
-	local ic = Instance.new("TextLabel")
-	ic.Size = UDim2.new(0, 50, 0, 50); ic.Position = UDim2.new(1, -70, 0, 8)
-	ic.BackgroundTransparency = 1; ic.Text = "\u{2B50}"; ic.TextColor3 = Color3.fromRGB(255, 200, 50)
-	ic.TextScaled = true; ic.Font = Enum.Font.GothamBold; ic.ZIndex = 54; ic.Parent = card
-
-	local pb = Instance.new("Frame")
-	pb.Size = UDim2.new(0, 90, 0, 28); pb.Position = UDim2.new(1, -100, 1, -38)
-	pb.BackgroundColor3 = cachedGamepassStatus["VIP"] and Color3.fromRGB(40, 160, 40) or Color3.fromRGB(40, 120, 40)
-	pb.BorderSizePixel = 0; pb.ZIndex = 54; pb.Parent = card
-	Instance.new("UICorner", pb).CornerRadius = UDim.new(0, 6)
-	local pl = Instance.new("TextLabel")
-	pl.Size = UDim2.new(1, 0, 1, 0); pl.BackgroundTransparency = 1
-	pl.Text = cachedGamepassStatus["VIP"] and "OWNED \u{2713}" or (GAMEPASS_IDS.VIP > 0 and "R$ 150" or "Coming Soon")
-	pl.TextColor3 = Color3.fromRGB(255, 255, 255); pl.TextScaled = true
-	pl.Font = Enum.Font.GothamBold; pl.ZIndex = 55; pl.Parent = pb
-
-	local cb = Instance.new("TextButton")
-	cb.Size = UDim2.new(1, 0, 1, 0); cb.BackgroundTransparency = 1; cb.Text = ""
-	cb.ZIndex = 56; cb.Parent = card
-	cb.MouseButton1Click:Connect(function()
-		if cachedGamepassStatus["VIP"] then return end
-		if GAMEPASS_IDS.VIP > 0 then
-			pcall(function() MarketplaceService:PromptGamePassPurchase(player, GAMEPASS_IDS.VIP) end)
 		end
 	end)
 end
@@ -1774,9 +1752,15 @@ local function toggleStorePanel()
 				local mins = math.ceil(remaining / 60)
 				luckStatusLabel.Text = "\u{1F340} Active: " .. mult .. "x Server Luck (" .. mins .. " min remaining)"
 				luckStatusLabel.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
+				-- Update HUD luck display
+				luckDisplayLabel.Text = "\u{1F340} Luck " .. mult .. "x (" .. mins .. "m)"
+				luckFrame.BackgroundColor3 = Color3.fromRGB(60, 100, 20)
 			else
 				luckStatusLabel.Text = "No active luck boost"
 				luckStatusLabel.BackgroundColor3 = Color3.fromRGB(40, 60, 40)
+				-- Update HUD luck display
+				luckDisplayLabel.Text = "\u{1F340} Luck 1x"
+				luckFrame.BackgroundColor3 = Color3.fromRGB(40, 50, 20)
 			end
 		end
 	end
@@ -2061,6 +2045,7 @@ end
 -- INPUT HANDLING
 -- =====================
 
+-- E key: pickup only
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	if input.KeyCode ~= Enum.KeyCode.E then return end
@@ -2070,29 +2055,133 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		isHolding = true
 		startPickupAnimation()
 		remoteEvent:FireServer(targetBrainrot, true)
-	else
-		local sellSlot, sellTarget = getClosestStoredBrainrot()
-		if sellSlot then
-			isSelling = true
-			targetSellSlot = sellSlot
-			startSellAnimation("...")
-			sellEvent:FireServer(sellSlot, true)
-		end
 	end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
 	if input.KeyCode ~= Enum.KeyCode.E then return end
+	if isHolding and targetBrainrot then
+		remoteEvent:FireServer(targetBrainrot, false)
+	end
+	isHolding = false
+	targetBrainrot = nil
+	resetBar()
+end)
+
+-- F key: sell only (own base, slotted brainrots)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode ~= Enum.KeyCode.F then return end
+
+	local sellSlot, sellTarget = getClosestStoredBrainrot()
+	if sellSlot then
+		isSelling = true
+		targetSellSlot = sellSlot
+		startSellAnimation("...")
+		sellEvent:FireServer(sellSlot, true)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.KeyCode ~= Enum.KeyCode.F then return end
 	if isSelling and targetSellSlot then
 		sellEvent:FireServer(targetSellSlot, false)
 		isSelling = false
 		targetSellSlot = nil
 		resetBar()
 	end
-	if isHolding and targetBrainrot then
-		remoteEvent:FireServer(targetBrainrot, false)
-	end
-	isHolding = false
-	targetBrainrot = nil
-	if not isSelling then resetBar() end
 end)
+
+-- =====================
+-- LUCK HUD UPDATE LOOP (polls server every 10 seconds)
+-- =====================
+task.spawn(function()
+	while true do
+		task.wait(10)
+		if getServerLuckFunc then
+			local ok, mult, remaining = pcall(function()
+				return getServerLuckFunc:InvokeServer()
+			end)
+			if ok and mult and mult > 1 and remaining and remaining > 0 then
+				local mins = math.ceil(remaining / 60)
+				luckDisplayLabel.Text = "\u{1F340} Luck " .. mult .. "x (" .. mins .. "m)"
+				luckFrame.BackgroundColor3 = Color3.fromRGB(60, 100, 20)
+			else
+				luckDisplayLabel.Text = "\u{1F340} Luck 1x"
+				luckFrame.BackgroundColor3 = Color3.fromRGB(40, 50, 20)
+			end
+		end
+	end
+end)
+
+-- =====================
+-- ADMIN BROADCAST MESSAGE DISPLAY
+-- =====================
+local adminMessageEvent = game.ReplicatedStorage:WaitForChild("AdminMessage", 10)
+if adminMessageEvent then
+	-- ScreenGui for admin messages (top-center of screen)
+	local msgGui = Instance.new("ScreenGui")
+	msgGui.Name = "AdminMessageGui"
+	msgGui.ResetOnSpawn = false
+	msgGui.DisplayOrder = 100
+	msgGui.Parent = player.PlayerGui
+
+	adminMessageEvent.OnClientEvent:Connect(function(messageText, duration)
+		if not messageText or messageText == "" then return end
+		duration = duration or 5
+
+		-- Remove any existing message
+		local existing = msgGui:FindFirstChild("AdminBroadcast")
+		if existing then existing:Destroy() end
+
+		-- Container frame
+		local container = Instance.new("Frame")
+		container.Name = "AdminBroadcast"
+		container.Size = UDim2.new(0, 500, 0, 50)
+		container.Position = UDim2.new(0.5, 0, 0, -60)
+		container.AnchorPoint = Vector2.new(0.5, 0)
+		container.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+		container.BackgroundTransparency = 0.15
+		container.BorderSizePixel = 0
+		container.Parent = msgGui
+		Instance.new("UICorner", container).CornerRadius = UDim.new(0, 12)
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 2
+		stroke.Color = Color3.fromRGB(255, 165, 0)
+		stroke.Parent = container
+
+		-- Message text
+		local msgLabel = Instance.new("TextLabel")
+		msgLabel.Size = UDim2.new(1, -20, 1, 0)
+		msgLabel.Position = UDim2.new(0, 10, 0, 0)
+		msgLabel.BackgroundTransparency = 1
+		msgLabel.Text = messageText
+		msgLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		msgLabel.TextScaled = true
+		msgLabel.Font = Enum.Font.GothamBold
+		msgLabel.TextWrapped = true
+		msgLabel.Parent = container
+
+		-- Slide in from top
+		local tweenIn = TweenService:Create(container, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Position = UDim2.new(0.5, 0, 0, 40)
+		})
+		tweenIn:Play()
+
+		-- Fade out after duration
+		task.delay(duration, function()
+			if container and container.Parent then
+				local tweenOut = TweenService:Create(container, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					Position = UDim2.new(0.5, 0, 0, -60),
+					BackgroundTransparency = 1,
+				})
+				TweenService:Create(msgLabel, TweenInfo.new(0.5), { TextTransparency = 1 }):Play()
+				TweenService:Create(stroke, TweenInfo.new(0.5), { Transparency = 1 }):Play()
+				tweenOut:Play()
+				tweenOut.Completed:Wait()
+				if container and container.Parent then container:Destroy() end
+			end
+		end)
+	end)
+end

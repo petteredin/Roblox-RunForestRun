@@ -10,8 +10,8 @@
       "AdminServer": {
         "$path": "src/server/AdminServer.server.lua"
       },
-      "GameManager": {
-        "$path": "src/server/GameManager.lua"
+      "TrapManager": {
+        "$path": "src/server/TrapManager.server.lua"
       }
     },
     "StarterPlayer": {
@@ -23,11 +23,17 @@
         },
         "AdminClient": {
           "$path": "src/client/AdminClient.client.lua"
+        },
+        "UFOWarningUI": {
+          "$path": "src/client/UFOWarningUI.client.lua"
         }
       }
     },
     "ReplicatedStorage": {
-      "$className": "ReplicatedStorage"
+      "$className": "ReplicatedStorage",
+      "GameConfig": {
+        "$path": "src/shared/GameConfig.lua"
+      }
     }
   }
 }

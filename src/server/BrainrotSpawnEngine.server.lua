@@ -5,7 +5,7 @@
 --   - Organization: Brainrots spawn into dedicated Folders per zone + StoredBrainrots folder
 --   - Sell bug fix: Model-based brainrots now tagged with CollectionService for sell detection
 --   - Rate limiting: Sell/pickup requests have per-player cooldowns
---   - Mutation system: getMutation() left as stub, dead code clarified
+--   - Mutation system: weighted random roll (75% Normal, 12% Gold, 8% Diamond, 5% Rainbow)
 --   - walletLabel scope: N/A (server-side, was client issue)
 --   - General: Minor cleanup and comments
 
@@ -14,20 +14,67 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
 local CollectionService = game:GetService("CollectionService")
 
+-- Set to true to enable verbose debug prints in server output
+local DEBUG = false
+local function debugPrint(...)
+	if DEBUG then print(...) end
+end
+local function debugWarn(...)
+	if DEBUG then warn(...) end
+end
+
 -- =====================
--- MUTATION SYSTEM (stub - not yet implemented)
+-- SHARED CONFIG (single source of truth)
+-- =====================
+local GameConfig = require(game:GetService("ReplicatedStorage"):WaitForChild("GameConfig", 10))
+
+-- =====================
+-- MUTATION SYSTEM
 -- =====================
 
-local MUTATIONS = {
-	NONE    = { label = "None",      color = Color3.fromRGB(180, 180, 180) },
-	GOLD    = { label = "Gold",      color = Color3.fromRGB(255, 200, 0)   },
-	DIAMOND = { label = "Diamond",   color = Color3.fromRGB(100, 220, 255) },
-	RAINBOW = { label = "Rainbow",   color = Color3.fromRGB(255, 100, 200) },
-}
+local MUTATIONS = GameConfig.MUTATIONS_BY_KEY
 
--- TODO: Implement mutation rolls based on player gamepasses/rebirths
+-- Forward declarations for luck variables (defined later with other server state)
+-- These must be declared here so getMutation() can reference them.
+local serverLuckMult    = 1
+local serverLuckEndTime = 0
+
+-- Roll a random mutation based on configured weights (75% Normal, 12% Gold, 8% Diamond, 5% Rainbow)
+-- Server luck boosts non-Normal mutation weights (same pattern as pickRarity)
 local function getMutation(_player)
-	return MUTATIONS.NONE
+	local currentLuckMult = 1
+	if serverLuckMult > 1 and serverLuckEndTime > os.time() then
+		currentLuckMult = serverLuckMult
+	end
+
+	local totalWeight = 0
+	local weights = {}
+	for _, m in ipairs(GameConfig.MUTATIONS) do
+		local w = m.weight
+		-- Luck boosts non-Normal mutations
+		if currentLuckMult > 1 and m.key ~= "NONE" then
+			w = w * currentLuckMult
+		end
+		weights[m.key] = w
+		totalWeight = totalWeight + w
+	end
+	local roll = math.random() * totalWeight
+	local cumulative = 0
+	for _, m in ipairs(GameConfig.MUTATIONS) do
+		cumulative = cumulative + weights[m.key]
+		if roll <= cumulative then
+			return MUTATIONS[m.key], m.key
+		end
+	end
+	return MUTATIONS.NONE, "NONE"
+end
+
+-- Force a specific mutation by key (used by admin spawn)
+local function getMutationByKey(key)
+	if key and key ~= "" and MUTATIONS[key] then
+		return MUTATIONS[key], key
+	end
+	return nil
 end
 
 -- =====================
@@ -36,20 +83,13 @@ end
 
 local MarketplaceService = game:GetService("MarketplaceService")
 
-local GAMEPASS_IDS = {
-	ADMIN_PANEL = 0,           -- Replace with real ID from Creator Dashboard
-	DOUBLE_MONEY = 0,          -- Replace with real ID
-	VIP = 1763788455,          -- V.I.P Pass - 150 Robux
-}
+local GAMEPASS_IDS = GameConfig.GAMEPASS_IDS
 
-local LUCK_PRODUCT_IDS = {
-	{ id = 0, mult = 2,   duration = 15 * 60 },
-	{ id = 0, mult = 5,   duration = 30 * 60 },
-	{ id = 0, mult = 10,  duration = 30 * 60 },
-	{ id = 0, mult = 25,  duration = 60 * 60 },
-	{ id = 0, mult = 50,  duration = 60 * 60 },
-	{ id = 0, mult = 100, duration = 120 * 60 },
-}
+-- Server uses duration in seconds, GameConfig stores minutes
+local LUCK_PRODUCT_IDS = {}
+for i, product in ipairs(GameConfig.LUCK_PRODUCTS) do
+	LUCK_PRODUCT_IDS[i] = { id = product.id, mult = product.mult, duration = product.duration * 60 }
+end
 
 local playerGamepasses = {} -- [player] = { ADMIN_PANEL = true, DOUBLE_MONEY = true, ... }
 
@@ -115,9 +155,7 @@ local function getPlayerDiscountInfo(player)
 	end
 end
 
--- Server Luck state
-local serverLuckMult = 1
-local serverLuckEndTime = 0
+-- Server Luck state (declared near top of file, before getMutation)
 
 -- Redeem Codes DataStore
 local codeStore = nil
@@ -141,47 +179,10 @@ local RARITIES = {
 	COSMIC    = { mult = 200, spawnWeight = 0.3, spawnInterval = 240 },
 }
 
-local RARITY_LABEL_COLORS = {
-	COMMON    = Color3.fromRGB(180, 180, 180),
-	UNCOMMON  = Color3.fromRGB(80,  160, 255),
-	EPIC      = Color3.fromRGB(180, 100, 255),
-	LEGENDARY = Color3.fromRGB(255, 160, 50),
-	MYTHIC    = Color3.fromRGB(255, 80,  80),
-	COSMIC    = Color3.fromRGB(100, 220, 255),
-}
+local RARITY_LABEL_COLORS = GameConfig.RARITY_COLORS
 
-local BRAINROTS = {
-	{ name="Tralalero Tralala",         icon="🦈", rarity="COMMON",    baseEarn=10,  modelName="Tralalero Tralala"         },
-	{ name="Chimpanzini Bananini",      icon="🐒", rarity="COMMON",    baseEarn=9,   modelName="Chimpanzini Bananini"      },
-	{ name="Bobrito Bandito",           icon="🌯", rarity="COMMON",    baseEarn=11,  modelName="Bobrito Bandito"           },
-	{ name="Frulli Frulla",             icon="🍓", rarity="COMMON",    baseEarn=8,   modelName="Frulli Frulla"             },
-	{ name="Frigo Camelo",              icon="🐪", rarity="COMMON",    baseEarn=12,  modelName="Frigo Camelo"              },
-	{ name="Ballerina Cappuccina",      icon="☕", rarity="UNCOMMON",  baseEarn=14,  modelName="Ballerina Cappuccina"      },
-	{ name="Lirilì Larilà",            icon="🌵", rarity="UNCOMMON",  baseEarn=16,  modelName="Lirilì Larilà"            },
-	{ name="Burbaloni Luliloli",        icon="🫧", rarity="UNCOMMON",  baseEarn=13,  modelName="Burbaloni Luliloli"        },
-	{ name="Orangutini Ananasini",      icon="🍍", rarity="UNCOMMON",  baseEarn=15,  modelName="Orangutini Ananasini"      },
-	{ name="Pot Hotspot",               icon="📶", rarity="UNCOMMON",  baseEarn=17,  modelName="Pot Hotspot"               },
-	{ name="Cappuccino Assassino",      icon="☕", rarity="EPIC",      baseEarn=22,  modelName="Cappuccino Assassino"      },
-	{ name="Bombardiro Crocodilo",      icon="🐊", rarity="EPIC",      baseEarn=28,  modelName="Bombardiro Crocodilo"      },
-	{ name="Brr Brr Patapim",           icon="🐸", rarity="EPIC",      baseEarn=25,  modelName="Brr Brr Patapim"           },
-	{ name="Il Cacto Hipopotamo",       icon="🦛", rarity="EPIC",      baseEarn=20,  modelName="Il Cacto Hipopotamo"       },
-	{ name="Espressona Signora",        icon="👵", rarity="EPIC",      baseEarn=23,  modelName="Espressona Signora"        },
-	{ name="Trippi Troppi",             icon="🦐", rarity="LEGENDARY", baseEarn=40,  modelName="Trippi Troppi"             },
-	{ name="Bombombini Gusini",         icon="🪿", rarity="LEGENDARY", baseEarn=45,  modelName="Bombombini Gusini"         },
-	{ name="La Vaca Saturno Saturnita", icon="🐄", rarity="LEGENDARY", baseEarn=50,  modelName="La Vaca Saturno Saturnita" },
-	{ name="Glorbo Fruttodrillo",       icon="🐊", rarity="LEGENDARY", baseEarn=42,  modelName="Glorbo Fruttodrillo"       },
-	{ name="Rhino Toasterino",          icon="🦏", rarity="LEGENDARY", baseEarn=38,  modelName="Rhino Toasterino"          },
-	{ name="Tung Tung Tung Sahur",      icon="🪵", rarity="MYTHIC",    baseEarn=70,  modelName="Tung Tung Tung Sahur"      },
-	{ name="Boneca Ambalabu",           icon="🐸", rarity="MYTHIC",    baseEarn=80,  modelName="Boneca Ambalabu"           },
-	{ name="Garamararamararaman",       icon="👾", rarity="MYTHIC",    baseEarn=75,  modelName="Garamararamararaman"       },
-	{ name="Ta Ta Ta Ta Ta Sahur",      icon="🥁", rarity="MYTHIC",    baseEarn=65,  modelName="Ta Ta Ta Ta Ta Sahur"      },
-	{ name="Tric Trac Baraboom",        icon="💥", rarity="MYTHIC",    baseEarn=72,  modelName="Tric Trac Baraboom"        },
-	{ name="Girafa Celeste",            icon="🦒", rarity="COSMIC",    baseEarn=120, modelName="Girafa Celeste"            },
-	{ name="Trulimero Trulicina",       icon="🌌", rarity="COSMIC",    baseEarn=140, modelName="Trulimero Trulicina"       },
-	{ name="Blueberrinni Octopussini",  icon="🐙", rarity="COSMIC",    baseEarn=130, modelName="Blueberrinni Octopussini"  },
-	{ name="Graipussi Medussi",         icon="🍇", rarity="COSMIC",    baseEarn=110, modelName="Graipussi Medussi"         },
-	{ name="Zibra Zubra Zibralini",     icon="🦓", rarity="COSMIC",    baseEarn=135, modelName="Zibra Zubra Zibralini"     },
-}
+-- Use shared catalog; modelName defaults to name (all current models match)
+local BRAINROTS = GameConfig.BRAINROTS
 
 local RARITY_COLORS = {
 	COMMON    = BrickColor.new("Medium stone grey"),
@@ -220,8 +221,6 @@ local ZONES = {
 	},
 }
 
-local zoneActive = { 0, 0, 0 }
-
 -- =====================
 -- WORKSPACE FOLDERS (new in v0.34)
 -- =====================
@@ -242,8 +241,63 @@ storedFolder.Name = "StoredBrainrots"
 storedFolder.Parent = workspace
 
 -- CollectionService tags used for reliable detection
+-- Must be defined BEFORE getZoneActiveCount which references them
 local TAG_SPAWNED_BRAINROT = "SpawnedBrainrot"
 local TAG_STORED_BRAINROT  = "StoredBrainrot"
+
+-- Per-zone spawn counter for O(1) cap checks (instead of iterating all tagged objects)
+local zoneSpawnCount = {}
+for i = 1, #ZONES do
+	zoneSpawnCount[i] = 0
+end
+
+local function getZoneActiveCount(zoneIndex)
+	return zoneSpawnCount[zoneIndex] or 0
+end
+
+-- Helper: increment/decrement zone counter when spawning/removing brainrots
+local function incrementZoneCount(zoneIndex)
+	zoneSpawnCount[zoneIndex] = (zoneSpawnCount[zoneIndex] or 0) + 1
+end
+
+local function decrementZoneCount(zoneIndex)
+	zoneSpawnCount[zoneIndex] = math.max(0, (zoneSpawnCount[zoneIndex] or 0) - 1)
+end
+
+-- Determine which zone a brainrot belongs to by checking its parent folder
+local function getZoneIndexForBrainrot(brainrot)
+	if not brainrot or not brainrot.Parent then return nil end
+	for i, folder in ipairs(spawnFolders) do
+		if brainrot.Parent == folder then return i end
+	end
+	return nil
+end
+
+-- Auto-track zone counts via CollectionService tag events
+-- This catches ALL AddTag/RemoveTag calls without modifying each site
+CollectionService:GetInstanceAddedSignal(TAG_SPAWNED_BRAINROT):Connect(function(obj)
+	local zi = getZoneIndexForBrainrot(obj)
+	if zi then incrementZoneCount(zi) end
+end)
+
+CollectionService:GetInstanceRemovedSignal(TAG_SPAWNED_BRAINROT):Connect(function(obj)
+	local zi = getZoneIndexForBrainrot(obj)
+	if zi then decrementZoneCount(zi) end
+end)
+
+-- Periodic self-heal: reconcile counters with actual tags (every 60s)
+task.spawn(function()
+	while true do
+		task.wait(60)
+		for i, folder in ipairs(spawnFolders) do
+			local actual = 0
+			for _, obj in ipairs(CollectionService:GetTagged(TAG_SPAWNED_BRAINROT)) do
+				if obj.Parent == folder then actual += 1 end
+			end
+			zoneSpawnCount[i] = actual
+		end
+	end
+end)
 
 -- =====================
 -- BASE LAYOUT
@@ -343,7 +397,7 @@ local function initRebirthReq(player)
 	local req = getRebirthRequirement(nextLevel)
 	playerRebirthReq[player] = req
 	if req then
-		print("[REBIRTH] Req for", player.Name, "level", nextLevel, ":",
+		debugPrint("[REBIRTH] Req for", player.Name, "level", nextLevel, ":",
 			getRebirthRarityText(nextLevel), "| Cost:", req.cost)
 	end
 	return req
@@ -389,7 +443,7 @@ local function assignBase(player)
 		if base.owner == nil then
 			base.owner = player
 			playerBaseIndex[player] = i
-			print(player.Name .. " assigned to base " .. i)
+			debugPrint(player.Name .. " assigned to base " .. i)
 			return i
 		end
 	end
@@ -414,8 +468,8 @@ end
 -- REMOTES
 -- =====================
 
-local remoteEvent   = ReplicatedStorage:WaitForChild("BrainrotPickup")
-local progressEvent = ReplicatedStorage:WaitForChild("BrainrotProgress")
+local remoteEvent   = ReplicatedStorage:WaitForChild("BrainrotPickup", 10)
+local progressEvent = ReplicatedStorage:WaitForChild("BrainrotProgress", 10)
 
 local function getOrCreateRemoteFunction(name)
 	local r = ReplicatedStorage:FindFirstChild(name)
@@ -560,7 +614,7 @@ getRebirthInfoFunc.OnServerInvoke = function(player)
 end
 
 -- =====================
--- REBIRTH MULTIPLIER (behövs av admin-handlers nedan)
+-- REBIRTH MULTIPLIER (needed by admin handlers below)
 -- =====================
 
 local function getEvoMult(player)
@@ -569,15 +623,22 @@ local function getEvoMult(player)
 end
 
 -- =====================
--- SPEED CONSTANTS (behövs av admin-handlers)
+-- SPEED CONSTANTS (needed by admin handlers)
 -- =====================
 local BASE_WALK_SPEED      = 16
 local SPEED_INCREMENT      = 1 / 100  -- +1% per second (100s = double speed)
 local playerSpeedTime      = {}       -- tracks seconds spent in game
 
+-- Speed cap per rebirth level: rebirth 0 = 10x, rebirth 1 = 20x, ... rebirth 9+ = 100x
+local function getSpeedCap(player)
+	local rebirth = playerRebirth[player] or 0
+	local cap = math.min(10 + rebirth * 10, 100)
+	return cap
+end
+
 -- =====================
 -- ADMIN BINDABLE EVENTS
--- Lyssnar på kommandon från AdminServer
+-- Listens for commands from AdminServer
 -- =====================
 
 local function getOrCreateBindable(name)
@@ -591,14 +652,16 @@ local function getOrCreateBindable(name)
 	return b
 end
 
-local adminSetCredits   = getOrCreateBindable("AdminSetCredits")
-local adminAddCredits   = getOrCreateBindable("AdminAddCredits")
-local adminSetRebirth   = getOrCreateBindable("AdminSetRebirth")
-local adminGiveRebirth  = getOrCreateBindable("AdminGiveRebirth")
-local adminSetSpeed     = getOrCreateBindable("AdminSetSpeed")
+local adminSetCredits      = getOrCreateBindable("AdminSetCredits")
+local adminAddCredits      = getOrCreateBindable("AdminAddCredits")
+local adminSetRebirth      = getOrCreateBindable("AdminSetRebirth")
+local adminGiveRebirth     = getOrCreateBindable("AdminGiveRebirth")
+local adminSetSpeed        = getOrCreateBindable("AdminSetSpeed")
+local adminSpawnBrainrot   = getOrCreateBindable("AdminSpawnBrainrot")
+local adminSetLuck         = getOrCreateBindable("AdminSetLuck")
 
 adminAddCredits.OnInvoke = function(player, amount)
-	if not player or type(amount) ~= "number" then return false, "Ogiltiga argument" end
+	if not player or type(amount) ~= "number" then return false, "Invalid arguments" end
 	amount = math.floor(amount)
 	local prevCredits = playerWallet[player] or 0
 	playerWallet[player] = prevCredits + amount
@@ -607,7 +670,7 @@ adminAddCredits.OnInvoke = function(player, amount)
 end
 
 adminSetCredits.OnInvoke = function(player, amount)
-	if not player or type(amount) ~= "number" then return false, "Ogiltiga argument" end
+	if not player or type(amount) ~= "number" then return false, "Invalid arguments" end
 	amount = math.floor(math.max(0, amount))
 	local prevCredits = playerWallet[player] or 0
 	playerWallet[player] = amount
@@ -616,9 +679,9 @@ adminSetCredits.OnInvoke = function(player, amount)
 end
 
 adminSetRebirth.OnInvoke = function(player, amount)
-	if not player or type(amount) ~= "number" then return false, "Ogiltiga argument" end
+	if not player or type(amount) ~= "number" then return false, "Invalid arguments" end
 	amount = math.floor(amount)
-	if amount < 0 or amount > MAX_REBIRTHS then return false, "Rebirth måste vara 0-" .. MAX_REBIRTHS end
+	if amount < 0 or amount > MAX_REBIRTHS then return false, "Rebirth must be 0-" .. MAX_REBIRTHS end
 	local prevRebirth = playerRebirth[player] or 0
 	playerRebirth[player] = amount
 	local req = initRebirthReq(player)
@@ -632,7 +695,7 @@ adminSetRebirth.OnInvoke = function(player, amount)
 end
 
 adminGiveRebirth.OnInvoke = function(player)
-	if not player then return false, "Ogiltig spelare" end
+	if not player then return false, "Invalid player" end
 	local current = playerRebirth[player] or 0
 	if current >= MAX_REBIRTHS then return false, "Max rebirth (" .. MAX_REBIRTHS .. ")" end
 	local nextLvl = current + 1
@@ -649,8 +712,8 @@ adminGiveRebirth.OnInvoke = function(player)
 end
 
 adminSetSpeed.OnInvoke = function(player, multiplier)
-	if not player or type(multiplier) ~= "number" then return false, "Ogiltiga argument" end
-	if multiplier <= 0 or multiplier > 200 then return false, "Multiplier 0-200" end
+	if not player or type(multiplier) ~= "number" then return false, "Invalid arguments" end
+	if multiplier <= 0 or multiplier > 100 then return false, "Multiplier must be between 0 and 100" end
 	local rebirthMult = getEvoMult(player)
 	local prevSpeedMult = 1 + (playerSpeedTime[player] or 0) * SPEED_INCREMENT
 	local prevTotalMult = prevSpeedMult * rebirthMult
@@ -668,11 +731,30 @@ adminSetSpeed.OnInvoke = function(player, multiplier)
 	return true, nil, prevTotalMult
 end
 
+adminSetLuck.OnInvoke = function(mult, durationSeconds)
+	if type(mult) ~= "number" or mult < 1 then return false, "Invalid multiplier" end
+	local prevMult = serverLuckMult
+	local prevRemaining = math.max(0, serverLuckEndTime - os.time())
+	if mult <= 1 then
+		-- Reset luck to off
+		serverLuckMult = 1
+		serverLuckEndTime = 0
+		debugPrint("[LUCK] Admin reset luck to 1x (off)")
+	else
+		if type(durationSeconds) ~= "number" or durationSeconds <= 0 then return false, "Invalid duration" end
+		serverLuckMult = mult
+		serverLuckEndTime = os.time() + math.floor(durationSeconds)
+		debugPrint("[LUCK] Admin set luck:", mult .. "x for", math.floor(durationSeconds), "seconds")
+	end
+	return true, nil, prevMult, prevRemaining
+end
+
 -- =====================
 -- SPEED ACCELERATOR
 -- =====================
 
 local playerRebirthInfoSent = {}      -- tracks if rebirth info was sent to client
+local lastSentSpeedMult    = {}      -- tracks last speed sent to client (throttle updates)
 
 task.spawn(function()
 	while true do
@@ -686,9 +768,15 @@ task.spawn(function()
 			playerSpeedTime[p] = (playerSpeedTime[p] or 0) + 1
 			local speedMult = 1 + playerSpeedTime[p] * SPEED_INCREMENT
 			local rebirthMult = getEvoMult(p)
-			local totalMult = speedMult * rebirthMult
+			local totalMult = math.min(speedMult * rebirthMult, getSpeedCap(p))
 			humanoid.WalkSpeed = BASE_WALK_SPEED * totalMult
-			speedUpdateEvent:FireClient(p, totalMult)
+
+			-- Only fire speed update to client when the rounded value changes
+			local rounded = math.floor(totalMult * 100 + 0.5) / 100
+			if rounded ~= lastSentSpeedMult[p] then
+				lastSentSpeedMult[p] = rounded
+				speedUpdateEvent:FireClient(p, totalMult)
+			end
 
 			-- Send rebirth info if not yet delivered (piggyback on working speed loop)
 			if not playerRebirthInfoSent[p] then
@@ -958,7 +1046,7 @@ local function createSlotParts(player)
 			clickDetector.MouseClick:Connect(function(clickingPlayer)
 				if clickingPlayer ~= capturedPlayer then return end
 				if not playerSlots[capturedPlayer] then
-					warn("[UPGRADE] playerSlots is nil for player")
+					debugWarn("[UPGRADE] playerSlots is nil for player")
 					return
 				end
 				if not playerSlots[capturedPlayer][capturedSlot] then
@@ -969,9 +1057,12 @@ local function createSlotParts(player)
 							table.insert(filled, i)
 						end
 					end
-					warn("[UPGRADE] No brainrot in slot", capturedSlot, "| Filled slots:", table.concat(filled, ","))
+					debugWarn("[UPGRADE] No brainrot in slot", capturedSlot, "| Filled slots:", table.concat(filled, ","))
 					upgradeResultEvent:FireClient(capturedPlayer, false, "No brainrot in this slot!")
 					return
+				end
+				if not slotUpgrades[capturedPlayer] then
+					slotUpgrades[capturedPlayer] = {}
 				end
 				local level = slotUpgrades[capturedPlayer][capturedSlot] or 0
 				if level >= MAX_UPGRADE_LEVEL then
@@ -985,12 +1076,13 @@ local function createSlotParts(player)
 					return
 				end
 				playerWallet[capturedPlayer] = wallet - cost
-				slotUpgrades[capturedPlayer][capturedSlot] = level + 1
+				local newLevel = level + 1
+				slotUpgrades[capturedPlayer][capturedSlot] = newLevel
 				updateUpgradeSign(capturedPlayer, capturedSlot)
 				upgradeResultEvent:FireClient(
 					capturedPlayer, true,
 					capturedSlot,
-					slotUpgrades[capturedPlayer][capturedSlot],
+					newLevel,
 					playerWallet[capturedPlayer]
 				)
 			end)
@@ -1011,7 +1103,7 @@ local function createSlotParts(player)
 		end
 	end
 
-	print("Slots created for", player.Name, "at base", playerBaseIndex[player])
+	debugPrint("Slots created for", player.Name, "at base", playerBaseIndex[player])
 end
 
 local function setSlotFilled(player, slotIndex, brainrotColor)
@@ -1064,10 +1156,17 @@ local function startCreditTick(player)
 		while player and player.Parent do
 			task.wait(1)
 			if not playerSlots[player] then break end
+			-- Calculate bonus multiplier BEFORE the plate loop so plates show correct values
+			local bonusMult = 1
+			if playerGamepasses[player] then
+				if playerGamepasses[player]["DOUBLE_MONEY"] then bonusMult = bonusMult * 2 end
+				if playerGamepasses[player]["VIP"] then bonusMult = bonusMult * VALUE_MULTIPLIERS.VIP end
+			end
+
 			local totalEarned = 0
 			for i = 1, BASE_SLOTS do
 				if playerSlots[player][i] ~= nil then
-					local rate = getSlotEarnRate(player, i)
+					local rate = math.floor(getSlotEarnRate(player, i) * bonusMult)
 					totalEarned += rate
 					if creditPlates[player] and creditPlates[player][i] then
 						local plate = creditPlates[player][i]
@@ -1076,14 +1175,6 @@ local function startCreditTick(player)
 						if plate.billboard then plate.billboard.Enabled = true end
 					end
 				end
-			end
-			-- Apply 2x Money gamepass
-			if totalEarned > 0 and playerGamepasses[player] and playerGamepasses[player]["DOUBLE_MONEY"] then
-				totalEarned = totalEarned * 2
-			end
-			-- Apply VIP bonus (43% more credits - equivalent to 30% discount)
-			if totalEarned > 0 and playerGamepasses[player] and playerGamepasses[player]["VIP"] then
-				totalEarned = math.floor(totalEarned * VALUE_MULTIPLIERS.VIP)
 			end
 			if totalEarned > 0 then
 				playerCredits[player] = (playerCredits[player] or 0) + totalEarned
@@ -1136,7 +1227,7 @@ end)
 
 sellEvent.OnServerEvent:Connect(function(player, slotIndex, isSelling)
 	-- Rate limit check
-	local now = tick()
+	local now = os.clock()
 	if isSelling then
 		if lastSellTime[player] and (now - lastSellTime[player]) < SELL_COOLDOWN then
 			return
@@ -1152,7 +1243,7 @@ sellEvent.OnServerEvent:Connect(function(player, slotIndex, isSelling)
 
 	-- Block sell during grace period after deposit
 	if slotDepositTime[player] and slotDepositTime[player][slotIndex] then
-		if (tick() - slotDepositTime[player][slotIndex]) < SELL_GRACE_PERIOD then
+		if (os.clock() - slotDepositTime[player][slotIndex]) < SELL_GRACE_PERIOD then
 			sellProgressEvent:FireClient(player, false, 0, 0, 0)
 			return
 		end
@@ -1203,7 +1294,7 @@ sellEvent.OnServerEvent:Connect(function(player, slotIndex, isSelling)
 			if elapsed >= HOLD_TIME then
 				local slot = playerSlots[player][slotIndex]
 				if slot and slot.block and slot.block.Parent then
-					warn("[SELL] Destroying brainrot in slot", slotIndex, "name:", slot.block.Name)
+					debugWarn("[SELL] Destroying brainrot in slot", slotIndex, "name:", slot.block.Name)
 					CollectionService:RemoveTag(slot.block, TAG_STORED_BRAINROT)
 					slot.block:Destroy()
 				end
@@ -1330,15 +1421,23 @@ local function consumeRebirthBrainrots(player, spec)
 	end
 end
 
+local playerRebirthing = {} -- debounce lock to prevent double-rebirth exploit
+
 local function processRebirth(clickingPlayer)
+	-- Debounce: prevent multiple simultaneous rebirth requests
+	if playerRebirthing[clickingPlayer] then return end
+	playerRebirthing[clickingPlayer] = true
+
 	local currentRebirth = playerRebirth[clickingPlayer] or 0
 	if currentRebirth >= MAX_REBIRTHS then
+		playerRebirthing[clickingPlayer] = nil
 		rebirthResultEvent:FireClient(clickingPlayer, false, "Max rebirths reached! (10/10)")
 		return
 	end
 
 	local req = playerRebirthReq[clickingPlayer]
 	if not req then
+		playerRebirthing[clickingPlayer] = nil
 		rebirthResultEvent:FireClient(clickingPlayer, false, "No requirements found, try rejoining.")
 		return
 	end
@@ -1346,6 +1445,7 @@ local function processRebirth(clickingPlayer)
 	-- Check credits
 	local wallet = playerWallet[clickingPlayer] or 0
 	if wallet < req.cost then
+		playerRebirthing[clickingPlayer] = nil
 		rebirthResultEvent:FireClient(clickingPlayer, false,
 			"Need " .. req.cost .. " credits (you have " .. wallet .. ")")
 		return
@@ -1376,6 +1476,7 @@ local function processRebirth(clickingPlayer)
 	end
 
 	if #missing > 0 then
+		playerRebirthing[clickingPlayer] = nil
 		rebirthResultEvent:FireClient(clickingPlayer, false,
 			"Missing: " .. table.concat(missing, ", "))
 		return
@@ -1400,8 +1501,10 @@ local function processRebirth(clickingPlayer)
 		end
 	else
 		playerRebirthReq[clickingPlayer] = nil
-		rebirthInfoEvent:FireClient(clickingPlayer, nextLevel, {}, 0)
+		rebirthInfoEvent:FireClient(clickingPlayer, nextLevel, {}, 0, "")
 	end
+
+	playerRebirthing[clickingPlayer] = nil
 end
 
 -- RemoteEvent from client HUD button
@@ -1413,8 +1516,8 @@ rebirthRequestEvent.OnServerEvent:Connect(processRebirth)
 -- PROMPT / NAME TAG
 -- =====================
 
-local function createPrompt(brainrot, brainrotDef, player)
-	local mutation    = getMutation(player)
+local function createPrompt(brainrot, brainrotDef, player, mutation)
+	mutation = mutation or MUTATIONS.NONE
 	local rarity      = brainrotDef and brainrotDef.rarity or "COMMON"
 	local rarityColor = RARITY_LABEL_COLORS[rarity] or Color3.fromRGB(255, 255, 255)
 
@@ -1424,19 +1527,45 @@ local function createPrompt(brainrot, brainrotDef, player)
 	end
 	if not attachTo then return end
 
+	-- Read earn rate from attribute (set before createPrompt is called)
+	local earnRate = brainrot:GetAttribute("EarnRate") or 0
+	local creditsPerSec = string.format("%.1f credits/sec", earnRate)
+
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name        = "PickupPrompt"
-	billboard.Size        = UDim2.new(0, 80, 0, 50)
+	billboard.Size        = UDim2.new(0, 80, 0, 62)
 	billboard.StudsOffset = Vector3.new(0, 4, 0)
 	billboard.AlwaysOnTop = true
 	billboard.MaxDistance  = 40
 	billboard.Enabled     = true
 	billboard.Parent      = attachTo
 
+	-- ── Mutation badge (colored bar on top) ──
+	local mutBadge = Instance.new("Frame")
+	mutBadge.Name                   = "MutationBadge"
+	mutBadge.Size                   = UDim2.new(1, 0, 0.16, 0)
+	mutBadge.Position               = UDim2.new(0, 0, 0, 0)
+	mutBadge.BackgroundColor3       = mutation.color
+	mutBadge.BackgroundTransparency = 0.15
+	mutBadge.BorderSizePixel        = 0
+	mutBadge.Parent                 = billboard
+	Instance.new("UICorner", mutBadge).CornerRadius = UDim.new(0, 5)
+
+	local mutLabel = Instance.new("TextLabel")
+	mutLabel.Size                   = UDim2.new(1, -4, 1, 0)
+	mutLabel.Position               = UDim2.new(0, 2, 0, 0)
+	mutLabel.BackgroundTransparency = 1
+	mutLabel.Text                   = mutation.label
+	mutLabel.TextColor3             = Color3.fromRGB(255, 255, 255)
+	mutLabel.TextScaled             = true
+	mutLabel.Font                   = Enum.Font.GothamBold
+	mutLabel.Parent                 = mutBadge
+
+	-- ── Main info box (Name, Rarity, Credits/sec) ──
 	local nameTag = Instance.new("Frame")
 	nameTag.Name                   = "NameTag"
-	nameTag.Size                   = UDim2.new(1, 0, 0.62, 0)
-	nameTag.Position               = UDim2.new(0, 0, 0, 0)
+	nameTag.Size                   = UDim2.new(1, 0, 0.52, 0)
+	nameTag.Position               = UDim2.new(0, 0, 0.17, 0)
 	nameTag.BackgroundColor3       = Color3.fromRGB(10, 10, 20)
 	nameTag.BackgroundTransparency = 0.25
 	nameTag.BorderSizePixel        = 0
@@ -1444,7 +1573,7 @@ local function createPrompt(brainrot, brainrotDef, player)
 	Instance.new("UICorner", nameTag).CornerRadius = UDim.new(0, 5)
 
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size                   = UDim2.new(1, -4, 0.38, 0)
+	nameLabel.Size                   = UDim2.new(1, -4, 0.36, 0)
 	nameLabel.Position               = UDim2.new(0, 2, 0, 1)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Text                   = (brainrotDef and brainrotDef.icon or "") .. " " .. (brainrotDef and brainrotDef.name or "Brainrot")
@@ -1454,8 +1583,8 @@ local function createPrompt(brainrot, brainrotDef, player)
 	nameLabel.Parent                 = nameTag
 
 	local rarityLabel = Instance.new("TextLabel")
-	rarityLabel.Size                   = UDim2.new(1, -4, 0.3, 0)
-	rarityLabel.Position               = UDim2.new(0, 2, 0.38, 0)
+	rarityLabel.Size                   = UDim2.new(1, -4, 0.30, 0)
+	rarityLabel.Position               = UDim2.new(0, 2, 0.36, 0)
 	rarityLabel.BackgroundTransparency = 1
 	rarityLabel.Text                   = rarity
 	rarityLabel.TextColor3             = rarityColor
@@ -1463,19 +1592,20 @@ local function createPrompt(brainrot, brainrotDef, player)
 	rarityLabel.Font                   = Enum.Font.GothamBold
 	rarityLabel.Parent                 = nameTag
 
-	local mutationLabel = Instance.new("TextLabel")
-	mutationLabel.Size                   = UDim2.new(1, -4, 0.28, 0)
-	mutationLabel.Position               = UDim2.new(0, 2, 0.70, 0)
-	mutationLabel.BackgroundTransparency = 1
-	mutationLabel.Text                   = mutation.label
-	mutationLabel.TextColor3             = mutation.color
-	mutationLabel.TextScaled             = true
-	mutationLabel.Font                   = Enum.Font.Gotham
-	mutationLabel.Parent                 = nameTag
+	local creditsLabel = Instance.new("TextLabel")
+	creditsLabel.Size                   = UDim2.new(1, -4, 0.30, 0)
+	creditsLabel.Position               = UDim2.new(0, 2, 0.68, 0)
+	creditsLabel.BackgroundTransparency = 1
+	creditsLabel.Text                   = creditsPerSec
+	creditsLabel.TextColor3             = Color3.fromRGB(255, 220, 80)
+	creditsLabel.TextScaled             = true
+	creditsLabel.Font                   = Enum.Font.GothamBold
+	creditsLabel.Parent                 = nameTag
 
+	-- ── [E] pickup indicator ──
 	local eFrame = Instance.new("Frame")
 	eFrame.Name                   = "EFrame"
-	eFrame.Size                   = UDim2.new(0.32, 0, 0.32, 0)
+	eFrame.Size                   = UDim2.new(0.26, 0, 0.22, 0)
 	eFrame.AnchorPoint            = Vector2.new(0.5, 1)
 	eFrame.Position               = UDim2.new(0.5, 0, 1, -1)
 	eFrame.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
@@ -1570,7 +1700,7 @@ end
 local function detachBrainrotFromPlayer(player)
 	local brainrot = carriedBrainrots[player]
 	if brainrot and brainrot.Parent then
-		warn("[DETACH] Destroying carried brainrot:", brainrot.Name)
+		debugWarn("[DETACH] Destroying carried brainrot:", brainrot.Name)
 		CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
 		brainrot:Destroy()
 	end
@@ -1579,7 +1709,7 @@ end
 
 local function spawnBrainrotInZone(zoneIndex)
 	local zone = ZONES[zoneIndex]
-	if zoneActive[zoneIndex] >= zone.cap then return end
+	if getZoneActiveCount(zoneIndex) >= zone.cap then return end
 
 	local rarity      = pickRarity(zone.rarities)
 	local brainrotDef = pickBrainrotFromRarity(rarity)
@@ -1589,8 +1719,8 @@ local function spawnBrainrotInZone(zoneIndex)
 	local brainrot
 	local parentFolder = spawnFolders[zoneIndex]
 
-	if brainrotDef.modelName then
-		local template = ReplicatedStorage:FindFirstChild(brainrotDef.modelName)
+	if brainrotDef.modelName or brainrotDef.name then
+		local template = ReplicatedStorage:FindFirstChild(brainrotDef.modelName or brainrotDef.name)
 		if template then
 			brainrot = template:Clone()
 			if brainrot:IsA("Model") then
@@ -1626,32 +1756,39 @@ local function spawnBrainrotInZone(zoneIndex)
 		brainrot.Parent     = parentFolder
 	end
 
-	local earnRate = brainrotDef.baseEarn * RARITIES[rarity].mult
+	-- Roll mutation and apply both rarity and mutation multipliers
+	local mutation, mutationKey = getMutation(nil)
+	local mutationMult = mutation.mult or 1
+	local earnRate = brainrotDef.baseEarn * RARITIES[rarity].mult * mutationMult
+
 	if brainrot:IsA("Model") then
 		brainrot:SetAttribute("EarnRate",     earnRate)
 		brainrot:SetAttribute("Rarity",       rarity)
 		brainrot:SetAttribute("BrainrotName", brainrotDef.name)
+		brainrot:SetAttribute("Mutation",     mutationKey)
 		if brainrot.PrimaryPart then
 			brainrot.PrimaryPart:SetAttribute("EarnRate",     earnRate)
 			brainrot.PrimaryPart:SetAttribute("Rarity",       rarity)
 			brainrot.PrimaryPart:SetAttribute("BrainrotName", brainrotDef.name)
+			brainrot.PrimaryPart:SetAttribute("Mutation",     mutationKey)
 		end
 	else
 		brainrot:SetAttribute("EarnRate",     earnRate)
 		brainrot:SetAttribute("Rarity",       rarity)
 		brainrot:SetAttribute("BrainrotName", brainrotDef.name)
+		brainrot:SetAttribute("Mutation",     mutationKey)
 	end
 
 	-- Tag for CollectionService-based detection
 	CollectionService:AddTag(brainrot, TAG_SPAWNED_BRAINROT)
 
-	createPrompt(brainrot, brainrotDef, nil)
-	zoneActive[zoneIndex] += 1
+	createPrompt(brainrot, brainrotDef, nil, mutation)
+	-- Zone count is now derived from CollectionService tags (no manual increment needed)
 
 	-- Notify all players about the new spawn
 	local spawnName = brainrotDef and brainrotDef.name or "Brainrot"
 	local spawnRarity = rarity or "COMMON"
-	spawnNotifyEvent:FireAllClients(spawnName, spawnRarity, zoneIndex)
+	spawnNotifyEvent:FireAllClients(spawnName, spawnRarity, zoneIndex, mutationKey)
 
 	task.delay(DESPAWN_TIME, function()
 		if not (brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT)) then
@@ -1668,12 +1805,144 @@ local function spawnBrainrotInZone(zoneIndex)
 			for _, carried in pairs(carriedBrainrots) do
 				if carried == brainrot then return end
 			end
-			warn("[DESPAWN] Destroying", brainrot.Name, "parent:", brainrot.Parent.Name)
+			debugWarn("[DESPAWN] Destroying", brainrot.Name, "parent:", brainrot.Parent.Name)
 			CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
 			brainrot:Destroy()
-			zoneActive[zoneIndex] = math.max(0, zoneActive[zoneIndex] - 1)
+			-- Zone count is derived from CollectionService tags (no manual decrement needed)
 		end
 	end)
+end
+
+-- Admin spawn: spawn a specific brainrot by name in a random zone
+-- mutationKey can be "NONE", "GOLD", "DIAMOND", "RAINBOW" or nil (random roll)
+adminSpawnBrainrot.OnInvoke = function(brainrotName, mutationKey)
+	if type(brainrotName) ~= "string" or #brainrotName == 0 then
+		return false, "Invalid brainrot name"
+	end
+
+	-- Find the brainrot definition
+	local brainrotDef = nil
+	for _, b in ipairs(BRAINROTS) do
+		if b.name:lower() == brainrotName:lower() then
+			brainrotDef = b
+			break
+		end
+	end
+	if not brainrotDef then
+		return false, "Brainrot '" .. brainrotName .. "' not found"
+	end
+
+	-- Find a zone that allows this rarity and has capacity
+	local targetZone = nil
+	for i, zone in ipairs(ZONES) do
+		for _, r in ipairs(zone.rarities) do
+			if r == brainrotDef.rarity and getZoneActiveCount(i) < zone.cap then
+				targetZone = i
+				break
+			end
+		end
+		if targetZone then break end
+	end
+
+	if not targetZone then
+		-- Fallback: spawn in zone 1 regardless of rarity match
+		targetZone = 1
+	end
+
+	local zone = ZONES[targetZone]
+	local rarity = brainrotDef.rarity
+	local spawnPos = getRandomPositionInZone(zone)
+	local parentFolder = spawnFolders[targetZone]
+
+	local brainrot
+	if brainrotDef.modelName or brainrotDef.name then
+		local template = ReplicatedStorage:FindFirstChild(brainrotDef.modelName or brainrotDef.name)
+		if template then
+			brainrot = template:Clone()
+			if brainrot:IsA("Model") then
+				if not brainrot.PrimaryPart then
+					local firstPart = brainrot:FindFirstChildWhichIsA("BasePart")
+					if firstPart then brainrot.PrimaryPart = firstPart end
+				end
+				brainrot:PivotTo(CFrame.new(spawnPos))
+				for _, part in ipairs(brainrot:GetDescendants()) do
+					if part:IsA("BasePart") then
+						part.Anchored = true
+						part.CanCollide = false
+					end
+				end
+			else
+				brainrot.Position = spawnPos
+				brainrot.Anchored = true
+				brainrot.CanCollide = false
+			end
+			brainrot.Parent = parentFolder
+		end
+	end
+
+	if not brainrot then
+		brainrot = Instance.new("Part")
+		brainrot.Name = "Brainrot"
+		brainrot.Size = Vector3.new(2, 2, 2)
+		brainrot.Position = spawnPos
+		brainrot.BrickColor = RARITY_COLORS[rarity]
+		brainrot.Material = Enum.Material.Neon
+		brainrot.Anchored = true
+		brainrot.CanCollide = false
+		brainrot.Parent = parentFolder
+	end
+
+	-- Determine mutation: use forced key from admin or roll randomly
+	local mutation
+	if mutationKey and mutationKey ~= "" and MUTATIONS[mutationKey] then
+		mutation = MUTATIONS[mutationKey]
+	else
+		mutation, mutationKey = getMutation(nil)
+	end
+
+	local mutationMult = mutation.mult or 1
+	local earnRate = brainrotDef.baseEarn * RARITIES[rarity].mult * mutationMult
+	if brainrot:IsA("Model") then
+		brainrot:SetAttribute("EarnRate", earnRate)
+		brainrot:SetAttribute("Rarity", rarity)
+		brainrot:SetAttribute("BrainrotName", brainrotDef.name)
+		brainrot:SetAttribute("Mutation", mutationKey)
+		if brainrot.PrimaryPart then
+			brainrot.PrimaryPart:SetAttribute("EarnRate", earnRate)
+			brainrot.PrimaryPart:SetAttribute("Rarity", rarity)
+			brainrot.PrimaryPart:SetAttribute("BrainrotName", brainrotDef.name)
+			brainrot.PrimaryPart:SetAttribute("Mutation", mutationKey)
+		end
+	else
+		brainrot:SetAttribute("EarnRate", earnRate)
+		brainrot:SetAttribute("Rarity", rarity)
+		brainrot:SetAttribute("BrainrotName", brainrotDef.name)
+		brainrot:SetAttribute("Mutation", mutationKey)
+	end
+
+	CollectionService:AddTag(brainrot, TAG_SPAWNED_BRAINROT)
+	createPrompt(brainrot, brainrotDef, nil, mutation)
+
+	spawnNotifyEvent:FireAllClients(brainrotDef.name, rarity, targetZone, mutationKey)
+
+	-- Auto-despawn after DESPAWN_TIME
+	task.delay(DESPAWN_TIME, function()
+		if brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT) then
+			for _, carried in pairs(carriedBrainrots) do
+				if carried == brainrot then return end
+			end
+			task.wait(0.5)
+			if brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT) then
+				for _, carried in pairs(carriedBrainrots) do
+					if carried == brainrot then return end
+				end
+				CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
+				brainrot:Destroy()
+			end
+		end
+	end)
+
+	return true, nil, targetZone
 end
 
 for zoneIndex, zone in ipairs(ZONES) do
@@ -1682,7 +1951,7 @@ for zoneIndex, zone in ipairs(ZONES) do
 		task.spawn(function()
 			while true do
 				task.wait(interval)
-				if zoneActive[zoneIndex] < zone.cap then
+				if getZoneActiveCount(zoneIndex) < zone.cap then
 					spawnBrainrotInZone(zoneIndex)
 				end
 			end
@@ -1738,12 +2007,15 @@ local function depositBrainrot(player)
 
 	-- DEBUG: log which deposit path is taken
 	if not brainrot then
-		warn("[DEPOSIT] brainrot is NIL for slot", freeSlot)
+		debugWarn("[DEPOSIT] brainrot is NIL for slot", freeSlot)
 	elseif not brainrot.Parent then
-		warn("[DEPOSIT] brainrot DESTROYED before deposit for slot", freeSlot, brainrot.ClassName, brainrot.Name)
+		debugWarn("[DEPOSIT] brainrot DESTROYED before deposit for slot", freeSlot, brainrot.ClassName, brainrot.Name)
 	else
-		print("[DEPOSIT] Slot", freeSlot, "class:", brainrot.ClassName, "name:", brainrot.Name)
+		debugPrint("[DEPOSIT] Slot", freeSlot, "class:", brainrot.ClassName, "name:", brainrot.Name)
 	end
+
+	-- Scale factor for slot display (shrink brainrots to fit neatly in slots)
+	local SLOT_SCALE = 0.5
 
 	if brainrot and brainrot.Parent and brainrot:IsA("Model") then
 		-- Re-find PrimaryPart if it was lost during carry
@@ -1753,8 +2025,10 @@ local function depositBrainrot(player)
 		end
 		carriedBrainrots[player] = nil
 		playerHasPickup[player]  = false
+		-- Scale down all parts in the model
 		for _, part in ipairs(brainrot:GetDescendants()) do
 			if part:IsA("BasePart") then
+				part.Size       = part.Size * SLOT_SCALE
 				part.Anchored   = true
 				part.CanCollide = false
 			end
@@ -1762,14 +2036,20 @@ local function depositBrainrot(player)
 		-- Remove the pickup prompt billboard so it doesn't overlap slot UI
 		local prompt = brainrot:FindFirstChild("PickupPrompt", true)
 		if prompt then prompt:Destroy() end
-		brainrot:PivotTo(CFrame.new(slotPad.Position + Vector3.new(0, 2, 0)))
+		-- Slots 1-5 (front row) face the wrong direction; rotate 180° around Y
+		local placeCFrame = CFrame.new(slotPad.Position + Vector3.new(0, 1.5, 0))
+		if freeSlot <= 5 then
+			placeCFrame = placeCFrame * CFrame.Angles(0, math.rad(180), 0)
+		end
+		brainrot:PivotTo(placeCFrame)
 		brainrot.Parent = storedFolder
 		storedBlock = brainrot
-		print("[DEPOSIT] Model path OK for slot", freeSlot)
+		debugPrint("[DEPOSIT] Model path OK for slot", freeSlot, "(scaled to", SLOT_SCALE, ")")
 	elseif brainrot and brainrot.Parent and brainrot:IsA("BasePart") then
 		-- Reuse the original part (preserves MeshParts / SpecialMesh children)
 		carriedBrainrots[player] = nil
 		playerHasPickup[player]  = false
+		brainrot.Size       = brainrot.Size * SLOT_SCALE
 		brainrot.Anchored   = true
 		brainrot.CanCollide = false
 		brainrot.Position   = slotPad.Position + Vector3.new(0, 1.5, 0)
@@ -1778,21 +2058,26 @@ local function depositBrainrot(player)
 		if prompt then prompt:Destroy() end
 		brainrot.Parent = storedFolder
 		storedBlock = brainrot
-		print("[DEPOSIT] BasePart path OK for slot", freeSlot)
+		debugPrint("[DEPOSIT] BasePart path OK for slot", freeSlot, "(scaled to", SLOT_SCALE, ")")
 	else
-		warn("[DEPOSIT] FALLBACK (block) for slot", freeSlot, "brainrot:", brainrot and brainrot.Name or "nil")
+		debugWarn("[DEPOSIT] FALLBACK (block) for slot", freeSlot, "brainrot:", brainrot and brainrot.Name or "nil")
 		carriedBrainrots[player] = nil
 		playerHasPickup[player]  = false
 		if brainrot and brainrot.Parent then brainrot:Destroy() end
 		storedBlock = Instance.new("Part")
 		storedBlock.Name       = "StoredBrainrot"
-		storedBlock.Size       = Vector3.new(1.5, 1.5, 1.5)
+		storedBlock.Size       = Vector3.new(1.5 * SLOT_SCALE, 1.5 * SLOT_SCALE, 1.5 * SLOT_SCALE)
 		storedBlock.BrickColor = color
 		storedBlock.Material   = Enum.Material.Neon
 		storedBlock.Anchored   = true
 		storedBlock.CanCollide = false
 		storedBlock.Position   = slotPad.Position + Vector3.new(0, 1.5, 0)
 		storedBlock.Parent     = storedFolder
+	end
+
+	if not storedBlock then
+		warn("[DEPOSIT] storedBlock is nil after deposit paths for slot", freeSlot, "player:", player.Name)
+		return
 	end
 
 	-- Tag stored brainrot so client can find it via CollectionService
@@ -1806,14 +2091,14 @@ local function depositBrainrot(player)
 	local watchBlock = storedBlock
 	storedBlock.AncestryChanged:Connect(function(_, newParent)
 		if not newParent then
-			warn("[STORED-DESTROYED] Slot", watchSlot, "name:", watchBlock.Name, "class:", watchBlock.ClassName)
-			warn(debug.traceback())
+			debugWarn("[STORED-DESTROYED] Slot", watchSlot, "name:", watchBlock.Name, "class:", watchBlock.ClassName)
+			if DEBUG then warn(debug.traceback()) end
 		end
 	end)
 
-	playerSlots[player][freeSlot] = { color = color, block = storedBlock, earnRate = earnRate }
 	if not slotDepositTime[player] then slotDepositTime[player] = {} end
-	slotDepositTime[player][freeSlot] = tick()
+	slotDepositTime[player][freeSlot] = os.clock()
+	playerSlots[player][freeSlot] = { color = color, block = storedBlock, earnRate = earnRate }
 	setSlotFilled(player, freeSlot, color)
 	depositEvent:FireClient(player, freeSlot)
 end
@@ -1837,9 +2122,39 @@ end)
 -- PICKUP REMOTE (with rate limiting)
 -- =====================
 
-remoteEvent.OnServerEvent:Connect(function(player, brainrot, isHolding)
+-- Server-side: find closest spawned brainrot to the player (secure - no client Instance trust)
+local function findClosestSpawnedBrainrot(player)
+	local character = player.Character
+	if not character then return nil end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then return nil end
+
+	local closest = nil
+	local closestDist = PICKUP_DISTANCE
+
+	for _, obj in ipairs(CollectionService:GetTagged(TAG_SPAWNED_BRAINROT)) do
+		local pos = nil
+		if obj:IsA("Model") then
+			local primary = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+			if primary then pos = primary.Position end
+		elseif obj:IsA("BasePart") then
+			pos = obj.Position
+		end
+		if pos then
+			local dist = (root.Position - pos).Magnitude
+			if dist < closestDist then
+				closestDist = dist
+				closest = obj
+			end
+		end
+	end
+
+	return closest
+end
+
+remoteEvent.OnServerEvent:Connect(function(player, _clientRef, isHolding)
 	-- Rate limit check
-	local now = tick()
+	local now = os.clock()
 	if isHolding then
 		if lastPickupTime[player] and (now - lastPickupTime[player]) < PICKUP_COOLDOWN then
 			return
@@ -1849,24 +2164,10 @@ remoteEvent.OnServerEvent:Connect(function(player, brainrot, isHolding)
 
 	if playerHolding[player] and isHolding then return end
 	if playerHasPickup[player] then return end
-	if not brainrot or not brainrot.Parent then return end
 
-	-- Walk up to find the tagged ancestor (handles any hierarchy depth)
-	local obj = brainrot
-	while obj do
-		if CollectionService:HasTag(obj, TAG_SPAWNED_BRAINROT) then break end
-		obj = obj.Parent
-	end
-	if not obj then return end
-	-- Resolve to the Model if the clicked part is inside one
-	if obj and obj.Parent and obj.Parent:IsA("Folder") and obj:IsA("Model") then
-		brainrot = obj
-	elseif obj and obj:IsA("Model") then
-		brainrot = obj
-	end
-
-	-- Verify this is actually a spawned brainrot
-	if not CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT) then return end
+	-- Server finds the closest brainrot instead of trusting client Instance
+	local brainrot = findClosestSpawnedBrainrot(player)
+	if not brainrot then return end
 
 	local character = player.Character
 	if not character then return end
@@ -1875,7 +2176,6 @@ remoteEvent.OnServerEvent:Connect(function(player, brainrot, isHolding)
 
 	local checkPart = getPrimaryPart(brainrot)
 	if not checkPart then return end
-	if (root.Position - checkPart.Position).Magnitude > PICKUP_DISTANCE then return end
 
 	if isHolding then
 		playerHolding[player] = true
@@ -1929,10 +2229,8 @@ remoteEvent.OnServerEvent:Connect(function(player, brainrot, isHolding)
 					playerHasPickup[player] = true
 					progressEvent:FireClient(player, 0)
 
-					-- Decrement zone count when picked up
-					if fromZoneIndex then
-						zoneActive[fromZoneIndex] = math.max(0, zoneActive[fromZoneIndex] - 1)
-					end
+					-- Zone count is derived from CollectionService tags
+				-- (tag was already removed at pickup start, so count is already correct)
 
 					attachBrainrotToPlayer(player, brainrot)
 					return
@@ -1953,8 +2251,14 @@ end)
 -- LEADERBOARDS (now uses UpdateAsync for safety)
 -- =====================
 
-local allTimeStore  = DataStoreService:GetDataStore("AllTimeEarnings_v1")
-local playerDataStore = DataStoreService:GetDataStore("PlayerData_v1")
+local allTimeStore, playerDataStore
+pcall(function()
+	allTimeStore = DataStoreService:GetDataStore("AllTimeEarnings_v1")
+	playerDataStore = DataStoreService:GetDataStore("PlayerData_v1")
+end)
+if not allTimeStore or not playerDataStore then
+	warn("[BrainrotSpawnEngine] DataStore unavailable - player data will NOT persist this session")
+end
 
 -- =====================
 -- PLAYER DATA PERSISTENCE
@@ -2013,13 +2317,25 @@ local function savePlayerData(player)
 	end
 	data.collection = collList
 
+	-- Save used codes so players can't redeem the same code across servers
+	local usedCodesList = {}
+	if playerUsedCodes[player.UserId] then
+		for codeName in pairs(playerUsedCodes[player.UserId]) do
+			table.insert(usedCodesList, codeName)
+		end
+	end
+	data.usedCodes = usedCodesList
+
+	-- Use UpdateAsync to prevent race conditions on rapid server hops
 	local ok, err = pcall(function()
-		playerDataStore:SetAsync("player_" .. player.UserId, data)
+		playerDataStore:UpdateAsync("player_" .. player.UserId, function(_oldData)
+			return data
+		end)
 	end)
 	if not ok then
 		warn("[SAVE] Failed to save data for", player.Name, ":", err)
 	else
-		print("[SAVE] Saved data for", player.Name)
+		debugPrint("[SAVE] Saved data for", player.Name)
 	end
 end
 
@@ -2030,7 +2346,7 @@ local function loadPlayerData(player)
 	if not ok or not data then
 		return nil
 	end
-	print("[LOAD] Loaded data for", player.Name)
+	debugPrint("[LOAD] Loaded data for", player.Name)
 	return data
 end
 
@@ -2053,8 +2369,8 @@ local function restoreBrainrotToSlot(player, slotIndex, savedSlot)
 	local earnRate = savedSlot.earnRate or 1
 
 	-- Try to clone the model from ReplicatedStorage
-	if brainrotDef and brainrotDef.modelName then
-		local template = ReplicatedStorage:FindFirstChild(brainrotDef.modelName)
+	if brainrotDef and (brainrotDef.modelName or brainrotDef.name) then
+		local template = ReplicatedStorage:FindFirstChild(brainrotDef.modelName or brainrotDef.name)
 		if template then
 			storedBlock = template:Clone()
 			if storedBlock:IsA("Model") then
@@ -2062,7 +2378,12 @@ local function restoreBrainrotToSlot(player, slotIndex, savedSlot)
 					local firstPart = storedBlock:FindFirstChildWhichIsA("BasePart")
 					if firstPart then storedBlock.PrimaryPart = firstPart end
 				end
-				storedBlock:PivotTo(CFrame.new(slotPad.Position + Vector3.new(0, 2, 0)))
+				-- Slots 1-5 (front row) face the wrong direction; rotate 180° around Y
+				local placeCFrame = CFrame.new(slotPad.Position + Vector3.new(0, 2, 0))
+				if slotIndex <= 5 then
+					placeCFrame = placeCFrame * CFrame.Angles(0, math.rad(180), 0)
+				end
+				storedBlock:PivotTo(placeCFrame)
 				for _, part in ipairs(storedBlock:GetDescendants()) do
 					if part:IsA("BasePart") then
 						part.Anchored   = true
@@ -2276,8 +2597,10 @@ end
 local function updateSessionBoard()
 	local entries = {}
 	for _, p in ipairs(Players:GetPlayers()) do
+		local isVIP = playerGamepasses[p] and playerGamepasses[p]["VIP"]
+		local displayName = isVIP and ("\u{1F451} " .. p.Name) or p.Name
 		table.insert(entries, {
-			name  = p.Name,
+			name  = displayName,
 			score = sessionEarnings[p.UserId] or 0,
 		})
 	end
@@ -2301,7 +2624,11 @@ local function refreshAllTimeBoard()
 	for i = 1, 10 do
 		local row = allTimeRows[i]
 		if allTimeCache[i] then
-			row.name.Text  = allTimeCache[i].name
+			local displayName = allTimeCache[i].name
+			if allTimeCache[i].vip then
+				displayName = "\u{1F451} " .. displayName
+			end
+			row.name.Text  = displayName
 			row.score.Text = formatScore(allTimeCache[i].score)
 		else
 			row.name.Text  = "---"
@@ -2324,6 +2651,8 @@ end
 local function saveAllTimeScore(player, totalEarned)
 	if totalEarned <= 0 then return end
 
+	local isVIP = playerGamepasses[player] and playerGamepasses[player]["VIP"] or false
+
 	local ok, updatedEntries = pcall(function()
 		return allTimeStore:UpdateAsync("TopEarners", function(oldData)
 			local entries = oldData or {}
@@ -2335,6 +2664,7 @@ local function saveAllTimeScore(player, totalEarned)
 						entry.score = totalEarned
 						entry.name  = player.Name
 					end
+					entry.vip = isVIP  -- always update VIP status
 					found = true
 					break
 				end
@@ -2344,6 +2674,7 @@ local function saveAllTimeScore(player, totalEarned)
 					userId = player.UserId,
 					name   = player.Name,
 					score  = totalEarned,
+					vip    = isVIP,
 				})
 			end
 
@@ -2456,6 +2787,14 @@ local function onPlayerAdded(player)
 		end
 	end
 
+	-- Restore used codes so players can't redeem the same code across servers
+	if savedData and savedData.usedCodes then
+		playerUsedCodes[player.UserId] = {}
+		for _, codeName in ipairs(savedData.usedCodes) do
+			playerUsedCodes[player.UserId][codeName] = true
+		end
+	end
+
 	-- Check gamepass ownership
 	playerGamepasses[player] = {}
 	for name, gpId in pairs(GAMEPASS_IDS) do
@@ -2478,11 +2817,50 @@ local function onPlayerAdded(player)
 
 	startCreditTick(player)
 
+	-- Add VIP crown above player head
+	local function addVIPCrown(character)
+		if not (playerGamepasses[player] and playerGamepasses[player]["VIP"]) then return end
+		local head = character:WaitForChild("Head", 5)
+		if not head then return end
+		-- Remove existing crown if any (e.g. respawn)
+		local existing = head:FindFirstChild("VIPCrown")
+		if existing then existing:Destroy() end
+
+		local crown = Instance.new("BillboardGui")
+		crown.Name = "VIPCrown"
+		crown.Size = UDim2.new(0, 80, 0, 70)
+		crown.StudsOffset = Vector3.new(0, 2.5, 0)
+		crown.AlwaysOnTop = true
+		crown.MaxDistance = 50
+		crown.Parent = head
+
+		local crownLabel = Instance.new("TextLabel")
+		crownLabel.Size = UDim2.new(1, 0, 0.65, 0)
+		crownLabel.Position = UDim2.new(0, 0, 0, 0)
+		crownLabel.BackgroundTransparency = 1
+		crownLabel.Text = "\u{1F451}"
+		crownLabel.TextScaled = true
+		crownLabel.Font = Enum.Font.GothamBold
+		crownLabel.Parent = crown
+
+		local vipLabel = Instance.new("TextLabel")
+		vipLabel.Size = UDim2.new(1, 0, 0.35, 0)
+		vipLabel.Position = UDim2.new(0, 0, 0.65, 0)
+		vipLabel.BackgroundTransparency = 1
+		vipLabel.Text = "V.I.P"
+		vipLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+		vipLabel.TextStrokeTransparency = 0.3
+		vipLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+		vipLabel.TextScaled = true
+		vipLabel.Font = Enum.Font.GothamBold
+		vipLabel.Parent = crown
+	end
+
 	-- Initialize rebirth requirements
 	local req = initRebirthReq(player)
 
 	if savedData then
-		print("[LOAD] Restored player", player.Name, "- wallet:", playerWallet[player],
+		debugPrint("[LOAD] Restored player", player.Name, "- wallet:", playerWallet[player],
 			"rebirth:", playerRebirth[player], "speedTime:", playerSpeedTime[player])
 	end
 
@@ -2494,6 +2872,7 @@ local function onPlayerAdded(player)
 			root.CFrame = CFrame.new(basePos + Vector3.new(0, 5, 0))
 		end
 		createSlotParts(player)
+		addVIPCrown(character)
 
 		-- Send rebirth info and wallet sync after character loads
 		task.delay(2, function()
@@ -2516,6 +2895,7 @@ local function onPlayerAdded(player)
 		if root and basePos then
 			root.CFrame = CFrame.new(basePos + Vector3.new(0, 5, 0))
 		end
+		addVIPCrown(character)
 		-- Send rebirth info and wallet sync for initial join
 		task.delay(2, function()
 			local req = playerRebirthReq[player]
@@ -2573,6 +2953,9 @@ Players.PlayerRemoving:Connect(function(player)
 	playerCollection[player] = nil
 	playerGamepasses[player] = nil
 	playerUsedCodes[player.UserId] = nil
+	playerRebirthing[player] = nil
+	lastSentSpeedMult[player] = nil
+	playerRebirthInfoSent[player] = nil
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
@@ -2580,9 +2963,23 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 -- Save all player data on server shutdown
+-- Save all players concurrently on shutdown (BindToClose has 30s timeout)
 game:BindToClose(function()
-	for _, player in ipairs(Players:GetPlayers()) do
-		savePlayerData(player)
+	local players = Players:GetPlayers()
+	if #players == 0 then return end
+
+	local finished = 0
+	for _, p in ipairs(players) do
+		task.spawn(function()
+			savePlayerData(p)
+			finished = finished + 1
+		end)
+	end
+
+	-- Wait until all saves complete or timeout approaches
+	local waitStart = os.clock()
+	while finished < #players and (os.clock() - waitStart) < 25 do
+		task.wait(0.1)
 	end
 end)
 
@@ -2608,7 +3005,7 @@ MarketplaceService.ProcessReceipt = function(receiptInfo)
 			local finalDuration = math.floor(luckProduct.duration * multiplier)
 			serverLuckMult = luckProduct.mult
 			serverLuckEndTime = os.time() + finalDuration
-			print("[STORE] Server Luck activated:", luckProduct.mult .. "x for", finalDuration, "seconds by player", playerId, "(multiplier:", multiplier .. ")")
+			debugPrint("[STORE] Server Luck activated:", luckProduct.mult .. "x for", finalDuration, "seconds by player", playerId, "(multiplier:", multiplier .. ")")
 			return Enum.ProductPurchaseDecision.PurchaseGranted
 		end
 	end
@@ -2629,7 +3026,7 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(thePlayer, ga
 					playerGamepasses[thePlayer] = {}
 				end
 				playerGamepasses[thePlayer][name] = true
-				print("[STORE] Player", thePlayer.Name, "purchased gamepass:", name)
+				debugPrint("[STORE] Player", thePlayer.Name, "purchased gamepass:", name)
 				break
 			end
 		end

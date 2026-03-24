@@ -654,15 +654,18 @@ task.spawn(function()
 					local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
 					local speed = humanoid and humanoid.WalkSpeed or 16
 					local speedMult = speed / 16
-					row:FindFirstChild("SpeedLabel").Text = string.format("%.1fx", speedMult)
+					local sl = row:FindFirstChild("SpeedLabel")
+					if sl then sl.Text = string.format("%.1fx", speedMult) end
 
 					-- Credits & rebirth from leaderstats if available
 					local ls = p:FindFirstChild("leaderstats")
 					if ls then
 						local credits = ls:FindFirstChild("Credits")
-						if credits then row:FindFirstChild("CreditsLabel").Text = tostring(credits.Value) end
+						local cl = row:FindFirstChild("CreditsLabel")
+						if credits and cl then cl.Text = tostring(credits.Value) end
 						local rebirth = ls:FindFirstChild("Rebirth")
-						if rebirth then row:FindFirstChild("RebirthLabel").Text = "#" .. tostring(rebirth.Value) end
+						local rl = row:FindFirstChild("RebirthLabel")
+						if rebirth and rl then rl.Text = "#" .. tostring(rebirth.Value) end
 					end
 				end
 			end

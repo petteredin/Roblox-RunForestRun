@@ -551,9 +551,24 @@ redeemCodeFunc.OnServerInvoke = function(requestingPlayer, codeInput)
 		return { success = false, message = "Code system unavailable" }
 	end
 
-	-- Check if player already used this code
+	-- Check if player already used this code (in-memory fast check)
 	local userId = requestingPlayer.UserId
 	if playerUsedCodes[userId] and playerUsedCodes[userId][codeName] then
+		return { success = false, message = "You already used this code!" }
+	end
+
+	-- Atomic DataStore check: prevent race condition on server-hop
+	-- Uses per-player-per-code key so redemption is tracked immediately
+	local usedKey = "usedcode_" .. userId .. "_" .. codeName
+	local alreadyUsed = false
+	pcall(function()
+		local val = codeStore:GetAsync(usedKey)
+		if val then alreadyUsed = true end
+	end)
+	if alreadyUsed then
+		-- Sync in-memory cache
+		if not playerUsedCodes[userId] then playerUsedCodes[userId] = {} end
+		playerUsedCodes[userId][codeName] = true
 		return { success = false, message = "You already used this code!" }
 	end
 
@@ -571,6 +586,15 @@ redeemCodeFunc.OnServerInvoke = function(requestingPlayer, codeInput)
 		return { success = false, message = "Code has expired (max uses reached)" }
 	end
 
+	-- Mark code as used BEFORE applying reward (atomic — survives server-hop)
+	pcall(function()
+		codeStore:SetAsync(usedKey, true)
+	end)
+	if not playerUsedCodes[userId] then
+		playerUsedCodes[userId] = {}
+	end
+	playerUsedCodes[userId][codeName] = true
+
 	-- Apply reward
 	local rewardType = codeData.rewardType or "credits"
 	local amount = codeData.amount or 0
@@ -579,19 +603,19 @@ redeemCodeFunc.OnServerInvoke = function(requestingPlayer, codeInput)
 		playerWallet[requestingPlayer] = (playerWallet[requestingPlayer] or 0) + amount
 		creditEvent:FireClient(requestingPlayer, playerWallet[requestingPlayer])
 	elseif rewardType == "luck" then
-		-- Temporary server luck boost (amount = multiplier, duration from code)
+		-- Temporary server luck boost — consistent with ProcessReceipt logic
 		local duration = codeData.duration or 300
-		serverLuckMult = math.max(serverLuckMult, amount)
-		serverLuckEndTime = math.max(serverLuckEndTime, os.time() + duration)
+		local now = os.time()
+		if serverLuckMult > 1 and serverLuckEndTime > now and amount < serverLuckMult then
+			-- Current luck is better — only extend duration
+			serverLuckEndTime = math.max(serverLuckEndTime, now + duration)
+		else
+			serverLuckMult = amount
+			serverLuckEndTime = now + duration
+		end
 	end
 
-	-- Mark code as used by this player
-	if not playerUsedCodes[userId] then
-		playerUsedCodes[userId] = {}
-	end
-	playerUsedCodes[userId][codeName] = true
-
-	-- Increment usage count
+	-- Increment global usage count
 	pcall(function()
 		codeStore:UpdateAsync("code_" .. codeName, function(old)
 			if not old then return old end
@@ -1221,6 +1245,14 @@ task.spawn(function()
 					end)
 					collectEvent:FireClient(player, collected, playerWallet[player])
 				end
+			end
+			-- Sync leaderstats with current wallet/rebirth values
+			local ls = player:FindFirstChild("leaderstats")
+			if ls then
+				local cv = ls:FindFirstChild("Credits")
+				if cv then cv.Value = playerWallet[player] or 0 end
+				local rv = ls:FindFirstChild("Rebirth")
+				if rv then rv.Value = playerRebirth[player] or 0 end
 			end
 		end
 	end
@@ -2755,6 +2787,19 @@ local function onPlayerAdded(player)
 		slotUpgrades[player][i] = savedData and savedData.upgrades
 			and savedData.upgrades[tostring(i)] or 0
 	end
+
+	-- Create leaderstats for admin Members tab and Roblox leaderboard
+	local ls = Instance.new("Folder")
+	ls.Name = "leaderstats"
+	ls.Parent = player
+	local creditsVal = Instance.new("IntValue")
+	creditsVal.Name  = "Credits"
+	creditsVal.Value = playerWallet[player] or 0
+	creditsVal.Parent = ls
+	local rebirthVal = Instance.new("IntValue")
+	rebirthVal.Name  = "Rebirth"
+	rebirthVal.Value = playerRebirth[player] or 0
+	rebirthVal.Parent = ls
 
 	createSlotParts(player)
 

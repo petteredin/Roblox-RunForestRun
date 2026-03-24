@@ -14,16 +14,27 @@ local CollectionService = game:GetService("CollectionService")
 local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
-local remoteEvent = game.ReplicatedStorage:WaitForChild("BrainrotPickup", 10)
-local progressEvent = game.ReplicatedStorage:WaitForChild("BrainrotProgress", 10)
-local collectEvent = game.ReplicatedStorage:WaitForChild("CreditsCollected", 10)
-local upgradeResultEvent = game.ReplicatedStorage:WaitForChild("UpgradeResult", 10)
-local sellEvent = game.ReplicatedStorage:WaitForChild("SellRequested", 10)
-local sellProgressEvent = game.ReplicatedStorage:WaitForChild("SellProgress", 10)
-local sellResultEvent = game.ReplicatedStorage:WaitForChild("SellResult", 10)
-local creditUpdateEvent = game.ReplicatedStorage:WaitForChild("CreditUpdate", 10)
-local collectionUpdateEvent = game.ReplicatedStorage:WaitForChild("CollectionUpdate", 10)
-local getCollectionFunc = game.ReplicatedStorage:WaitForChild("GetCollection", 10)
+local RS = game.ReplicatedStorage
+
+-- Safe WaitForChild wrapper: warns if timeout is hit, returns nil safely
+local function safeWait(parent, name, timeout)
+	local child = parent:WaitForChild(name, timeout or 15)
+	if not child then
+		warn("[BrainrotPlayerScripts] Missing remote: " .. name)
+	end
+	return child
+end
+
+local remoteEvent          = safeWait(RS, "BrainrotPickup")
+local progressEvent        = safeWait(RS, "BrainrotProgress")
+local collectEvent         = safeWait(RS, "CreditsCollected")
+local upgradeResultEvent   = safeWait(RS, "UpgradeResult")
+local sellEvent            = safeWait(RS, "SellRequested")
+local sellProgressEvent    = safeWait(RS, "SellProgress")
+local sellResultEvent      = safeWait(RS, "SellResult")
+local creditUpdateEvent    = safeWait(RS, "CreditUpdate")
+local collectionUpdateEvent = safeWait(RS, "CollectionUpdate")
+local getCollectionFunc    = safeWait(RS, "GetCollection")
 
 -- Tags must match server-side definitions
 local TAG_SPAWNED_BRAINROT = "SpawnedBrainrot"
@@ -2055,14 +2066,14 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if targetBrainrot then
 		isHolding = true
 		startPickupAnimation()
-		remoteEvent:FireServer(targetBrainrot, true)
+		remoteEvent:FireServer(nil, true)
 	end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
 	if input.KeyCode ~= Enum.KeyCode.E then return end
 	if isHolding and targetBrainrot then
-		remoteEvent:FireServer(targetBrainrot, false)
+		remoteEvent:FireServer(nil, false)
 	end
 	isHolding = false
 	targetBrainrot = nil

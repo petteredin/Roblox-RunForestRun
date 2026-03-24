@@ -203,13 +203,13 @@ local TAG_MOUSETRAP     = "MouseTrap"
 local SNAP_SOUND_ID     = "rbxassetid://0"  -- Replace with real asset
 
 -- Zone 2 bounds: center (-394, 3.5, -4.5), size (150, 1, 155)
--- Ground surface at Y = 1.0
+-- Ground surface at Y = 1.0, base is 1 stud tall → Y = 4.0 sits on top
 local ZONE2_TRAP_PLACEMENTS = {
-	{ position = Vector3.new(-350, 1.0, -5),   rotation = 0   },
-	{ position = Vector3.new(-380, 1.0, 25),   rotation = 45  },
-	{ position = Vector3.new(-410, 1.0, -30),  rotation = -20 },
-	{ position = Vector3.new(-440, 1.0, 10),   rotation = 10  },
-	{ position = Vector3.new(-450, 1.0, -5),   rotation = -10 },
+	{ position = Vector3.new(-350, 4.0, -5),   rotation = 0   },
+	{ position = Vector3.new(-380, 4.0, 25),   rotation = 45  },
+	{ position = Vector3.new(-410, 4.0, -30),  rotation = -20 },
+	{ position = Vector3.new(-440, 4.0, 10),   rotation = 10  },
+	{ position = Vector3.new(-450, 4.0, -5),   rotation = -10 },
 }
 
 -- ── Build Model ──

@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local MarketplaceService = game:GetService("MarketplaceService")
 local gameConfigModule = ReplicatedStorage:WaitForChild("GameConfig", 30)
 if not gameConfigModule then
 	warn("[AdminClient] GameConfig module not found - admin panel may not work correctly")
@@ -899,13 +900,19 @@ end)
 -- ── Grant Luck ──
 local luckSection = createSection("Grant Luck", brainrotsTab, "Brainrots")
 
--- Luck multiplier selector (scrollable list of buttons)
+-- Build a lookup: mult -> product info (price, id, duration)
+local luckProductLookup = {}
+for _, prod in ipairs(GameConfig.LUCK_PRODUCTS or {}) do
+	luckProductLookup[prod.mult] = prod
+end
+
+-- Luck multiplier selector (scrollable list of buttons with prices)
 local selectedLuckMult = 1
 local luckMultLabel = Instance.new("TextLabel")
 luckMultLabel.Size = UDim2.new(1, -8, 0, 22)
 luckMultLabel.Position = UDim2.new(0, 4, 0, 4)
 luckMultLabel.BackgroundTransparency = 1
-luckMultLabel.Text = "Multiplier: 1x"
+luckMultLabel.Text = "Multiplier: 1x (Reset)"
 luckMultLabel.TextColor3 = Color3.fromRGB(255, 220, 80)
 luckMultLabel.TextScaled = true
 luckMultLabel.Font = Enum.Font.GothamBold
@@ -914,14 +921,14 @@ luckMultLabel.LayoutOrder = 1
 luckMultLabel.Parent = luckSection
 
 local luckBtnFrame = Instance.new("Frame")
-luckBtnFrame.Size = UDim2.new(1, -8, 0, 60)
+luckBtnFrame.Size = UDim2.new(1, -8, 0, 80)
 luckBtnFrame.Position = UDim2.new(0, 4, 0, 28)
 luckBtnFrame.BackgroundTransparency = 1
 luckBtnFrame.LayoutOrder = 2
 luckBtnFrame.Parent = luckSection
 
 local luckGrid = Instance.new("UIGridLayout")
-luckGrid.CellSize = UDim2.new(0, 55, 0, 26)
+luckGrid.CellSize = UDim2.new(0, 75, 0, 34)
 luckGrid.CellPadding = UDim2.new(0, 4, 0, 4)
 luckGrid.FillDirection = Enum.FillDirection.Horizontal
 luckGrid.SortOrder = Enum.SortOrder.LayoutOrder
@@ -930,48 +937,69 @@ luckGrid.Parent = luckBtnFrame
 local luckTiers = GameConfig.LUCK_TIERS or { 1, 5, 10, 25, 50, 100, 250, 500, 1000 }
 local luckButtons = {}
 for i, tier in ipairs(luckTiers) do
-	do -- Include all tiers (1x resets luck to off)
-		local btn = Instance.new("TextButton")
-		btn.Size = UDim2.new(0, 55, 0, 26)
-		btn.BackgroundColor3 = tier == selectedLuckMult and Color3.fromRGB(80, 160, 60) or Color3.fromRGB(50, 55, 65)
-		btn.BorderSizePixel = 0
-		btn.Text = tier .. "x"
-		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		btn.TextScaled = true
-		btn.Font = Enum.Font.GothamBold
-		btn.LayoutOrder = i
-		btn.Parent = luckBtnFrame
-		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+	local prod = luckProductLookup[tier]
+	local priceText = tier == 1 and "Reset" or (prod and ("R$ " .. prod.price) or "N/A")
 
-		btn.MouseButton1Click:Connect(function()
-			selectedLuckMult = tier
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 75, 0, 34)
+	btn.BackgroundColor3 = tier == selectedLuckMult and Color3.fromRGB(80, 160, 60) or Color3.fromRGB(50, 55, 65)
+	btn.BorderSizePixel = 0
+	btn.Text = tier .. "x\n" .. priceText
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.TextScaled = true
+	btn.Font = Enum.Font.GothamBold
+	btn.LayoutOrder = i
+	btn.Parent = luckBtnFrame
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+	btn.MouseButton1Click:Connect(function()
+		selectedLuckMult = tier
+		local info = luckProductLookup[tier]
+		if tier == 1 then
+			luckMultLabel.Text = "Multiplier: 1x (Reset)"
+		elseif info then
+			luckMultLabel.Text = "Multiplier: " .. tier .. "x | R$ " .. info.price .. " | " .. info.duration .. " min"
+		else
 			luckMultLabel.Text = "Multiplier: " .. tier .. "x"
-			for _, b in pairs(luckButtons) do
-				b.BackgroundColor3 = Color3.fromRGB(50, 55, 65)
-			end
-			btn.BackgroundColor3 = Color3.fromRGB(80, 160, 60)
-		end)
-		luckButtons[tier] = btn
-	end
+		end
+		for _, b in pairs(luckButtons) do
+			b.BackgroundColor3 = Color3.fromRGB(50, 55, 65)
+		end
+		btn.BackgroundColor3 = Color3.fromRGB(80, 160, 60)
+	end)
+	luckButtons[tier] = btn
 end
 
 local luckDurInput = createInput(luckSection, "Duration in minutes (default: 15)", 3)
 
 local luckBtns = createButtonRow(luckSection, {
-	{ text = "Server", color = COLORS.btnGreen },
-	{ text = "Global", color = COLORS.btnRed },
+	{ text = "Grant (Server)", color = COLORS.btnGreen },
+	{ text = "Grant (Global)", color = COLORS.btnRed },
+	{ text = "Buy (R$)", color = Color3.fromRGB(50, 120, 200) },
 }, 4)
 
-luckBtns["Server"].MouseButton1Click:Connect(function()
+luckBtns["Grant (Server)"].MouseButton1Click:Connect(function()
 	local dur = tonumber(luckDurInput.Text) or 15
 	adminRemote:FireServer("GrantLuck", selectedLuckMult, dur, "Server")
-	flashButton(luckBtns["Server"], true)
+	flashButton(luckBtns["Grant (Server)"], true)
 end)
 
-luckBtns["Global"].MouseButton1Click:Connect(function()
+luckBtns["Grant (Global)"].MouseButton1Click:Connect(function()
 	local dur = tonumber(luckDurInput.Text) or 15
 	adminRemote:FireServer("GrantLuck", selectedLuckMult, dur, "Global")
-	flashButton(luckBtns["Global"], true)
+	flashButton(luckBtns["Grant (Global)"], true)
+end)
+
+luckBtns["Buy (R$)"].MouseButton1Click:Connect(function()
+	local prod = luckProductLookup[selectedLuckMult]
+	if not prod or prod.id == 0 then
+		flashButton(luckBtns["Buy (R$)"], false)
+		return
+	end
+	pcall(function()
+		MarketplaceService:PromptProductPurchase(player, prod.id)
+	end)
+	flashButton(luckBtns["Buy (R$)"], true)
 end)
 
 -- =====================================================

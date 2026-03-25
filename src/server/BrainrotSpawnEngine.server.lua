@@ -2684,6 +2684,8 @@ Players.PlayerRemoving:Connect(function(player)
 	playerRebirthing[player] = nil
 	lastSentSpeedMult[player] = nil
 	playerRebirthInfoSent[player] = nil
+	playerSpeedLimit[player] = nil
+	playerRebirthReq[player] = nil
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do

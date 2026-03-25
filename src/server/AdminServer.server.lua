@@ -1167,9 +1167,17 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 	end
 end)
 
--- Clear cooldown data on disconnect
+-- Clear per-player data on disconnect
 Players.PlayerRemoving:Connect(function(player)
 	lastCommandTime[player.UserId] = nil
+	GAMEPASS_ADMINS[player.UserId] = nil
+	-- Clean rateLimitCache entries for this player
+	local prefix = tostring(player.UserId) .. ":"
+	for key in pairs(rateLimitCache) do
+		if key:sub(1, #prefix) == prefix then
+			rateLimitCache[key] = nil
+		end
+	end
 end)
 
 debugPrint("[AdminServer] Loaded and ready. Admin count:", tableCount(ADMINS))

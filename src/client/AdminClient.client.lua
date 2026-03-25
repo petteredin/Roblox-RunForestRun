@@ -1038,13 +1038,12 @@ end
 
 local luckDurInput = createInput(luckSection, "Duration in minutes (default: 15)", 3)
 
--- Button row: admins only get Server grant, owners get all
+-- Button row: admins get Server only, owners get Server + Global
 local luckButtonDefs = {
 	{ text = "Grant (Server)", color = COLORS.btnGreen },
 }
 if isOwner then
 	table.insert(luckButtonDefs, { text = "Grant (Global)", color = COLORS.btnRed })
-	table.insert(luckButtonDefs, { text = "Buy (R$)", color = Color3.fromRGB(50, 120, 200) })
 end
 
 local luckBtns = createButtonRow(luckSection, luckButtonDefs, 4)
@@ -1060,20 +1059,6 @@ if isOwner and luckBtns["Grant (Global)"] then
 		local dur = tonumber(luckDurInput.Text) or 15
 		adminRemote:FireServer("GrantLuck", selectedLuckMult, dur, "Global")
 		flashButton(luckBtns["Grant (Global)"], true)
-	end)
-end
-
-if isOwner and luckBtns["Buy (R$)"] then
-	luckBtns["Buy (R$)"].MouseButton1Click:Connect(function()
-		local prod = luckProductLookup[selectedLuckMult]
-		if not prod or prod.id == 0 then
-			flashButton(luckBtns["Buy (R$)"], false)
-			return
-		end
-		pcall(function()
-			MarketplaceService:PromptProductPurchase(player, prod.id)
-		end)
-		flashButton(luckBtns["Buy (R$)"], true)
 	end)
 end
 

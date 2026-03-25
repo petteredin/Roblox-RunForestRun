@@ -40,6 +40,7 @@ if isAdminFunc then
 end
 
 if not isAdmin then
+	warn("[AdminClient] NOT admin. UserId:", player.UserId, "Name:", player.Name, "isAdminFunc found:", isAdminFunc ~= nil)
 	return
 end
 

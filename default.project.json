@@ -12,6 +12,9 @@
       },
       "TrapManager": {
         "$path": "src/server/TrapManager.server.lua"
+      },
+      "RemoteSetup": {
+        "$path": "src/server/RemoteSetup.lua"
       }
     },
     "StarterPlayer": {

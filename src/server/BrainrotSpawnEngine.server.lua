@@ -469,69 +469,46 @@ local function getPlayerBasePosition(player)
 end
 
 -- =====================
--- REMOTES
+-- REMOTES (created via RemoteSetup module)
 -- =====================
+local RemoteSetup = require(script.Parent:WaitForChild("RemoteSetup", 10))
+local R = RemoteSetup.init()
 
--- Use getOrCreateRemote (defined below) after it's available
-local remoteEvent
-local progressEvent
-
-local function getOrCreateRemoteFunction(name)
-	local r = ReplicatedStorage:FindFirstChild(name)
-	if not r then
-		r = Instance.new("RemoteFunction")
-		r.Name = name
-		r.Parent = ReplicatedStorage
-	end
-	return r
-end
-
-local function getOrCreateRemote(name)
-	local r = ReplicatedStorage:FindFirstChild(name)
-	if not r then
-		r = Instance.new("RemoteEvent")
-		r.Name = name
-		r.Parent = ReplicatedStorage
-	end
-	return r
-end
-
--- Create pickup/progress remotes (previously used WaitForChild which could return nil)
-remoteEvent   = getOrCreateRemote("BrainrotPickup")
-progressEvent = getOrCreateRemote("BrainrotProgress")
-
-local creditEvent        = getOrCreateRemote("CreditUpdate")
-local depositEvent       = getOrCreateRemote("BrainrotDeposited")
-local collectEvent       = getOrCreateRemote("CreditsCollected")
-local upgradeResultEvent = getOrCreateRemote("UpgradeResult")
-local sellProgressEvent  = getOrCreateRemote("SellProgress")
-local sellResultEvent    = getOrCreateRemote("SellResult")
-local sellEvent          = getOrCreateRemote("SellRequested")
-local speedUpdateEvent   = getOrCreateRemote("SpeedUpdate")
-local rebirthResultEvent = getOrCreateRemote("RebirthResult")
-local rebirthInfoEvent   = getOrCreateRemote("RebirthInfo")
-local rebirthRequestEvent = getOrCreateRemote("RebirthRequested")
-local spawnNotifyEvent    = getOrCreateRemote("SpawnNotify")
-local adminCheckEvent    = getOrCreateRemote("AdminCheck")
-local getRebirthInfoFunc = getOrCreateRemoteFunction("GetRebirthInfo")
-local collectionUpdateEvent = getOrCreateRemote("CollectionUpdate")
-local getCollectionFunc = getOrCreateRemoteFunction("GetCollection")
+-- Local aliases for backward compatibility with existing code
+local remoteEvent           = R.pickupEvent
+local progressEvent         = R.progressEvent
+local creditEvent           = R.creditEvent
+local depositEvent          = R.depositEvent
+local collectEvent          = R.collectEvent
+local upgradeResultEvent    = R.upgradeResult
+local sellProgressEvent     = R.sellProgress
+local sellResultEvent       = R.sellResult
+local sellEvent             = R.sellEvent
+local speedUpdateEvent      = R.speedUpdate
+local rebirthResultEvent    = R.rebirthResult
+local rebirthInfoEvent      = R.rebirthInfo
+local rebirthRequestEvent   = R.rebirthRequest
+local spawnNotifyEvent      = R.spawnNotify
+local adminCheckEvent       = R.adminCheck
+local getRebirthInfoFunc    = R.getRebirthInfo
+local collectionUpdateEvent = R.collectionUpdate
+local getCollectionFunc     = R.getCollection
 
 getCollectionFunc.OnServerInvoke = function(requestingPlayer)
 	return playerCollection[requestingPlayer] or {}
 end
 
--- Store remotes
-local getGamepassStatusFunc = getOrCreateRemoteFunction("GetGamepassStatus")
-local redeemCodeFunc = getOrCreateRemoteFunction("RedeemCode")
-local getServerLuckFunc = getOrCreateRemoteFunction("GetServerLuck")
+-- Store remotes (from RemoteSetup)
+local getGamepassStatusFunc = R.getGamepassStatus
+local redeemCodeFunc        = R.redeemCode
+local getServerLuckFunc     = R.getServerLuck
 
 getGamepassStatusFunc.OnServerInvoke = function(requestingPlayer)
 	return playerGamepasses[requestingPlayer] or {}
 end
 
--- Discount info remote
-local getDiscountInfoFunc = getOrCreateRemoteFunction("GetDiscountInfo")
+-- Discount info remote (from RemoteSetup)
+local getDiscountInfoFunc = R.getDiscountInfo
 getDiscountInfoFunc.OnServerInvoke = function(requestingPlayer)
 	return getPlayerDiscountInfo(requestingPlayer)
 end
@@ -674,24 +651,14 @@ end
 -- Listens for commands from AdminServer
 -- =====================
 
-local function getOrCreateBindable(name)
-	local ServerScriptService = game:GetService("ServerScriptService")
-	local b = ServerScriptService:FindFirstChild(name)
-	if not b then
-		b = Instance.new("BindableFunction")
-		b.Name = name
-		b.Parent = ServerScriptService
-	end
-	return b
-end
-
-local adminSetCredits      = getOrCreateBindable("AdminSetCredits")
-local adminAddCredits      = getOrCreateBindable("AdminAddCredits")
-local adminSetRebirth      = getOrCreateBindable("AdminSetRebirth")
-local adminGiveRebirth     = getOrCreateBindable("AdminGiveRebirth")
-local adminSetSpeed        = getOrCreateBindable("AdminSetSpeed")
-local adminSpawnBrainrot   = getOrCreateBindable("AdminSpawnBrainrot")
-local adminSetLuck         = getOrCreateBindable("AdminSetLuck")
+-- Admin BindableFunctions (from RemoteSetup)
+local adminSetCredits      = R.adminSetCredits
+local adminAddCredits      = R.adminAddCredits
+local adminSetRebirth      = R.adminSetRebirth
+local adminGiveRebirth     = R.adminGiveRebirth
+local adminSetSpeed        = R.adminSetSpeed
+local adminSpawnBrainrot   = R.adminSpawnBrainrot
+local adminSetLuck         = R.adminSetLuck
 
 adminAddCredits.OnInvoke = function(player, amount)
 	if not player or type(amount) ~= "number" then return false, "Invalid arguments" end

@@ -199,32 +199,38 @@ end
 -- EVENT HANDLERS (use showPopup - now defined above)
 -- =====================
 
-progressEvent.OnClientEvent:Connect(function(progress)
-	if progress <= 0 then
-		if not isSelling then resetBar() end
-	end
-end)
+if progressEvent then
+	progressEvent.OnClientEvent:Connect(function(progress)
+		if progress <= 0 then
+			if not isSelling then resetBar() end
+		end
+	end)
+end
 
-sellProgressEvent.OnClientEvent:Connect(function(active, progress, sellPrice, slotIndex)
-	if not active then
+if sellProgressEvent then
+	sellProgressEvent.OnClientEvent:Connect(function(active, progress, sellPrice, slotIndex)
+		if not active then
+			isSelling = false
+			targetSellSlot = nil
+			resetBar()
+		else
+			actionLabel.Text = "Selling for " .. sellPrice
+		end
+	end)
+end
+
+if sellResultEvent then
+	sellResultEvent.OnClientEvent:Connect(function(slotIndex, sellPrice, newWallet)
 		isSelling = false
 		targetSellSlot = nil
+		walletTotal = newWallet
+		if walletLabel then
+			walletLabel.Text = "Credits: " .. walletTotal
+		end
 		resetBar()
-	else
-		actionLabel.Text = "Selling for " .. sellPrice
-	end
-end)
-
-sellResultEvent.OnClientEvent:Connect(function(slotIndex, sellPrice, newWallet)
-	isSelling = false
-	targetSellSlot = nil
-	walletTotal = newWallet
-	if walletLabel then
-		walletLabel.Text = "Credits: " .. walletTotal
-	end
-	resetBar()
-	showPopup("Sold for " .. sellPrice .. " credits!", Color3.fromRGB(255, 150, 50))
-end)
+		showPopup("Sold for " .. sellPrice .. " credits!", Color3.fromRGB(255, 150, 50))
+	end)
+end
 
 -- =====================
 -- REMOTE EVENTS
@@ -400,9 +406,11 @@ speedLabel.TextScaled = true
 speedLabel.Font = Enum.Font.GothamBold
 speedLabel.Parent = speedFrame
 
-speedUpdateEvent.OnClientEvent:Connect(function(multiplier)
-	speedLabel.Text = string.format("Speed: %.2fx", multiplier)
-end)
+if speedUpdateEvent then
+	speedUpdateEvent.OnClientEvent:Connect(function(multiplier)
+		speedLabel.Text = string.format("Speed: %.2fx", multiplier)
+	end)
+end
 
 -- Rebirth #
 local rebirthFrame = Instance.new("Frame")
@@ -1072,7 +1080,7 @@ local GAMEPASS_IDS = GameConfig.GAMEPASS_IDS
 local LUCK_PRODUCT_IDS = GameConfig.LUCK_PRODUCTS
 
 local storePanelOpen = false
-local storeActiveTab = "Gamepasses"
+local storeActiveTab = "V.I.P"
 
 -- Remotes for store
 local getGamepassStatusFunc = game.ReplicatedStorage:WaitForChild("GetGamepassStatus", 10)
@@ -1918,11 +1926,13 @@ local function updateRebirthReqDisplay(brainrots, cost, rarityText)
 end
 
 -- Listen for rebirth info from server
-rebirthInfoEvent.OnClientEvent:Connect(function(currentLevel, brainrots, cost, rarityText)
-	rebirthLabel.Text = "Rebirth #" .. currentLevel
-	rebirthReqTitle.Text = "NEXT REBIRTH #" .. (currentLevel + 1)
-	updateRebirthReqDisplay(brainrots, cost, rarityText)
-end)
+if rebirthInfoEvent then
+	rebirthInfoEvent.OnClientEvent:Connect(function(currentLevel, brainrots, cost, rarityText)
+		rebirthLabel.Text = "Rebirth #" .. currentLevel
+		rebirthReqTitle.Text = "NEXT REBIRTH #" .. (currentLevel + 1)
+		updateRebirthReqDisplay(brainrots, cost, rarityText)
+	end)
+end
 
 -- Pull initial rebirth info from server
 task.spawn(function()
@@ -1942,45 +1952,53 @@ task.spawn(function()
 	end
 end)
 
-rebirthResultEvent.OnClientEvent:Connect(function(success, dataOrLevel, newWallet)
-	if success then
-		rebirthLabel.Text = "Rebirth #" .. dataOrLevel
-		walletTotal = newWallet
-		walletLabel.Text = "Credits: " .. walletTotal
-		showPopup("REBIRTH #" .. dataOrLevel .. "! 2.25x boost!", Color3.fromRGB(255, 180, 50))
-	else
-		showPopup(tostring(dataOrLevel), Color3.fromRGB(255, 80, 80))
-	end
-end)
+if rebirthResultEvent then
+	rebirthResultEvent.OnClientEvent:Connect(function(success, dataOrLevel, newWallet)
+		if success then
+			rebirthLabel.Text = "Rebirth #" .. dataOrLevel
+			walletTotal = newWallet
+			walletLabel.Text = "Credits: " .. walletTotal
+			showPopup("REBIRTH #" .. dataOrLevel .. "! 2.25x boost!", Color3.fromRGB(255, 180, 50))
+		else
+			showPopup(tostring(dataOrLevel), Color3.fromRGB(255, 80, 80))
+		end
+	end)
+end
 
 -- Parent popup label to walletGui
 popupLabel.Parent = walletGui
 
 -- CharacterAdded: don't reset wallet/rebirth, server sends correct values
 
-collectEvent.OnClientEvent:Connect(function(collected, newWalletTotal)
-	walletTotal = newWalletTotal
-	walletLabel.Text = "Credits: " .. walletTotal
-	showPopup("+" .. collected .. " credits", Color3.fromRGB(100, 255, 100))
-end)
-
-upgradeResultEvent.OnClientEvent:Connect(function(success, data, newLevel, newWalletTotal)
-	if success then
+if collectEvent then
+	collectEvent.OnClientEvent:Connect(function(collected, newWalletTotal)
 		walletTotal = newWalletTotal
 		walletLabel.Text = "Credits: " .. walletTotal
-		showPopup("Upgraded to Lvl " .. newLevel .. "!", Color3.fromRGB(100, 220, 255))
-	else
-		showPopup(tostring(data), Color3.fromRGB(255, 80, 80))
-	end
-end)
+		showPopup("+" .. collected .. " credits", Color3.fromRGB(100, 255, 100))
+	end)
+end
+
+if upgradeResultEvent then
+	upgradeResultEvent.OnClientEvent:Connect(function(success, data, newLevel, newWalletTotal)
+		if success then
+			walletTotal = newWalletTotal
+			walletLabel.Text = "Credits: " .. walletTotal
+			showPopup("Upgraded to Lvl " .. newLevel .. "!", Color3.fromRGB(100, 220, 255))
+		else
+			showPopup(tostring(data), Color3.fromRGB(255, 80, 80))
+		end
+	end)
+end
 
 -- =====================
 -- CREDIT UPDATE (from admin panel or other sources)
 -- =====================
-creditUpdateEvent.OnClientEvent:Connect(function(newWallet)
-	walletTotal = newWallet
-	walletLabel.Text = "Credits: " .. walletTotal
-end)
+if creditUpdateEvent then
+	creditUpdateEvent.OnClientEvent:Connect(function(newWallet)
+		walletTotal = newWallet
+		walletLabel.Text = "Credits: " .. walletTotal
+	end)
+end
 
 -- =====================
 -- CONTEXT DETECTION
@@ -2062,6 +2080,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	if input.KeyCode ~= Enum.KeyCode.E then return end
 
+	if not remoteEvent then return end
 	targetBrainrot = getClosestBrainrot()
 	if targetBrainrot then
 		isHolding = true
@@ -2072,7 +2091,7 @@ end)
 
 UserInputService.InputEnded:Connect(function(input)
 	if input.KeyCode ~= Enum.KeyCode.E then return end
-	if isHolding and targetBrainrot then
+	if isHolding and targetBrainrot and remoteEvent then
 		remoteEvent:FireServer(nil, false)
 	end
 	isHolding = false
@@ -2089,6 +2108,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if sellSlot then
 		isSelling = true
 		targetSellSlot = sellSlot
+		if not sellEvent then return end
 		startSellAnimation("...")
 		sellEvent:FireServer(sellSlot, true)
 	end
@@ -2096,7 +2116,7 @@ end)
 
 UserInputService.InputEnded:Connect(function(input)
 	if input.KeyCode ~= Enum.KeyCode.F then return end
-	if isSelling and targetSellSlot then
+	if isSelling and targetSellSlot and sellEvent then
 		sellEvent:FireServer(targetSellSlot, false)
 		isSelling = false
 		targetSellSlot = nil

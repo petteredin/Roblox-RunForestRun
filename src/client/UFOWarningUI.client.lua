@@ -7,7 +7,11 @@ local RunService        = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player    = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local playerGui = player:WaitForChild("PlayerGui", 30)
+if not playerGui then
+	warn("[UFOWarningUI] PlayerGui not found")
+	return
+end
 
 -- ============================================================
 -- BUILD THE WARNING GUI (all programmatic, no Studio placement needed)

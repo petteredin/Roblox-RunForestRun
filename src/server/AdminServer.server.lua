@@ -18,6 +18,18 @@ local function tableCount(t)
 	return c
 end
 
+-- Simple per-player rate limiter for RemoteFunctions
+local rateLimitCache = {}
+local function rateLimited(player, funcName, cooldown)
+	local key = player.UserId .. ":" .. funcName
+	local now = os.clock()
+	if rateLimitCache[key] and (now - rateLimitCache[key]) < cooldown then
+		return true -- blocked
+	end
+	rateLimitCache[key] = now
+	return false
+end
+
 debugPrint("[ADMIN SERVER] ====== AdminServer.lua starting ======")
 
 local Players = game:GetService("Players")
@@ -328,6 +340,7 @@ if not getBanListFunc then
 end
 
 getBanListFunc.OnServerInvoke = function(requestingPlayer)
+	if rateLimited(requestingPlayer, "GetBanList", 2) then return {} end
 	if not ADMINS[requestingPlayer.UserId] then return {} end
 	-- Return a list for the UI
 	local list = {}
@@ -356,6 +369,7 @@ if not listCodesFunc then
 end
 
 listCodesFunc.OnServerInvoke = function(requestingPlayer)
+	if rateLimited(requestingPlayer, "ListCodes", 2) then return {} end
 	if not ADMINS[requestingPlayer.UserId] then return {} end
 
 	local codeStore = nil
@@ -408,6 +422,7 @@ if not isAdminFunc then
 end
 
 isAdminFunc.OnServerInvoke = function(requestingPlayer)
+	if rateLimited(requestingPlayer, "IsAdmin", 1) then return false end
 	return ADMINS[requestingPlayer.UserId] == true
 end
 
@@ -531,8 +546,8 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 	if cmd == "AddCredits" then
 		local targetName = sanitizeString(args[1])
 		local amount = sanitizeNumber(args[2])
-		if not amount or amount <= 0 then
-			adminResponse:FireClient(player, false, "Invalid amount")
+		if not amount or amount <= 0 or amount > 1e9 then
+			adminResponse:FireClient(player, false, "Invalid amount (1 - 1,000,000,000)")
 			return
 		end
 		-- If no target specified, use admin self
@@ -563,8 +578,8 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 	elseif cmd == "SetCredits" then
 		local targetName = sanitizeString(args[1])
 		local amount = sanitizeNumber(args[2])
-		if not amount then
-			adminResponse:FireClient(player, false, "Invalid amount")
+		if not amount or amount < 0 or amount > 1e9 then
+			adminResponse:FireClient(player, false, "Invalid amount (0 - 1,000,000,000)")
 			return
 		end
 		local target = player
@@ -594,8 +609,8 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 	elseif cmd == "SetRebirth" then
 		local targetName = sanitizeString(args[1])
 		local amount = sanitizeNumber(args[2])
-		if not amount then
-			adminResponse:FireClient(player, false, "Invalid amount")
+		if not amount or amount < 0 or amount > 100 then
+			adminResponse:FireClient(player, false, "Invalid rebirth level (0 - 100)")
 			return
 		end
 		local target = player
@@ -651,8 +666,8 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 	elseif cmd == "SetSpeed" then
 		local targetName = sanitizeString(args[1])
 		local multiplier = sanitizeNumber(args[2])
-		if not multiplier then
-			adminResponse:FireClient(player, false, "Invalid multiplier")
+		if not multiplier or multiplier < 0.1 or multiplier > 100 then
+			adminResponse:FireClient(player, false, "Invalid multiplier (0.1 - 100)")
 			return
 		end
 		local target = player

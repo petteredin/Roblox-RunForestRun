@@ -26,7 +26,11 @@ end
 -- =====================
 -- SHARED CONFIG (single source of truth)
 -- =====================
-local GameConfig = require(game:GetService("ReplicatedStorage"):WaitForChild("GameConfig", 10))
+local gameConfigModule = game:GetService("ReplicatedStorage"):WaitForChild("GameConfig", 30)
+if not gameConfigModule then
+	error("[BrainrotSpawnEngine] FATAL: GameConfig module not found in ReplicatedStorage after 30s")
+end
+local GameConfig = require(gameConfigModule)
 
 -- =====================
 -- MUTATION SYSTEM
@@ -2916,7 +2920,8 @@ local function onPlayerAdded(player)
 
 	player.CharacterAdded:Connect(function(character)
 		task.wait(1)
-		local root = character:WaitForChild("HumanoidRootPart")
+		local root = character:WaitForChild("HumanoidRootPart", 10)
+		if not root then return end
 		local basePos = getPlayerBasePosition(player)
 		if root and basePos then
 			root.CFrame = CFrame.new(basePos + Vector3.new(0, 5, 0))
@@ -2926,6 +2931,7 @@ local function onPlayerAdded(player)
 
 		-- Send rebirth info and wallet sync after character loads
 		task.delay(2, function()
+			if not player.Parent then return end -- player left
 			local req = playerRebirthReq[player]
 			if req then
 				local nextLvl = (playerRebirth[player] or 0) + 1
@@ -2940,6 +2946,7 @@ local function onPlayerAdded(player)
 	local character = player.Character
 	if character then
 		task.wait(1)
+		if not player.Parent then return end -- player left during wait
 		local root = character:FindFirstChild("HumanoidRootPart")
 		local basePos = getPlayerBasePosition(player)
 		if root and basePos then
@@ -2948,6 +2955,7 @@ local function onPlayerAdded(player)
 		addVIPCrown(character)
 		-- Send rebirth info and wallet sync for initial join
 		task.delay(2, function()
+			if not player.Parent then return end -- player left
 			local req = playerRebirthReq[player]
 			if req then
 				local nextLvl = (playerRebirth[player] or 0) + 1

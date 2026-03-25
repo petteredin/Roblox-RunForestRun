@@ -7,7 +7,14 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig", 10))
+local gameConfigModule = ReplicatedStorage:WaitForChild("GameConfig", 30)
+if not gameConfigModule then
+	warn("[AdminClient] GameConfig module not found - admin panel may not work correctly")
+end
+local GameConfig = gameConfigModule and require(gameConfigModule) or {
+	BRAINROTS = {}, MUTATIONS = {}, MUTATIONS_BY_KEY = {},
+	RARITY_ORDER = {}, RARITY_COLORS = {}, LUCK_PRODUCTS = {}, GAMEPASS_IDS = {}
+}
 
 local player = Players.LocalPlayer
 
@@ -330,7 +337,7 @@ for name, btn in pairs(tabButtons) do
 end
 
 -- =====================
--- GUI-BYGGARE (helpers)
+-- GUI BUILDERS (helpers)
 -- =====================
 local layoutOrders = {}
 
@@ -1512,7 +1519,11 @@ undoBtn.MouseButton1Click:Connect(function()
 	lastUndoData = nil
 	undoBtn.Visible = false
 	showStatus("Undoing: " .. (data.desc or "..."), true)
-	adminRemote:FireServer(data.undoCmd, unpack(data.undoArgs))
+	if type(data.undoArgs) == "table" then
+		adminRemote:FireServer(data.undoCmd, unpack(data.undoArgs))
+	else
+		adminRemote:FireServer(data.undoCmd)
+	end
 end)
 
 -- =====================

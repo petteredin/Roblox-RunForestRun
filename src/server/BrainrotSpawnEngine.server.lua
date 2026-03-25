@@ -814,17 +814,20 @@ end
 
 local playerRebirthInfoSent = {}      -- tracks if rebirth info was sent to client
 local lastSentSpeedMult    = {}      -- tracks last speed sent to client (throttle updates)
-local playerHandbrake      = {}      -- [player] = endTime (os.clock)
+local playerSpeedLimit     = {}      -- [player] = max display speed (0 = no limit)
 
--- Handbrake: 50% speed reduction for 1 minute
-local handbrakeEvent = R.handbrakeEvent
-handbrakeEvent.OnServerEvent:Connect(function(player, activate)
-	if activate then
-		playerHandbrake[player] = os.clock() + 60
-		debugPrint("[HANDBRAKE] Activated for", player.Name, "- 60 seconds")
+-- Speed limit: player can choose a lower speed cap
+local speedLimitEvent = R.speedLimitEvent
+speedLimitEvent.OnServerEvent:Connect(function(player, limit)
+	if type(limit) ~= "number" then return end
+	if limit <= 0 then
+		playerSpeedLimit[player] = nil
+		debugPrint("[SPEED LIMIT] Removed for", player.Name)
 	else
-		playerHandbrake[player] = nil
-		debugPrint("[HANDBRAKE] Deactivated for", player.Name)
+		-- Clamp to valid range
+		limit = math.clamp(math.floor(limit), BASE_WALK_SPEED, BASE_WALK_SPEED * 10)
+		playerSpeedLimit[player] = limit
+		debugPrint("[SPEED LIMIT] Set to", limit, "for", player.Name)
 	end
 end)
 
@@ -839,24 +842,25 @@ task.spawn(function()
 
 			playerSpeedTime[p] = (playerSpeedTime[p] or 0) + 1
 			local speedMult = 1 + playerSpeedTime[p] * SPEED_INCREMENT
-			local totalMult = math.min(speedMult, getSpeedCap(p))
+			local capMult = getSpeedCap(p)
+			local totalMult = math.min(speedMult, capMult)
 
-			-- Apply handbrake (50% speed reduction)
-			local handbrakeEnd = playerHandbrake[p]
-			if handbrakeEnd and os.clock() < handbrakeEnd then
-				totalMult = totalMult * 0.5
-			elseif handbrakeEnd then
-				playerHandbrake[p] = nil  -- expired, clean up
+			-- Apply player speed limit (chosen via UI buttons)
+			local limit = playerSpeedLimit[p]
+			if limit and limit > 0 then
+				local limitMult = limit / BASE_WALK_SPEED
+				totalMult = math.min(totalMult, limitMult)
 			end
 
 			humanoid.WalkSpeed = BASE_WALK_SPEED * totalMult
 
-			-- Send display speed (actual WalkSpeed value) to client
+			-- Send display speed + max speed to client
 			local displaySpeed = BASE_WALK_SPEED * totalMult
-			local rounded = math.floor(displaySpeed * 10 + 0.5) / 10  -- round to 1 decimal
+			local maxSpeed = BASE_WALK_SPEED * capMult
+			local rounded = math.floor(displaySpeed * 10 + 0.5) / 10
 			if rounded ~= lastSentSpeedMult[p] then
 				lastSentSpeedMult[p] = rounded
-				speedUpdateEvent:FireClient(p, displaySpeed)
+				speedUpdateEvent:FireClient(p, displaySpeed, maxSpeed)
 			end
 
 			-- Send rebirth info if not yet delivered (piggyback on working speed loop)

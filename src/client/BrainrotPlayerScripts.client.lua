@@ -410,54 +410,94 @@ speedLabel.TextScaled = true
 speedLabel.Font = Enum.Font.GothamBold
 speedLabel.Parent = speedFrame
 
-if speedUpdateEvent then
-	speedUpdateEvent.OnClientEvent:Connect(function(multiplier)
-		speedLabel.Text = string.format("Speed: %.1f", multiplier)
-	end)
+-- Speed selector buttons (4 buttons at 25%/50%/75%/100% of max speed)
+local speedBtnFrame = Instance.new("Frame")
+speedBtnFrame.Size = UDim2.new(0, 190, 0, 26)
+speedBtnFrame.Position = UDim2.new(0, 16, 0, 98)
+speedBtnFrame.BackgroundTransparency = 1
+speedBtnFrame.BorderSizePixel = 0
+speedBtnFrame.Parent = walletGui
+
+local speedBtnLayout = Instance.new("UIListLayout")
+speedBtnLayout.FillDirection = Enum.FillDirection.Horizontal
+speedBtnLayout.Padding = UDim.new(0, 2)
+speedBtnLayout.SortOrder = Enum.SortOrder.LayoutOrder
+speedBtnLayout.Parent = speedBtnFrame
+
+local currentMaxSpeed = 32 -- default rebirth 0 cap (16 * 2)
+local selectedSpeedLimit = 0 -- 0 = no limit (full speed)
+local speedLimitEvent = safeWait(game.ReplicatedStorage, "SpeedLimitEvent")
+local speedBtns = {}
+
+local SPEED_FRACTIONS = { 0.25, 0.50, 0.75, 1.0 }
+local SPEED_BTN_COLORS = {
+	Color3.fromRGB(60, 130, 60),   -- 25% green
+	Color3.fromRGB(140, 140, 40),  -- 50% yellow
+	Color3.fromRGB(180, 100, 40),  -- 75% orange
+	Color3.fromRGB(100, 180, 220), -- 100% blue (full)
+}
+local SPEED_BTN_ACTIVE = Color3.fromRGB(255, 255, 255)
+
+local function updateSpeedButtons()
+	for i, btn in ipairs(speedBtns) do
+		local fraction = SPEED_FRACTIONS[i]
+		local targetSpeed = math.floor(currentMaxSpeed * fraction)
+		btn.Text = tostring(targetSpeed)
+		if selectedSpeedLimit == targetSpeed or (fraction == 1.0 and selectedSpeedLimit == 0) then
+			btn.BackgroundColor3 = SPEED_BTN_COLORS[i]
+			btn.BackgroundTransparency = 0.1
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		else
+			btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+			btn.BackgroundTransparency = 0.3
+			btn.TextColor3 = Color3.fromRGB(150, 150, 150)
+		end
+	end
 end
 
--- Handbrake button (50% speed reduction for 1 minute)
-local handbrakeBtn = Instance.new("TextButton")
-handbrakeBtn.Size = UDim2.new(0, 190, 0, 26)
-handbrakeBtn.Position = UDim2.new(0, 16, 0, 98)
-handbrakeBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
-handbrakeBtn.BackgroundTransparency = 0.15
-handbrakeBtn.BorderSizePixel = 0
-handbrakeBtn.Text = "Handbrake"
-handbrakeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-handbrakeBtn.TextScaled = true
-handbrakeBtn.Font = Enum.Font.GothamBold
-handbrakeBtn.Parent = walletGui
-Instance.new("UICorner", handbrakeBtn).CornerRadius = UDim.new(0, 8)
+for i, fraction in ipairs(SPEED_FRACTIONS) do
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 46, 0, 26)
+	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+	btn.BackgroundTransparency = 0.3
+	btn.BorderSizePixel = 0
+	btn.Text = tostring(math.floor(currentMaxSpeed * fraction))
+	btn.TextColor3 = Color3.fromRGB(150, 150, 150)
+	btn.TextScaled = true
+	btn.Font = Enum.Font.GothamBold
+	btn.LayoutOrder = i
+	btn.Parent = speedBtnFrame
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
 
-local handbrakeActive = false
-local handbrakeEndTime = 0
-local handbrakeEvent = safeWait(game.ReplicatedStorage, "HandbrakeEvent")
-
-handbrakeBtn.MouseButton1Click:Connect(function()
-	if handbrakeActive then return end
-	if handbrakeEvent then
-		handbrakeEvent:FireServer(true)
-	end
-	handbrakeActive = true
-	handbrakeEndTime = tick() + 60
-	handbrakeBtn.BackgroundColor3 = Color3.fromRGB(100, 40, 40)
-	handbrakeBtn.Text = "Braking... 60s"
-
-	task.spawn(function()
-		while handbrakeActive and tick() < handbrakeEndTime do
-			local remaining = math.ceil(handbrakeEndTime - tick())
-			handbrakeBtn.Text = "Braking... " .. remaining .. "s"
-			task.wait(1)
+	btn.MouseButton1Click:Connect(function()
+		local targetSpeed = math.floor(currentMaxSpeed * fraction)
+		if fraction == 1.0 then
+			selectedSpeedLimit = 0 -- no limit
+		else
+			selectedSpeedLimit = targetSpeed
 		end
-		handbrakeActive = false
-		handbrakeBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
-		handbrakeBtn.Text = "Handbrake"
-		if handbrakeEvent then
-			handbrakeEvent:FireServer(false)
+		if speedLimitEvent then
+			speedLimitEvent:FireServer(selectedSpeedLimit)
+		end
+		updateSpeedButtons()
+	end)
+
+	speedBtns[i] = btn
+end
+
+-- Default: full speed selected
+selectedSpeedLimit = 0
+updateSpeedButtons()
+
+if speedUpdateEvent then
+	speedUpdateEvent.OnClientEvent:Connect(function(displaySpeed, maxSpeed)
+		speedLabel.Text = string.format("Speed: %.1f", displaySpeed)
+		if maxSpeed and maxSpeed ~= currentMaxSpeed then
+			currentMaxSpeed = maxSpeed
+			updateSpeedButtons()
 		end
 	end)
-end)
+end
 
 -- Rebirth #
 local rebirthFrame = Instance.new("Frame")

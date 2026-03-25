@@ -573,37 +573,66 @@ local function createMemberRow(p, order)
 		showStatus("Selected: " .. p.DisplayName, true)
 	end)
 
-	-- Action buttons (Admin, Kick) — Owner only
-	if isOwner then
-		local isPlayerAdmin = ADMIN_IDS[p.UserId]
+	-- Action buttons — VIP for all admins, Admin+Kick for owners only
+	do
+		local btnX = 0.68 -- starting X position for action buttons
 
-		local adminToggleBtn = Instance.new("TextButton")
-		adminToggleBtn.Name = "AdminBtn"
-		adminToggleBtn.Size = UDim2.new(0.10, -2, 0, 22)
-		adminToggleBtn.Position = UDim2.new(0.78, 2, 0.5, -11)
-		adminToggleBtn.BackgroundColor3 = isPlayerAdmin and COLORS.header or COLORS.tabInactive
-		adminToggleBtn.Text = "Admin"
-		adminToggleBtn.TextColor3 = isPlayerAdmin and COLORS.textDark or COLORS.dimText
-		adminToggleBtn.TextSize = 10
-		adminToggleBtn.Font = Enum.Font.GothamBold
-		adminToggleBtn.Parent = row
-		local ac = Instance.new("UICorner")
-		ac.CornerRadius = UDim.new(0, 4)
-		ac.Parent = adminToggleBtn
+		-- VIP button (all admins can grant)
+		local isVIP = p:GetAttribute("Own_VIP")
+		local vipBtn = Instance.new("TextButton")
+		vipBtn.Name = "VIPBtn"
+		vipBtn.Size = UDim2.new(0.10, -2, 0, 22)
+		vipBtn.Position = UDim2.new(btnX, 2, 0.5, -11)
+		vipBtn.BackgroundColor3 = isVIP and Color3.fromRGB(255, 180, 0) or Color3.fromRGB(80, 80, 40)
+		vipBtn.Text = isVIP and "VIP" or "VIP"
+		vipBtn.TextColor3 = isVIP and COLORS.textDark or Color3.fromRGB(255, 215, 0)
+		vipBtn.TextSize = 10
+		vipBtn.Font = Enum.Font.GothamBold
+		vipBtn.Parent = row
+		Instance.new("UICorner", vipBtn).CornerRadius = UDim.new(0, 4)
+		btnX = btnX + 0.10
 
-		local kickBtn = Instance.new("TextButton")
-		kickBtn.Name = "KickBtn"
-		kickBtn.Size = UDim2.new(0.10, -2, 0, 22)
-		kickBtn.Position = UDim2.new(0.88, 2, 0.5, -11)
-		kickBtn.BackgroundColor3 = COLORS.btnRed
-		kickBtn.Text = "Kick"
-		kickBtn.TextColor3 = COLORS.text
-		kickBtn.TextSize = 10
-		kickBtn.Font = Enum.Font.GothamBold
-		kickBtn.Parent = row
-		local kc = Instance.new("UICorner")
-		kc.CornerRadius = UDim.new(0, 4)
-		kc.Parent = kickBtn
+		vipBtn.MouseButton1Click:Connect(function()
+			if isVIP then
+				showStatus(p.DisplayName .. " already has VIP", false)
+				return
+			end
+			adminRemote:FireServer("GrantVIP", p.Name)
+			flashButton(vipBtn, true)
+			-- Optimistic update
+			vipBtn.BackgroundColor3 = Color3.fromRGB(255, 180, 0)
+			vipBtn.TextColor3 = COLORS.textDark
+			isVIP = true
+		end)
+
+		-- Admin + Kick buttons (owner only)
+		if isOwner then
+			local isPlayerAdmin = ADMIN_IDS[p.UserId]
+
+			local adminToggleBtn = Instance.new("TextButton")
+			adminToggleBtn.Name = "AdminBtn"
+			adminToggleBtn.Size = UDim2.new(0.10, -2, 0, 22)
+			adminToggleBtn.Position = UDim2.new(btnX, 2, 0.5, -11)
+			adminToggleBtn.BackgroundColor3 = isPlayerAdmin and COLORS.header or COLORS.tabInactive
+			adminToggleBtn.Text = "Admin"
+			adminToggleBtn.TextColor3 = isPlayerAdmin and COLORS.textDark or COLORS.dimText
+			adminToggleBtn.TextSize = 10
+			adminToggleBtn.Font = Enum.Font.GothamBold
+			adminToggleBtn.Parent = row
+			Instance.new("UICorner", adminToggleBtn).CornerRadius = UDim.new(0, 4)
+			btnX = btnX + 0.10
+
+			local kickBtn = Instance.new("TextButton")
+			kickBtn.Name = "KickBtn"
+			kickBtn.Size = UDim2.new(0.10, -2, 0, 22)
+			kickBtn.Position = UDim2.new(btnX, 2, 0.5, -11)
+			kickBtn.BackgroundColor3 = COLORS.btnRed
+			kickBtn.Text = "Kick"
+			kickBtn.TextColor3 = COLORS.text
+			kickBtn.TextSize = 10
+			kickBtn.Font = Enum.Font.GothamBold
+			kickBtn.Parent = row
+			Instance.new("UICorner", kickBtn).CornerRadius = UDim.new(0, 4)
 
 		adminToggleBtn.MouseButton1Click:Connect(function()
 			debugPrint("[ADMIN CLIENT] Toggle admin clicked for:", p.Name, "UserId:", p.UserId)
@@ -634,7 +663,8 @@ local function createMemberRow(p, order)
 			adminRemote:FireServer("KickPlayer", p.Name, "Kicked by admin")
 			flashButton(kickBtn, true)
 		end)
-	end
+		end -- end if isOwner (Admin + Kick)
+	end -- end do block (action buttons)
 
 	memberRows[p.Name] = row
 	return row

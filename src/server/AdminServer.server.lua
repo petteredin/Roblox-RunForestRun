@@ -54,6 +54,7 @@ local adminGiveRebirth     = nil
 local adminSetSpeed        = nil
 local adminSpawnBrainrot   = nil
 local adminSetLuck         = nil
+local adminGrantVIP        = nil
 
 task.spawn(function()
 	adminAddCredits      = ServerScriptService:WaitForChild("AdminAddCredits", 30)
@@ -63,6 +64,7 @@ task.spawn(function()
 	adminSetSpeed        = ServerScriptService:WaitForChild("AdminSetSpeed", 30)
 	adminSpawnBrainrot   = ServerScriptService:WaitForChild("AdminSpawnBrainrot", 30)
 	adminSetLuck         = ServerScriptService:WaitForChild("AdminSetLuck", 30)
+	adminGrantVIP        = ServerScriptService:WaitForChild("AdminGrantVIP", 30)
 	debugPrint("[ADMIN SERVER] BindableFunctions loaded:",
 		adminAddCredits ~= nil, adminSetCredits ~= nil,
 		adminSetRebirth ~= nil, adminGiveRebirth ~= nil,
@@ -571,6 +573,7 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			GrantLuck = true,
 			SendMessage = true,
 			SpawnBrainrot = true,
+			GrantVIP = true,
 		}
 
 		if not ADMIN_ALLOWED[cmdStr] then
@@ -1127,6 +1130,32 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			else
 				adminResponse:FireClient(player, false, err or "Unknown error")
 			end
+		end
+
+	-- =====================
+	-- GRANT VIP
+	-- =====================
+	elseif cmd == "GrantVIP" then
+		local targetName = sanitizeString(args[1])
+		if not targetName then
+			adminResponse:FireClient(player, false, "Enter a player name")
+			return
+		end
+		local target = findPlayer(targetName)
+		if not target then
+			adminResponse:FireClient(player, false, "Player not found: " .. targetName)
+			return
+		end
+		if not adminGrantVIP then
+			adminResponse:FireClient(player, false, "Server not ready - try again")
+			return
+		end
+		local ok, err = adminGrantVIP:Invoke(target)
+		logAction(player, cmd, target.Name, "")
+		if ok then
+			adminResponse:FireClient(player, true, "Granted VIP to " .. target.Name)
+		else
+			adminResponse:FireClient(player, false, err or "Unknown error")
 		end
 
 	-- =====================

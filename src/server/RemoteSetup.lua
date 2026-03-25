@@ -98,6 +98,7 @@ function RemoteSetup.init()
 		adminSetSpeed      = getOrCreateBindable("AdminSetSpeed"),
 		adminSpawnBrainrot = getOrCreateBindable("AdminSpawnBrainrot"),
 		adminSetLuck       = getOrCreateBindable("AdminSetLuck"),
+		adminGrantVIP      = getOrCreateBindable("AdminGrantVIP"),
 	}
 
 	return remotes

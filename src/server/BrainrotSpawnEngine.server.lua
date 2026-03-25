@@ -660,6 +660,7 @@ local adminGiveRebirth     = R.adminGiveRebirth
 local adminSetSpeed        = R.adminSetSpeed
 local adminSpawnBrainrot   = R.adminSpawnBrainrot
 local adminSetLuck         = R.adminSetLuck
+local adminGrantVIP        = R.adminGrantVIP
 
 adminAddCredits.OnInvoke = function(player, amount)
 	if not player or type(amount) ~= "number" then return false, "Invalid arguments" end
@@ -748,6 +749,54 @@ adminSetLuck.OnInvoke = function(mult, durationSeconds)
 		debugPrint("[LUCK] Admin set luck:", mult .. "x for", math.floor(durationSeconds), "seconds")
 	end
 	return true, nil, prevMult, prevRemaining
+end
+
+adminGrantVIP.OnInvoke = function(targetPlayer)
+	if not targetPlayer then return false, "Invalid player" end
+	if not playerGamepasses[targetPlayer] then
+		playerGamepasses[targetPlayer] = {}
+	end
+	if playerGamepasses[targetPlayer]["VIP"] then
+		return false, targetPlayer.Name .. " already has VIP"
+	end
+	playerGamepasses[targetPlayer]["VIP"] = true
+	-- Set attributes for client
+	targetPlayer:SetAttribute("Own_VIP", true)
+	-- Add crown
+	local character = targetPlayer.Character
+	if character then
+		local head = character:FindFirstChild("Head")
+		if head then
+			-- Remove existing crown if any
+			local existing = head:FindFirstChild("VIPCrown")
+			if existing then existing:Destroy() end
+			local crown = Instance.new("BillboardGui")
+			crown.Name = "VIPCrown"
+			crown.Size = UDim2.new(0, 80, 0, 70)
+			crown.StudsOffset = Vector3.new(0, 2.5, 0)
+			crown.AlwaysOnTop = true
+			crown.MaxDistance = 50
+			crown.Parent = head
+			local crownLabel = Instance.new("TextLabel")
+			crownLabel.Size = UDim2.new(1, 0, 0.65, 0)
+			crownLabel.BackgroundTransparency = 1
+			crownLabel.Text = "\u{1F451}"
+			crownLabel.TextScaled = true
+			crownLabel.Font = Enum.Font.GothamBold
+			crownLabel.Parent = crown
+			local vipLabel = Instance.new("TextLabel")
+			vipLabel.Size = UDim2.new(1, 0, 0.35, 0)
+			vipLabel.Position = UDim2.new(0, 0, 0.65, 0)
+			vipLabel.BackgroundTransparency = 1
+			vipLabel.Text = "V.I.P"
+			vipLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+			vipLabel.TextScaled = true
+			vipLabel.Font = Enum.Font.GothamBold
+			vipLabel.Parent = crown
+		end
+	end
+	debugPrint("[VIP] Admin granted VIP to:", targetPlayer.Name)
+	return true
 end
 
 -- =====================

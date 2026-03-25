@@ -578,7 +578,14 @@ local function createMemberRow(p, order)
 		local btnX = 0.68 -- starting X position for action buttons
 
 		-- VIP button (all admins can grant)
+		-- Check both the attribute and the crown billboard (attribute may not be set in Studio)
 		local isVIP = p:GetAttribute("Own_VIP")
+		if not isVIP and p.Character then
+			local head = p.Character:FindFirstChild("Head")
+			if head and head:FindFirstChild("VIPCrown") then
+				isVIP = true
+			end
+		end
 		local vipBtn = Instance.new("TextButton")
 		vipBtn.Name = "VIPBtn"
 		vipBtn.Size = UDim2.new(0.10, -2, 0, 22)

@@ -570,11 +570,22 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		local ADMIN_ALLOWED = {
 			GrantLuck = true,
 			SendMessage = true,
+			SpawnBrainrot = true,
 		}
 
 		if not ADMIN_ALLOWED[cmdStr] then
 			adminResponse:FireClient(player, false, "Owner permissions required")
 			return
+		end
+
+		-- SpawnBrainrot: admins can only spawn on Server scope
+		if cmdStr == "SpawnBrainrot" then
+			local args = {...}
+			local scope = tostring(args[3] or "Server")
+			if scope == "Global" then
+				adminResponse:FireClient(player, false, "Admins can only spawn on this server")
+				return
+			end
 		end
 
 		-- GrantLuck: admins can only grant 5x-250x on Server scope

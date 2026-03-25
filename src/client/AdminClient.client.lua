@@ -693,11 +693,8 @@ local brainrotsTab = tabFrames["Brainrots"]
 -- =====================
 -- SPAWN BRAINROT (Owner only)
 -- =====================
-if not isOwner and brainrotsTab then
-	-- Admins skip spawn brainrot — jump to Grant Luck below
-end
-
-if isOwner then -- Spawn Brainrot section (owner only)
+-- Spawn Brainrot section (all admins — Server only for non-owners)
+do
 local brainrotSection = createSection("Spawn Brainrot", brainrotsTab, "Brainrots")
 
 -- Selected state
@@ -861,11 +858,14 @@ for i, m in ipairs(GameConfig.MUTATIONS) do
 	end)
 end
 
--- Server / Global spawn buttons
-local spawnBtns = createButtonRow(brainrotSection, {
+-- Spawn buttons: admins get Server only, owners get Server + Global
+local spawnBtnDefs = {
 	{ text = "Server", color = COLORS.btnGreen },
-	{ text = "Global", color = COLORS.btnRed },
-}, 6)
+}
+if isOwner then
+	table.insert(spawnBtnDefs, { text = "Global", color = COLORS.btnRed })
+end
+local spawnBtns = createButtonRow(brainrotSection, spawnBtnDefs, 6)
 
 spawnBtns["Server"].MouseButton1Click:Connect(function()
 	if not selectedBrainrot then showStatus("Select a brainrot first", false) return end
@@ -873,38 +873,40 @@ spawnBtns["Server"].MouseButton1Click:Connect(function()
 	flashButton(spawnBtns["Server"], true)
 end)
 
-spawnBtns["Global"].MouseButton1Click:Connect(function()
-	if not selectedBrainrot then showStatus("Select a brainrot first", false) return end
-	adminRemote:FireServer("SpawnBrainrot", selectedBrainrot.name, selectedMutation, "Global")
-	flashButton(spawnBtns["Global"], true)
-end)
+if isOwner and spawnBtns["Global"] then
+	spawnBtns["Global"].MouseButton1Click:Connect(function()
+		if not selectedBrainrot then showStatus("Select a brainrot first", false) return end
+		adminRemote:FireServer("SpawnBrainrot", selectedBrainrot.name, selectedMutation, "Global")
+		flashButton(spawnBtns["Global"], true)
+	end)
+end -- end do block (Spawn Brainrot)
 
 -- =====================
--- BROADCAST MESSAGE
+-- BROADCAST MESSAGE (Owner only)
 -- =====================
-local msgSection = createSection("Broadcast Message", brainrotsTab, "Brainrots")
-local msgInput = createInput(msgSection, "Enter message text", 1)
-local msgDurationInput = createInput(msgSection, "Duration in seconds (default: 5)", 2)
-local msgBtns = createButtonRow(msgSection, {
-	{ text = "Server", color = COLORS.btnGreen },
-	{ text = "Global", color = COLORS.btnRed },
-}, 3)
+if isOwner then
+	local msgSection = createSection("Broadcast Message", brainrotsTab, "Brainrots")
+	local msgInput = createInput(msgSection, "Enter message text", 1)
+	local msgDurationInput = createInput(msgSection, "Duration in seconds (default: 5)", 2)
+	local msgBtns = createButtonRow(msgSection, {
+		{ text = "Server", color = COLORS.btnGreen },
+		{ text = "Global", color = COLORS.btnRed },
+	}, 3)
 
-msgBtns["Server"].MouseButton1Click:Connect(function()
-	if #msgInput.Text == 0 then showStatus("Enter a message", false) return end
-	local dur = tonumber(msgDurationInput.Text) or 5
-	adminRemote:FireServer("SendMessage", msgInput.Text, dur, "Server")
-	flashButton(msgBtns["Server"], true)
-end)
+	msgBtns["Server"].MouseButton1Click:Connect(function()
+		if #msgInput.Text == 0 then showStatus("Enter a message", false) return end
+		local dur = tonumber(msgDurationInput.Text) or 5
+		adminRemote:FireServer("SendMessage", msgInput.Text, dur, "Server")
+		flashButton(msgBtns["Server"], true)
+	end)
 
-msgBtns["Global"].MouseButton1Click:Connect(function()
-	if #msgInput.Text == 0 then showStatus("Enter a message", false) return end
-	local dur = tonumber(msgDurationInput.Text) or 5
-	adminRemote:FireServer("SendMessage", msgInput.Text, dur, "Global")
-	flashButton(msgBtns["Global"], true)
-end)
-
-end -- end if isOwner (Spawn Brainrot + Broadcast Message)
+	msgBtns["Global"].MouseButton1Click:Connect(function()
+		if #msgInput.Text == 0 then showStatus("Enter a message", false) return end
+		local dur = tonumber(msgDurationInput.Text) or 5
+		adminRemote:FireServer("SendMessage", msgInput.Text, dur, "Global")
+		flashButton(msgBtns["Global"], true)
+	end)
+end -- end if isOwner (Broadcast Message)
 
 -- ── Grant Luck ──
 local luckSection = createSection("Grant Luck", brainrotsTab, "Brainrots")

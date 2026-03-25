@@ -50,7 +50,7 @@ GameConfig.BRAINROTS = {
 -- GAMEPASS IDS
 -- =====================
 GameConfig.GAMEPASS_IDS = {
-	ADMIN_PANEL  = 0,           -- Not sold in store — granted manually to trusted users
+	ADMIN_PANEL  = 1768316772,  -- Admin Panel GamePass (30,000 R$)
 	DOUBLE_MONEY = 1767762906,  -- 2x Money GamePass (125 R$)
 	VIP          = 1763788455,  -- V.I.P Pass (350 R$)
 }

@@ -37,6 +37,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
 local MessagingService = game:GetService("MessagingService")
 local ServerScriptService = game:GetService("ServerScriptService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local gameConfigModule = ReplicatedStorage:WaitForChild("GameConfig", 30)
+local GameConfig = gameConfigModule and require(gameConfigModule) or { GAMEPASS_IDS = {} }
+local ADMIN_PANEL_GAMEPASS_ID = GameConfig.GAMEPASS_IDS.ADMIN_PANEL or 0
+
+-- Players who got admin via GamePass (limited permissions: no spawn/kick/ban)
+local GAMEPASS_ADMINS = {} -- [UserId] = true
 
 -- BindableFunctions fetched asynchronously so we don't block startup
 local adminAddCredits      = nil
@@ -423,6 +431,20 @@ end
 
 isAdminFunc.OnServerInvoke = function(requestingPlayer)
 	if rateLimited(requestingPlayer, "IsAdmin", 1) then return false end
+	-- Check hardcoded/DataStore admin list
+	if ADMINS[requestingPlayer.UserId] then return true end
+	-- Check GamePass ownership
+	if ADMIN_PANEL_GAMEPASS_ID > 0 and not GAMEPASS_ADMINS[requestingPlayer.UserId] then
+		local owns = false
+		pcall(function()
+			owns = MarketplaceService:UserOwnsGamePassAsync(requestingPlayer.UserId, ADMIN_PANEL_GAMEPASS_ID)
+		end)
+		if owns then
+			GAMEPASS_ADMINS[requestingPlayer.UserId] = true
+			ADMINS[requestingPlayer.UserId] = true
+			debugPrint("[ADMIN] GamePass admin detected:", requestingPlayer.Name)
+		end
+	end
 	return ADMINS[requestingPlayer.UserId] == true
 end
 
@@ -522,6 +544,26 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		warn(string.format("[ADMIN SECURITY] Unauthorized access by %s (%d) - cmd: %s",
 			player.Name, player.UserId, tostring(cmd)))
 		return
+	end
+
+	-- GamePass admins have restricted permissions (no spawn/kick/ban)
+	if GAMEPASS_ADMINS[player.UserId] and not OWNER_IDS[player.UserId] then
+		local RESTRICTED_COMMANDS = {
+			SpawnBrainrot = true,
+			KickPlayer = true,
+			BanPlayer = true,
+			UnbanPlayer = true,
+			ToggleAdmin = true,
+			SetCredits = true,
+			AddCredits = true,
+			SetRebirth = true,
+			GiveRebirth = true,
+			SetSpeed = true,
+		}
+		if RESTRICTED_COMMANDS[tostring(cmd)] then
+			adminResponse:FireClient(player, false, "This command requires Owner permissions")
+			return
+		end
 	end
 
 	-- Rate limiting

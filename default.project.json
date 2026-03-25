@@ -29,6 +29,9 @@
         },
         "IndexPanel": {
           "$path": "src/client/IndexPanel.lua"
+        },
+        "StorePanel": {
+          "$path": "src/client/StorePanel.lua"
         }
       }
     },

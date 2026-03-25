@@ -5,8 +5,8 @@
 - [x] **Client sends raw Instance refs over RemoteEvent (exploitable pickup)**
   FIXED: Server now finds closest brainrot via `findClosestSpawnedBrainrot()` using CollectionService tags. Client reference is ignored.
 
-- [ ] **Audit imported models in build.rbxlx for backdoor scripts**
-  The HTTP 500 error referencing `api.roblox.com` with an invalid UserId is not from game code. Check all imported models/assets for hidden scripts making unauthorized HTTP requests.
+- [x] **Audit imported models in build.rbxlx for backdoor scripts**
+  AUDITED: `build.rbxlx` contains only 2 scripts — both are our own (`BrainrotSpawnEngine`, `BrainrotPlayerScripts`). Zero third-party scripts found. Scanned for: HttpService calls, remote require() with numeric IDs, loadstring/getfenv/setfenv, obfuscated strings, TeleportService abuse, unauthorized asset references. All clean. NOTE: A `BearTrap` model with `R6 Hit` script exists in the Studio .rbxl place file (not Rojo-managed) — it throws `Right Leg is not a valid member` errors. This should be fixed or removed in Studio directly.
 
 ## High - Data Integrity
 

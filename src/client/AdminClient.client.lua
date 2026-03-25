@@ -477,6 +477,31 @@ end
 -- =====================================================
 local membersTab = tabFrames["Members"]
 
+-- Broadcast Message (owner only, above member list)
+if isOwner then
+	local msgSection = createSection("Broadcast Message", membersTab, "Members")
+	local msgInput = createInput(msgSection, "Enter message text", 1)
+	local msgDurationInput = createInput(msgSection, "Duration in seconds (default: 5)", 2)
+	local msgBtns = createButtonRow(msgSection, {
+		{ text = "Server", color = COLORS.btnGreen },
+		{ text = "Global", color = COLORS.btnRed },
+	}, 3)
+
+	msgBtns["Server"].MouseButton1Click:Connect(function()
+		if #msgInput.Text == 0 then showStatus("Enter a message", false) return end
+		local dur = tonumber(msgDurationInput.Text) or 5
+		adminRemote:FireServer("SendMessage", msgInput.Text, dur, "Server")
+		flashButton(msgBtns["Server"], true)
+	end)
+
+	msgBtns["Global"].MouseButton1Click:Connect(function()
+		if #msgInput.Text == 0 then showStatus("Enter a message", false) return end
+		local dur = tonumber(msgDurationInput.Text) or 5
+		adminRemote:FireServer("SendMessage", msgInput.Text, dur, "Global")
+		flashButton(msgBtns["Global"], true)
+	end)
+end
+
 local membersHeader = Instance.new("Frame")
 membersHeader.Size = UDim2.new(1, 0, 0, 28)
 membersHeader.BackgroundColor3 = COLORS.header
@@ -925,32 +950,7 @@ end
 
 end -- end do block (Spawn Brainrot)
 
--- =====================
--- BROADCAST MESSAGE (Owner only)
--- =====================
-if isOwner then
-	local msgSection = createSection("Broadcast Message", brainrotsTab, "Brainrots")
-	local msgInput = createInput(msgSection, "Enter message text", 1)
-	local msgDurationInput = createInput(msgSection, "Duration in seconds (default: 5)", 2)
-	local msgBtns = createButtonRow(msgSection, {
-		{ text = "Server", color = COLORS.btnGreen },
-		{ text = "Global", color = COLORS.btnRed },
-	}, 3)
-
-	msgBtns["Server"].MouseButton1Click:Connect(function()
-		if #msgInput.Text == 0 then showStatus("Enter a message", false) return end
-		local dur = tonumber(msgDurationInput.Text) or 5
-		adminRemote:FireServer("SendMessage", msgInput.Text, dur, "Server")
-		flashButton(msgBtns["Server"], true)
-	end)
-
-	msgBtns["Global"].MouseButton1Click:Connect(function()
-		if #msgInput.Text == 0 then showStatus("Enter a message", false) return end
-		local dur = tonumber(msgDurationInput.Text) or 5
-		adminRemote:FireServer("SendMessage", msgInput.Text, dur, "Global")
-		flashButton(msgBtns["Global"], true)
-	end)
-end -- end if isOwner (Broadcast Message)
+-- (Broadcast Message moved to Members tab)
 
 -- ── Grant Luck ──
 local luckSection = createSection("Grant Luck", brainrotsTab, "Brainrots")

@@ -508,7 +508,7 @@ end
 local membersHeader = Instance.new("Frame")
 membersHeader.Size = UDim2.new(1, 0, 0, 28)
 membersHeader.BackgroundColor3 = COLORS.header
-membersHeader.LayoutOrder = 0
+membersHeader.LayoutOrder = nextOrder("Members")
 membersHeader.Parent = membersTab
 local mhCorner = Instance.new("UICorner")
 mhCorner.CornerRadius = UDim.new(0, 6)
@@ -532,12 +532,13 @@ for _, col in ipairs(cols) do
 end
 
 local memberRows = {} -- playerName -> rowFrame
+local memberOrderBase = membersHeader.LayoutOrder -- rows start after header
 
 local function createMemberRow(p, order)
 	local row = Instance.new("Frame")
 	row.Size = UDim2.new(1, 0, 0, 32)
 	row.BackgroundColor3 = (order % 2 == 0) and COLORS.rowEven or COLORS.rowOdd
-	row.LayoutOrder = order
+	row.LayoutOrder = memberOrderBase + order
 	row.Parent = membersTab
 	local rc = Instance.new("UICorner")
 	rc.CornerRadius = UDim.new(0, 4)

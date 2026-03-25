@@ -26,6 +26,9 @@
         },
         "UFOWarningUI": {
           "$path": "src/client/UFOWarningUI.client.lua"
+        },
+        "IndexPanel": {
+          "$path": "src/client/IndexPanel.lua"
         }
       }
     },

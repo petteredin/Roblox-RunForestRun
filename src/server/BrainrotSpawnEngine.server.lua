@@ -637,13 +637,15 @@ end
 -- SPEED CONSTANTS (needed by admin handlers)
 -- =====================
 local BASE_WALK_SPEED      = 16
-local SPEED_INCREMENT      = 1 / 100  -- +1% per second (100s = double speed)
-local playerSpeedTime      = {}       -- tracks seconds spent in game
+local SPEED_INCREMENT      = 1 / 1000  -- +0.1% per second (10x slower than before)
+local playerSpeedTime      = {}        -- tracks seconds spent in game
 
--- Speed cap per rebirth level: rebirth 0 = 10x, rebirth 1 = 20x, ... rebirth 9+ = 100x
+-- Speed cap per rebirth level (in internal multiplier units)
+-- Display shows BASE_WALK_SPEED * totalMult (e.g. 16 * 2 = "Speed: 32")
+-- Rebirth 0: cap 32 (mult 2), Rebirth 1: cap 48 (mult 3), ... Rebirth 9+: cap 160 (mult 10)
 local function getSpeedCap(player)
 	local rebirth = playerRebirth[player] or 0
-	local cap = math.min(10 + rebirth * 10, 100)
+	local cap = math.min(2 + rebirth, 10)  -- mult 2 to 10
 	return cap
 end
 
@@ -713,24 +715,27 @@ adminGiveRebirth.OnInvoke = function(player)
 	return true, nil, current
 end
 
-adminSetSpeed.OnInvoke = function(player, multiplier)
-	if not player or type(multiplier) ~= "number" then return false, "Invalid arguments" end
-	if multiplier <= 0 or multiplier > 100 then return false, "Multiplier must be between 0 and 100" end
+-- Admin SetSpeed: multiplier is the display speed value (e.g. 32 = WalkSpeed 32)
+adminSetSpeed.OnInvoke = function(player, displaySpeed)
+	if not player or type(displaySpeed) ~= "number" then return false, "Invalid arguments" end
+	if displaySpeed < BASE_WALK_SPEED or displaySpeed > BASE_WALK_SPEED * 10 then
+		return false, "Speed must be between " .. BASE_WALK_SPEED .. " and " .. (BASE_WALK_SPEED * 10)
+	end
+	local totalMult = displaySpeed / BASE_WALK_SPEED
 	local rebirthMult = getEvoMult(player)
-	local prevSpeedMult = 1 + (playerSpeedTime[player] or 0) * SPEED_INCREMENT
-	local prevTotalMult = prevSpeedMult * rebirthMult
-	local targetSpeedMult = multiplier / rebirthMult
+	local prevDisplaySpeed = BASE_WALK_SPEED * (1 + (playerSpeedTime[player] or 0) * SPEED_INCREMENT) * rebirthMult
+	local targetSpeedMult = totalMult / rebirthMult
 	local newTime = math.max(0, (targetSpeedMult - 1) / SPEED_INCREMENT)
 	playerSpeedTime[player] = newTime
 	local character = player.Character
 	if character then
 		local humanoid = character:FindFirstChildWhichIsA("Humanoid")
 		if humanoid then
-			humanoid.WalkSpeed = BASE_WALK_SPEED * multiplier
+			humanoid.WalkSpeed = displaySpeed
 		end
 	end
-	speedUpdateEvent:FireClient(player, multiplier)
-	return true, nil, prevTotalMult
+	speedUpdateEvent:FireClient(player, displaySpeed)
+	return true, nil, prevDisplaySpeed
 end
 
 adminSetLuck.OnInvoke = function(mult, durationSeconds)
@@ -821,11 +826,12 @@ task.spawn(function()
 			local totalMult = math.min(speedMult * rebirthMult, getSpeedCap(p))
 			humanoid.WalkSpeed = BASE_WALK_SPEED * totalMult
 
-			-- Only fire speed update to client when the rounded value changes
-			local rounded = math.floor(totalMult * 100 + 0.5) / 100
+			-- Send display speed (actual WalkSpeed value) to client
+			local displaySpeed = BASE_WALK_SPEED * totalMult
+			local rounded = math.floor(displaySpeed * 10 + 0.5) / 10  -- round to 1 decimal
 			if rounded ~= lastSentSpeedMult[p] then
 				lastSentSpeedMult[p] = rounded
-				speedUpdateEvent:FireClient(p, totalMult)
+				speedUpdateEvent:FireClient(p, displaySpeed)
 			end
 
 			-- Send rebirth info if not yet delivered (piggyback on working speed loop)

@@ -761,9 +761,9 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 	-- =====================
 	elseif cmd == "SetSpeed" then
 		local targetName = sanitizeString(args[1])
-		local multiplier = sanitizeNumber(args[2])
-		if not multiplier or multiplier < 0.1 or multiplier > 100 then
-			adminResponse:FireClient(player, false, "Invalid multiplier (0.1 - 100)")
+		local speed = sanitizeNumber(args[2])
+		if not speed or speed < 16 or speed > 160 then
+			adminResponse:FireClient(player, false, "Invalid speed (16 - 160)")
 			return
 		end
 		local target = player
@@ -778,11 +778,11 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 			adminResponse:FireClient(player, false, "Server not ready - try again")
 			return
 		end
-		local ok, err, prevValue = adminSetSpeed:Invoke(target, multiplier)
-		logAction(player, cmd, target.Name, "multiplier=" .. tostring(multiplier))
+		local ok, err, prevValue = adminSetSpeed:Invoke(target, speed)
+		logAction(player, cmd, target.Name, "speed=" .. tostring(speed))
 		if ok then
-			adminResponse:FireClient(player, true, "Set speed to " .. multiplier .. "x for " .. target.Name,
-				{ undoCmd = "SetSpeed", undoArgs = { target.Name, prevValue }, desc = "Undo: Restore speed to " .. string.format("%.2f", prevValue or 0) .. "x" })
+			adminResponse:FireClient(player, true, "Set speed to " .. speed .. " for " .. target.Name,
+				{ undoCmd = "SetSpeed", undoArgs = { target.Name, prevValue }, desc = "Undo: Restore speed to " .. string.format("%.1f", prevValue or 16) })
 		else
 			adminResponse:FireClient(player, false, err or "Unknown error")
 		end

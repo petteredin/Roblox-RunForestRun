@@ -403,7 +403,7 @@ local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(1, -12, 1, 0)
 speedLabel.Position = UDim2.new(0, 8, 0, 0)
 speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Speed: 1.00x"
+speedLabel.Text = "Speed: 16"
 speedLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
 speedLabel.TextXAlignment = Enum.TextXAlignment.Left
 speedLabel.TextScaled = true
@@ -412,7 +412,7 @@ speedLabel.Parent = speedFrame
 
 if speedUpdateEvent then
 	speedUpdateEvent.OnClientEvent:Connect(function(multiplier)
-		speedLabel.Text = string.format("Speed: %.2fx", multiplier)
+		speedLabel.Text = string.format("Speed: %.1f", multiplier)
 	end)
 end
 

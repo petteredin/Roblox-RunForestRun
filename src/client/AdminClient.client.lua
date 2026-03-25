@@ -574,7 +574,7 @@ local function createMemberRow(p, order)
 	speedLabel.Size = UDim2.new(0.15, 0, 1, 0)
 	speedLabel.Position = UDim2.new(0.47, 4, 0, 0)
 	speedLabel.BackgroundTransparency = 1
-	speedLabel.Text = "1.00x"
+	speedLabel.Text = "16"
 	speedLabel.TextColor3 = Color3.fromRGB(100, 220, 255)
 	speedLabel.TextSize = 12
 	speedLabel.Font = Enum.Font.Gotham
@@ -1203,7 +1203,7 @@ end)
 
 -- Speed
 local speedSection = createSection("Speed", adminTab, "Admin")
-local speedInput = createInput(speedSection, "Enter multiplier (e.g. 2.5)", 1)
+local speedInput = createInput(speedSection, "Enter speed (16-160)", 1)
 local speedBtn = createButton(speedSection, "Set", COLORS.btnBlue, 2)
 
 speedBtn.MouseButton1Click:Connect(function()

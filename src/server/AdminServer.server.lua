@@ -429,10 +429,17 @@ if not isAdminFunc then
 	isAdminFunc.Parent = ReplicatedStorage
 end
 
+-- Returns: isAdmin (bool), role ("owner" | "admin" | nil)
 isAdminFunc.OnServerInvoke = function(requestingPlayer)
-	if rateLimited(requestingPlayer, "IsAdmin", 1) then return false end
+	if rateLimited(requestingPlayer, "IsAdmin", 1) then return false, nil end
+	-- Check owner first
+	if OWNER_IDS[requestingPlayer.UserId] then
+		return true, "owner"
+	end
 	-- Check hardcoded/DataStore admin list
-	if ADMINS[requestingPlayer.UserId] then return true end
+	if ADMINS[requestingPlayer.UserId] then
+		return true, "admin"
+	end
 	-- Check GamePass ownership
 	if ADMIN_PANEL_GAMEPASS_ID > 0 and not GAMEPASS_ADMINS[requestingPlayer.UserId] then
 		local owns = false
@@ -443,9 +450,10 @@ isAdminFunc.OnServerInvoke = function(requestingPlayer)
 			GAMEPASS_ADMINS[requestingPlayer.UserId] = true
 			ADMINS[requestingPlayer.UserId] = true
 			debugPrint("[ADMIN] GamePass admin detected:", requestingPlayer.Name)
+			return true, "admin"
 		end
 	end
-	return ADMINS[requestingPlayer.UserId] == true
+	return false, nil
 end
 
 -- =====================
@@ -546,23 +554,55 @@ adminRemote.OnServerEvent:Connect(function(player, cmd, ...)
 		return
 	end
 
-	-- GamePass admins have restricted permissions (no spawn/kick/ban)
-	if GAMEPASS_ADMINS[player.UserId] and not OWNER_IDS[player.UserId] then
-		local RESTRICTED_COMMANDS = {
-			SpawnBrainrot = true,
-			KickPlayer = true,
-			BanPlayer = true,
-			UnbanPlayer = true,
-			ToggleAdmin = true,
-			SetCredits = true,
-			AddCredits = true,
-			SetRebirth = true,
-			GiveRebirth = true,
-			SetSpeed = true,
+	-- =====================
+	-- ROLE-BASED ACCESS CONTROL
+	-- Roles: "owner" (hardcoded OWNER_IDS) or "admin" (GamePass or granted)
+	-- =====================
+	local role = OWNER_IDS[player.UserId] and "owner" or "admin"
+
+	-- Commands allowed for each role
+	-- owner: everything (no restrictions)
+	-- admin: GrantLuck (5x-250x, Server only), SendMessage (Server only), ViewMembers
+	if role == "admin" then
+		local cmdStr = tostring(cmd)
+
+		-- Whitelist of commands admins can use
+		local ADMIN_ALLOWED = {
+			GrantLuck = true,
+			SendMessage = true,
 		}
-		if RESTRICTED_COMMANDS[tostring(cmd)] then
-			adminResponse:FireClient(player, false, "This command requires Owner permissions")
+
+		if not ADMIN_ALLOWED[cmdStr] then
+			adminResponse:FireClient(player, false, "Owner permissions required")
 			return
+		end
+
+		-- GrantLuck: admins can only grant 5x-250x on Server scope
+		if cmdStr == "GrantLuck" then
+			local args = {...}
+			local mult = tonumber(args[1]) or 1
+			local scope = tostring(args[3] or "Server")
+
+			if scope == "Global" then
+				adminResponse:FireClient(player, false, "Admins can only grant Server luck")
+				return
+			end
+
+			local ADMIN_LUCK_TIERS = { [5]=true, [10]=true, [25]=true, [50]=true, [100]=true, [250]=true }
+			if not ADMIN_LUCK_TIERS[mult] then
+				adminResponse:FireClient(player, false, "Admins can grant 5x to 250x luck only")
+				return
+			end
+		end
+
+		-- SendMessage: admins can only send on Server scope
+		if cmdStr == "SendMessage" then
+			local args = {...}
+			local scope = tostring(args[3] or "Server")
+			if scope == "Global" then
+				adminResponse:FireClient(player, false, "Admins can only send Server messages")
+				return
+			end
 		end
 	end
 

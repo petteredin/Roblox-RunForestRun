@@ -27,21 +27,23 @@ local ADMIN_IDS = {
 	[8327644091] = true, -- Simpleson716 (fallback)
 }
 
--- Check with the server if we are admin
+-- Check with the server if we are admin and get role
 local isAdminFunc = ReplicatedStorage:WaitForChild("IsAdmin", 10)
 local isAdmin = ADMIN_IDS[player.UserId] -- fallback
+local adminRole = ADMIN_IDS[player.UserId] and "owner" or nil
 if isAdminFunc then
-	local ok, result = pcall(function()
-		return isAdminFunc:InvokeServer()
-	end)
+	local ok, resultAdmin, resultRole = pcall(isAdminFunc.InvokeServer, isAdminFunc)
 	if ok then
-		isAdmin = result
+		isAdmin = resultAdmin
+		adminRole = resultRole
 	end
 end
 
 if not isAdmin then
 	return
 end
+
+local isOwner = (adminRole == "owner")
 
 -- =====================
 -- REMOTE EVENTS
@@ -213,7 +215,10 @@ closeCorner.Parent = closeBtn
 -- =====================
 -- TAB BAR
 -- =====================
-local TAB_NAMES = { "Members", "Brainrots", "Admin", "Banned", "Logs" }
+-- Tabs visible based on role
+local ALL_TAB_NAMES = { "Members", "Brainrots", "Admin", "Banned", "Logs" }
+local ADMIN_TAB_NAMES = { "Members", "Brainrots" } -- Admins only see Members + Brainrots (for luck)
+local TAB_NAMES = isOwner and ALL_TAB_NAMES or ADMIN_TAB_NAMES
 local tabBar = Instance.new("Frame")
 tabBar.Size = UDim2.new(1, 0, 0, TAB_HEIGHT)
 tabBar.Position = UDim2.new(0, 0, 0, HEADER_HEIGHT)
@@ -563,71 +568,68 @@ local function createMemberRow(p, order)
 		showStatus("Selected: " .. p.DisplayName, true)
 	end)
 
-	-- Action buttons (Admin, Kick)
-	local isAdmin = ADMIN_IDS[p.UserId]
+	-- Action buttons (Admin, Kick) — Owner only
+	if isOwner then
+		local isPlayerAdmin = ADMIN_IDS[p.UserId]
 
-	local adminToggleBtn = Instance.new("TextButton")
-	adminToggleBtn.Name = "AdminBtn"
-	adminToggleBtn.Size = UDim2.new(0.10, -2, 0, 22)
-	adminToggleBtn.Position = UDim2.new(0.78, 2, 0.5, -11)
-	adminToggleBtn.BackgroundColor3 = isAdmin and COLORS.header or COLORS.tabInactive
-	adminToggleBtn.Text = "Admin"
-	adminToggleBtn.TextColor3 = isAdmin and COLORS.textDark or COLORS.dimText
-	adminToggleBtn.TextSize = 10
-	adminToggleBtn.Font = Enum.Font.GothamBold
-	adminToggleBtn.Parent = row
-	local ac = Instance.new("UICorner")
-	ac.CornerRadius = UDim.new(0, 4)
-	ac.Parent = adminToggleBtn
+		local adminToggleBtn = Instance.new("TextButton")
+		adminToggleBtn.Name = "AdminBtn"
+		adminToggleBtn.Size = UDim2.new(0.10, -2, 0, 22)
+		adminToggleBtn.Position = UDim2.new(0.78, 2, 0.5, -11)
+		adminToggleBtn.BackgroundColor3 = isPlayerAdmin and COLORS.header or COLORS.tabInactive
+		adminToggleBtn.Text = "Admin"
+		adminToggleBtn.TextColor3 = isPlayerAdmin and COLORS.textDark or COLORS.dimText
+		adminToggleBtn.TextSize = 10
+		adminToggleBtn.Font = Enum.Font.GothamBold
+		adminToggleBtn.Parent = row
+		local ac = Instance.new("UICorner")
+		ac.CornerRadius = UDim.new(0, 4)
+		ac.Parent = adminToggleBtn
 
-	local kickBtn = Instance.new("TextButton")
-	kickBtn.Name = "KickBtn"
-	kickBtn.Size = UDim2.new(0.10, -2, 0, 22)
-	kickBtn.Position = UDim2.new(0.88, 2, 0.5, -11)
-	kickBtn.BackgroundColor3 = COLORS.btnRed
-	kickBtn.Text = "Kick"
-	kickBtn.TextColor3 = COLORS.text
-	kickBtn.TextSize = 10
-	kickBtn.Font = Enum.Font.GothamBold
-	kickBtn.Parent = row
-	local kc = Instance.new("UICorner")
-	kc.CornerRadius = UDim.new(0, 4)
-	kc.Parent = kickBtn
+		local kickBtn = Instance.new("TextButton")
+		kickBtn.Name = "KickBtn"
+		kickBtn.Size = UDim2.new(0.10, -2, 0, 22)
+		kickBtn.Position = UDim2.new(0.88, 2, 0.5, -11)
+		kickBtn.BackgroundColor3 = COLORS.btnRed
+		kickBtn.Text = "Kick"
+		kickBtn.TextColor3 = COLORS.text
+		kickBtn.TextSize = 10
+		kickBtn.Font = Enum.Font.GothamBold
+		kickBtn.Parent = row
+		local kc = Instance.new("UICorner")
+		kc.CornerRadius = UDim.new(0, 4)
+		kc.Parent = kickBtn
 
-	adminToggleBtn.MouseButton1Click:Connect(function()
-		print("[ADMIN CLIENT] Toggle admin clicked for:", p.Name, "UserId:", p.UserId)
-		print("[ADMIN CLIENT] adminRemote exists:", adminRemote ~= nil)
-		showStatus("Sending ToggleAdmin for " .. p.Name .. "...", true)
-		local ok, err = pcall(function()
-			adminRemote:FireServer("ToggleAdmin", p.Name)
-		end)
-		if not ok then
-			print("[ADMIN CLIENT] FireServer ERROR:", err)
-			showStatus("FireServer failed: " .. tostring(err), false)
-			return
-		end
-		print("[ADMIN CLIENT] FireServer sent OK, waiting for response...")
-		-- Toggle button color immediately as visual feedback
-		local wasAdmin = adminToggleBtn.BackgroundColor3 == COLORS.header
-		if wasAdmin then
-			adminToggleBtn.BackgroundColor3 = COLORS.tabInactive
-			adminToggleBtn.TextColor3 = COLORS.dimText
-		else
-			adminToggleBtn.BackgroundColor3 = COLORS.header
-			adminToggleBtn.TextColor3 = COLORS.textDark
-		end
-		-- Timeout check - if no response in 3 seconds, server didn't process it
-		task.delay(3, function()
-			if statusLabel.Text == "  Sending ToggleAdmin for " .. p.Name .. "..." then
-				showStatus("No response from server - check server logs", false)
+		adminToggleBtn.MouseButton1Click:Connect(function()
+			debugPrint("[ADMIN CLIENT] Toggle admin clicked for:", p.Name, "UserId:", p.UserId)
+			showStatus("Sending ToggleAdmin for " .. p.Name .. "...", true)
+			local ok, err = pcall(function()
+				adminRemote:FireServer("ToggleAdmin", p.Name)
+			end)
+			if not ok then
+				showStatus("FireServer failed: " .. tostring(err), false)
+				return
 			end
+			local wasAdmin = adminToggleBtn.BackgroundColor3 == COLORS.header
+			if wasAdmin then
+				adminToggleBtn.BackgroundColor3 = COLORS.tabInactive
+				adminToggleBtn.TextColor3 = COLORS.dimText
+			else
+				adminToggleBtn.BackgroundColor3 = COLORS.header
+				adminToggleBtn.TextColor3 = COLORS.textDark
+			end
+			task.delay(3, function()
+				if statusLabel.Text == "  Sending ToggleAdmin for " .. p.Name .. "..." then
+					showStatus("No response from server - check server logs", false)
+				end
+			end)
 		end)
-	end)
 
-	kickBtn.MouseButton1Click:Connect(function()
-		adminRemote:FireServer("KickPlayer", p.Name, "Kicked by admin")
-		flashButton(kickBtn, true)
-	end)
+		kickBtn.MouseButton1Click:Connect(function()
+			adminRemote:FireServer("KickPlayer", p.Name, "Kicked by admin")
+			flashButton(kickBtn, true)
+		end)
+	end
 
 	memberRows[p.Name] = row
 	return row
@@ -684,13 +686,18 @@ end)
 refreshMembers()
 
 -- =====================================================
--- TAB 2: BRAINROTS - Spawn Brainrot (dropdown) + Broadcast Message
+-- TAB 2: BRAINROTS - Spawn Brainrot (dropdown) + Broadcast Message + Grant Luck
 -- =====================================================
 local brainrotsTab = tabFrames["Brainrots"]
 
 -- =====================
--- SPAWN BRAINROT (with dropdown lists)
+-- SPAWN BRAINROT (Owner only)
 -- =====================
+if not isOwner and brainrotsTab then
+	-- Admins skip spawn brainrot — jump to Grant Luck below
+end
+
+if isOwner then -- Spawn Brainrot section (owner only)
 local brainrotSection = createSection("Spawn Brainrot", brainrotsTab, "Brainrots")
 
 -- Selected state
@@ -897,6 +904,8 @@ msgBtns["Global"].MouseButton1Click:Connect(function()
 	flashButton(msgBtns["Global"], true)
 end)
 
+end -- end if isOwner (Spawn Brainrot + Broadcast Message)
+
 -- ── Grant Luck ──
 local luckSection = createSection("Grant Luck", brainrotsTab, "Brainrots")
 
@@ -934,7 +943,18 @@ luckGrid.FillDirection = Enum.FillDirection.Horizontal
 luckGrid.SortOrder = Enum.SortOrder.LayoutOrder
 luckGrid.Parent = luckBtnFrame
 
-local luckTiers = GameConfig.LUCK_TIERS or { 1, 5, 10, 25, 50, 100, 250, 500, 1000 }
+local allLuckTiers = GameConfig.LUCK_TIERS or { 1, 5, 10, 25, 50, 100, 250, 500, 1000 }
+-- Admins can only access 5x-250x; Owners get all tiers
+local luckTiers = {}
+if isOwner then
+	luckTiers = allLuckTiers
+else
+	for _, tier in ipairs(allLuckTiers) do
+		if tier >= 5 and tier <= 250 then
+			table.insert(luckTiers, tier)
+		end
+	end
+end
 local luckButtons = {}
 for i, tier in ipairs(luckTiers) do
 	local prod = luckProductLookup[tier]
@@ -972,11 +992,16 @@ end
 
 local luckDurInput = createInput(luckSection, "Duration in minutes (default: 15)", 3)
 
-local luckBtns = createButtonRow(luckSection, {
+-- Button row: admins only get Server grant, owners get all
+local luckButtonDefs = {
 	{ text = "Grant (Server)", color = COLORS.btnGreen },
-	{ text = "Grant (Global)", color = COLORS.btnRed },
-	{ text = "Buy (R$)", color = Color3.fromRGB(50, 120, 200) },
-}, 4)
+}
+if isOwner then
+	table.insert(luckButtonDefs, { text = "Grant (Global)", color = COLORS.btnRed })
+	table.insert(luckButtonDefs, { text = "Buy (R$)", color = Color3.fromRGB(50, 120, 200) })
+end
+
+local luckBtns = createButtonRow(luckSection, luckButtonDefs, 4)
 
 luckBtns["Grant (Server)"].MouseButton1Click:Connect(function()
 	local dur = tonumber(luckDurInput.Text) or 15
@@ -984,23 +1009,27 @@ luckBtns["Grant (Server)"].MouseButton1Click:Connect(function()
 	flashButton(luckBtns["Grant (Server)"], true)
 end)
 
-luckBtns["Grant (Global)"].MouseButton1Click:Connect(function()
-	local dur = tonumber(luckDurInput.Text) or 15
-	adminRemote:FireServer("GrantLuck", selectedLuckMult, dur, "Global")
-	flashButton(luckBtns["Grant (Global)"], true)
-end)
-
-luckBtns["Buy (R$)"].MouseButton1Click:Connect(function()
-	local prod = luckProductLookup[selectedLuckMult]
-	if not prod or prod.id == 0 then
-		flashButton(luckBtns["Buy (R$)"], false)
-		return
-	end
-	pcall(function()
-		MarketplaceService:PromptProductPurchase(player, prod.id)
+if isOwner and luckBtns["Grant (Global)"] then
+	luckBtns["Grant (Global)"].MouseButton1Click:Connect(function()
+		local dur = tonumber(luckDurInput.Text) or 15
+		adminRemote:FireServer("GrantLuck", selectedLuckMult, dur, "Global")
+		flashButton(luckBtns["Grant (Global)"], true)
 	end)
-	flashButton(luckBtns["Buy (R$)"], true)
-end)
+end
+
+if isOwner and luckBtns["Buy (R$)"] then
+	luckBtns["Buy (R$)"].MouseButton1Click:Connect(function()
+		local prod = luckProductLookup[selectedLuckMult]
+		if not prod or prod.id == 0 then
+			flashButton(luckBtns["Buy (R$)"], false)
+			return
+		end
+		pcall(function()
+			MarketplaceService:PromptProductPurchase(player, prod.id)
+		end)
+		flashButton(luckBtns["Buy (R$)"], true)
+	end)
+end
 
 -- =====================================================
 -- TAB 3: ADMIN - Target Player, Credits, Rebirth, Speed, Kick

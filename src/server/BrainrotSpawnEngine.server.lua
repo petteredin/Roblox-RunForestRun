@@ -722,10 +722,9 @@ adminSetSpeed.OnInvoke = function(player, displaySpeed)
 		return false, "Speed must be between " .. BASE_WALK_SPEED .. " and " .. (BASE_WALK_SPEED * 10)
 	end
 	local totalMult = displaySpeed / BASE_WALK_SPEED
-	local rebirthMult = getEvoMult(player)
-	local prevDisplaySpeed = BASE_WALK_SPEED * (1 + (playerSpeedTime[player] or 0) * SPEED_INCREMENT) * rebirthMult
-	local targetSpeedMult = totalMult / rebirthMult
-	local newTime = math.max(0, (targetSpeedMult - 1) / SPEED_INCREMENT)
+	local prevMult = math.min(1 + (playerSpeedTime[player] or 0) * SPEED_INCREMENT, getSpeedCap(player))
+	local prevDisplaySpeed = BASE_WALK_SPEED * prevMult
+	local newTime = math.max(0, (totalMult - 1) / SPEED_INCREMENT)
 	playerSpeedTime[player] = newTime
 	local character = player.Character
 	if character then
@@ -822,8 +821,7 @@ task.spawn(function()
 
 			playerSpeedTime[p] = (playerSpeedTime[p] or 0) + 1
 			local speedMult = 1 + playerSpeedTime[p] * SPEED_INCREMENT
-			local rebirthMult = getEvoMult(p)
-			local totalMult = math.min(speedMult * rebirthMult, getSpeedCap(p))
+			local totalMult = math.min(speedMult, getSpeedCap(p))
 			humanoid.WalkSpeed = BASE_WALK_SPEED * totalMult
 
 			-- Send display speed (actual WalkSpeed value) to client

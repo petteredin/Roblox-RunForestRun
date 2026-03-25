@@ -472,6 +472,9 @@ local function flashButton(btn, success)
 	end)
 end
 
+-- Forward declaration: targetInput is created in Admin tab but referenced by Members tab click handler
+local targetInput = nil
+
 -- =====================================================
 -- TAB 1: MEMBERS - list all players with stats
 -- =====================================================
@@ -1069,7 +1072,7 @@ local adminTab = tabFrames["Admin"]
 
 -- Target Player
 local targetSection = createSection("Target Player", adminTab, "Admin")
-local targetInput = createInput(targetSection, "Player name (blank = yourself)", 1)
+targetInput = createInput(targetSection, "Player name (blank = yourself)", 1)
 
 -- Autocomplete
 local autocompleteFrame = Instance.new("Frame")

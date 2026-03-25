@@ -549,10 +549,9 @@ bottomGui.ResetOnSpawn = false
 bottomGui.Parent = player.PlayerGui
 
 -- Bottom left buttons
-local bottomButtons = { "Store", "V.I.P", "Index" }
-local bottomIcons   = { "\u{25A6}", "\u{1F464}", "\u{2630}" }
+local bottomButtons = { "Store", "Index" }
+local bottomIcons   = { "\u{25A6}", "\u{2630}" }
 local bottomColors  = {
-	Color3.fromRGB(40, 40, 50),
 	Color3.fromRGB(40, 40, 50),
 	Color3.fromRGB(40, 40, 50),
 }
@@ -587,25 +586,6 @@ for i, btnName in ipairs(bottomButtons) do
 	nameLbl.Font = Enum.Font.Gotham
 	nameLbl.Parent = btnFrame
 
-	-- V.I.P gets a red badge
-	if btnName == "V.I.P" then
-		local badge = Instance.new("Frame")
-		badge.Size = UDim2.new(0, 14, 0, 14)
-		badge.Position = UDim2.new(1, -10, 0, -4)
-		badge.BackgroundColor3 = Color3.fromRGB(220, 40, 40)
-		badge.BorderSizePixel = 0
-		badge.Parent = btnFrame
-		Instance.new("UICorner", badge).CornerRadius = UDim.new(1, 0)
-
-		local badgeText = Instance.new("TextLabel")
-		badgeText.Size = UDim2.new(1, 0, 1, 0)
-		badgeText.BackgroundTransparency = 1
-		badgeText.Text = "!"
-		badgeText.TextColor3 = Color3.fromRGB(255, 255, 255)
-		badgeText.TextScaled = true
-		badgeText.Font = Enum.Font.GothamBold
-		badgeText.Parent = badge
-	end
 end
 
 -- =====================

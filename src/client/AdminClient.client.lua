@@ -605,11 +605,11 @@ local function createMemberRow(p, order)
 				return
 			end
 			adminRemote:FireServer("GrantVIP", p.Name)
-			flashButton(vipBtn, true)
-			-- Optimistic update
+			-- Mark as VIP immediately (optimistic)
+			isVIP = true
 			vipBtn.BackgroundColor3 = Color3.fromRGB(255, 180, 0)
 			vipBtn.TextColor3 = COLORS.textDark
-			isVIP = true
+			showStatus("Granted VIP to " .. p.DisplayName, true)
 		end)
 
 		-- Admin + Kick buttons (owner only)

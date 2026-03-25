@@ -308,7 +308,7 @@ end)
 -- BASE LAYOUT
 -- =====================
 
-local MAX_PLAYERS = 2
+local MAX_PLAYERS = 3
 local BASE_SIZE   = Vector3.new(39, 1, 35)
 
 local BASES = {
@@ -319,6 +319,11 @@ local BASES = {
 	},
 	{
 		position = Vector3.new(2, 4.433, -13.446),
+		size     = BASE_SIZE,
+		owner    = nil,
+	},
+	{
+		position = Vector3.new(2, 14.633, 29.446),
 		size     = BASE_SIZE,
 		owner    = nil,
 	},

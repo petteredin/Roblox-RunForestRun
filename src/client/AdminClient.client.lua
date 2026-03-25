@@ -4,11 +4,14 @@
 -- Placed in StarterPlayerScripts.
 -- =============================================
 
+print("[AdminClient] Script starting...")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local MarketplaceService = game:GetService("MarketplaceService")
+print("[AdminClient] Waiting for GameConfig...")
 local gameConfigModule = ReplicatedStorage:WaitForChild("GameConfig", 30)
+print("[AdminClient] GameConfig found:", gameConfigModule ~= nil)
 if not gameConfigModule then
 	warn("[AdminClient] GameConfig module not found - admin panel may not work correctly")
 end
@@ -16,6 +19,7 @@ local GameConfig = gameConfigModule and require(gameConfigModule) or {
 	BRAINROTS = {}, MUTATIONS = {}, MUTATIONS_BY_KEY = {},
 	RARITY_ORDER = {}, RARITY_COLORS = {}, LUCK_PRODUCTS = {}, GAMEPASS_IDS = {}
 }
+print("[AdminClient] GameConfig loaded. Player:", Players.LocalPlayer.Name, "UserId:", Players.LocalPlayer.UserId)
 
 local player = Players.LocalPlayer
 

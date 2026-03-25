@@ -416,10 +416,53 @@ if speedUpdateEvent then
 	end)
 end
 
+-- Handbrake button (50% speed reduction for 1 minute)
+local handbrakeBtn = Instance.new("TextButton")
+handbrakeBtn.Size = UDim2.new(0, 190, 0, 26)
+handbrakeBtn.Position = UDim2.new(0, 16, 0, 98)
+handbrakeBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+handbrakeBtn.BackgroundTransparency = 0.15
+handbrakeBtn.BorderSizePixel = 0
+handbrakeBtn.Text = "Handbrake"
+handbrakeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+handbrakeBtn.TextScaled = true
+handbrakeBtn.Font = Enum.Font.GothamBold
+handbrakeBtn.Parent = walletGui
+Instance.new("UICorner", handbrakeBtn).CornerRadius = UDim.new(0, 8)
+
+local handbrakeActive = false
+local handbrakeEndTime = 0
+local handbrakeEvent = safeWait(game.ReplicatedStorage, "HandbrakeEvent")
+
+handbrakeBtn.MouseButton1Click:Connect(function()
+	if handbrakeActive then return end
+	if handbrakeEvent then
+		handbrakeEvent:FireServer(true)
+	end
+	handbrakeActive = true
+	handbrakeEndTime = tick() + 60
+	handbrakeBtn.BackgroundColor3 = Color3.fromRGB(100, 40, 40)
+	handbrakeBtn.Text = "Braking... 60s"
+
+	task.spawn(function()
+		while handbrakeActive and tick() < handbrakeEndTime do
+			local remaining = math.ceil(handbrakeEndTime - tick())
+			handbrakeBtn.Text = "Braking... " .. remaining .. "s"
+			task.wait(1)
+		end
+		handbrakeActive = false
+		handbrakeBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+		handbrakeBtn.Text = "Handbrake"
+		if handbrakeEvent then
+			handbrakeEvent:FireServer(false)
+		end
+	end)
+end)
+
 -- Rebirth #
 local rebirthFrame = Instance.new("Frame")
 rebirthFrame.Size = UDim2.new(0, 190, 0, 34)
-rebirthFrame.Position = UDim2.new(0, 16, 0, 102)
+rebirthFrame.Position = UDim2.new(0, 16, 0, 130)
 rebirthFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 rebirthFrame.BackgroundTransparency = 0.25
 rebirthFrame.BorderSizePixel = 0
@@ -443,7 +486,7 @@ rebirthLabel.Parent = rebirthFrame
 
 local luckFrame = Instance.new("Frame")
 luckFrame.Size = UDim2.new(0, 190, 0, 28)
-luckFrame.Position = UDim2.new(0, 16, 0, 140)
+luckFrame.Position = UDim2.new(0, 16, 0, 168)
 luckFrame.BackgroundColor3 = Color3.fromRGB(40, 50, 20)
 luckFrame.BackgroundTransparency = 0.25
 luckFrame.BorderSizePixel = 0
@@ -467,7 +510,7 @@ luckDisplayLabel.Parent = luckFrame
 
 local rebirthReqFrame = Instance.new("TextButton")
 rebirthReqFrame.Size = UDim2.new(0, 190, 0, 95)
-rebirthReqFrame.Position = UDim2.new(0, 16, 0, 174)
+rebirthReqFrame.Position = UDim2.new(0, 16, 0, 202)
 rebirthReqFrame.BackgroundColor3 = Color3.fromRGB(25, 15, 50)
 rebirthReqFrame.BackgroundTransparency = 0.1
 rebirthReqFrame.BorderSizePixel = 0

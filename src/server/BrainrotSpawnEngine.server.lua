@@ -809,6 +809,19 @@ end
 
 local playerRebirthInfoSent = {}      -- tracks if rebirth info was sent to client
 local lastSentSpeedMult    = {}      -- tracks last speed sent to client (throttle updates)
+local playerHandbrake      = {}      -- [player] = endTime (os.clock)
+
+-- Handbrake: 50% speed reduction for 1 minute
+local handbrakeEvent = R.handbrakeEvent
+handbrakeEvent.OnServerEvent:Connect(function(player, activate)
+	if activate then
+		playerHandbrake[player] = os.clock() + 60
+		debugPrint("[HANDBRAKE] Activated for", player.Name, "- 60 seconds")
+	else
+		playerHandbrake[player] = nil
+		debugPrint("[HANDBRAKE] Deactivated for", player.Name)
+	end
+end)
 
 task.spawn(function()
 	while true do
@@ -822,6 +835,15 @@ task.spawn(function()
 			playerSpeedTime[p] = (playerSpeedTime[p] or 0) + 1
 			local speedMult = 1 + playerSpeedTime[p] * SPEED_INCREMENT
 			local totalMult = math.min(speedMult, getSpeedCap(p))
+
+			-- Apply handbrake (50% speed reduction)
+			local handbrakeEnd = playerHandbrake[p]
+			if handbrakeEnd and os.clock() < handbrakeEnd then
+				totalMult = totalMult * 0.5
+			elseif handbrakeEnd then
+				playerHandbrake[p] = nil  -- expired, clean up
+			end
+
 			humanoid.WalkSpeed = BASE_WALK_SPEED * totalMult
 
 			-- Send display speed (actual WalkSpeed value) to client

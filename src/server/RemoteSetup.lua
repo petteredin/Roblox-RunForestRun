@@ -78,6 +78,9 @@ function RemoteSetup.init()
 		-- Collection
 		collectionUpdate = getOrCreateRemote("CollectionUpdate"),
 
+		-- Handbrake
+		handbrakeEvent   = getOrCreateRemote("HandbrakeEvent"),
+
 		-- =====================
 		-- REMOTE FUNCTIONS
 		-- =====================

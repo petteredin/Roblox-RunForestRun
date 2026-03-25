@@ -884,6 +884,8 @@ if isOwner and spawnBtns["Global"] then
 		adminRemote:FireServer("SpawnBrainrot", selectedBrainrot.name, selectedMutation, "Global")
 		flashButton(spawnBtns["Global"], true)
 	end)
+end
+
 end -- end do block (Spawn Brainrot)
 
 -- =====================

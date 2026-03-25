@@ -13,6 +13,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
 local CollectionService = game:GetService("CollectionService")
+local SpawnSystem = require(script.Parent:WaitForChild("SpawnSystem", 10))
 
 -- Set to true to enable verbose debug prints in server output
 local DEBUG = false
@@ -813,44 +814,24 @@ local function getSellPrice(player, slotIndex)
 end
 
 -- =====================
--- WEIGHTED RARITY PICKER
+-- SPAWN SYSTEM INIT (delegates spawning to SpawnSystem module)
 -- =====================
-
-local function pickRarity(allowedRarities)
-	-- Apply server luck: boost rare spawn weights
-	local currentLuckMult = 1
-	if serverLuckMult > 1 and serverLuckEndTime > os.time() then
-		currentLuckMult = serverLuckMult
-	end
-
-	local totalWeight = 0
-	local weights = {}
-	for _, r in ipairs(allowedRarities) do
-		local w = RARITIES[r].spawnWeight
-		-- Luck multiplier boosts rarer rarities (lower base weight = bigger boost)
-		if currentLuckMult > 1 and w < 10 then
-			w = w * currentLuckMult
-		end
-		weights[r] = w
-		totalWeight += w
-	end
-	local roll       = math.random() * totalWeight
-	local cumulative = 0
-	for _, r in ipairs(allowedRarities) do
-		cumulative += weights[r]
-		if roll <= cumulative then return r end
-	end
-	return allowedRarities[#allowedRarities]
-end
-
-local function pickBrainrotFromRarity(rarity)
-	local pool = {}
-	for _, b in ipairs(BRAINROTS) do
-		if b.rarity == rarity then table.insert(pool, b) end
-	end
-	if #pool == 0 then return nil end
-	return pool[math.random(1, #pool)]
-end
+SpawnSystem.init({
+	ZONES                = ZONES,
+	RARITIES             = RARITIES,
+	BRAINROTS            = BRAINROTS,
+	RARITY_COLORS        = RARITY_COLORS,
+	RARITY_LABEL_COLORS  = RARITY_LABEL_COLORS,
+	MUTATIONS            = MUTATIONS,
+	TAG_SPAWNED_BRAINROT = TAG_SPAWNED_BRAINROT,
+	DESPAWN_TIME         = DESPAWN_TIME,
+	spawnFolders         = spawnFolders,
+	carriedBrainrots     = carriedBrainrots,
+	spawnNotifyEvent     = spawnNotifyEvent,
+	getMutation          = getMutation,
+	debugWarn            = debugWarn,
+	getZoneActiveCount   = getZoneActiveCount,
+})
 
 -- =====================
 -- UPGRADE SIGN
@@ -1520,129 +1501,8 @@ rebirthRequestEvent.OnServerEvent:Connect(processRebirth)
 
 -- Admin check is now handled exclusively by AdminServer.server.lua
 
--- =====================
--- PROMPT / NAME TAG
--- =====================
-
-local function createPrompt(brainrot, brainrotDef, player, mutation)
-	mutation = mutation or MUTATIONS.NONE
-	local rarity      = brainrotDef and brainrotDef.rarity or "COMMON"
-	local rarityColor = RARITY_LABEL_COLORS[rarity] or Color3.fromRGB(255, 255, 255)
-
-	local attachTo = brainrot
-	if brainrot:IsA("Model") then
-		attachTo = brainrot.PrimaryPart or brainrot:FindFirstChildWhichIsA("BasePart")
-	end
-	if not attachTo then return end
-
-	-- Read earn rate from attribute (set before createPrompt is called)
-	local earnRate = brainrot:GetAttribute("EarnRate") or 0
-	local creditsPerSec = string.format("%.1f credits/sec", earnRate)
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name        = "PickupPrompt"
-	billboard.Size        = UDim2.new(0, 80, 0, 62)
-	billboard.StudsOffset = Vector3.new(0, 4, 0)
-	billboard.AlwaysOnTop = true
-	billboard.MaxDistance  = 40
-	billboard.Enabled     = true
-	billboard.Parent      = attachTo
-
-	-- ── Mutation badge (colored bar on top) ──
-	local mutBadge = Instance.new("Frame")
-	mutBadge.Name                   = "MutationBadge"
-	mutBadge.Size                   = UDim2.new(1, 0, 0.16, 0)
-	mutBadge.Position               = UDim2.new(0, 0, 0, 0)
-	mutBadge.BackgroundColor3       = mutation.color
-	mutBadge.BackgroundTransparency = 0.15
-	mutBadge.BorderSizePixel        = 0
-	mutBadge.Parent                 = billboard
-	Instance.new("UICorner", mutBadge).CornerRadius = UDim.new(0, 5)
-
-	local mutLabel = Instance.new("TextLabel")
-	mutLabel.Size                   = UDim2.new(1, -4, 1, 0)
-	mutLabel.Position               = UDim2.new(0, 2, 0, 0)
-	mutLabel.BackgroundTransparency = 1
-	mutLabel.Text                   = mutation.label
-	mutLabel.TextColor3             = Color3.fromRGB(255, 255, 255)
-	mutLabel.TextScaled             = true
-	mutLabel.Font                   = Enum.Font.GothamBold
-	mutLabel.Parent                 = mutBadge
-
-	-- ── Main info box (Name, Rarity, Credits/sec) ──
-	local nameTag = Instance.new("Frame")
-	nameTag.Name                   = "NameTag"
-	nameTag.Size                   = UDim2.new(1, 0, 0.52, 0)
-	nameTag.Position               = UDim2.new(0, 0, 0.17, 0)
-	nameTag.BackgroundColor3       = Color3.fromRGB(10, 10, 20)
-	nameTag.BackgroundTransparency = 0.25
-	nameTag.BorderSizePixel        = 0
-	nameTag.Parent                 = billboard
-	Instance.new("UICorner", nameTag).CornerRadius = UDim.new(0, 5)
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size                   = UDim2.new(1, -4, 0.36, 0)
-	nameLabel.Position               = UDim2.new(0, 2, 0, 1)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text                   = (brainrotDef and brainrotDef.icon or "") .. " " .. (brainrotDef and brainrotDef.name or "Brainrot")
-	nameLabel.TextColor3             = Color3.fromRGB(255, 255, 255)
-	nameLabel.TextScaled             = true
-	nameLabel.Font                   = Enum.Font.GothamBold
-	nameLabel.Parent                 = nameTag
-
-	local rarityLabel = Instance.new("TextLabel")
-	rarityLabel.Size                   = UDim2.new(1, -4, 0.30, 0)
-	rarityLabel.Position               = UDim2.new(0, 2, 0.36, 0)
-	rarityLabel.BackgroundTransparency = 1
-	rarityLabel.Text                   = rarity
-	rarityLabel.TextColor3             = rarityColor
-	rarityLabel.TextScaled             = true
-	rarityLabel.Font                   = Enum.Font.GothamBold
-	rarityLabel.Parent                 = nameTag
-
-	local creditsLabel = Instance.new("TextLabel")
-	creditsLabel.Size                   = UDim2.new(1, -4, 0.30, 0)
-	creditsLabel.Position               = UDim2.new(0, 2, 0.68, 0)
-	creditsLabel.BackgroundTransparency = 1
-	creditsLabel.Text                   = creditsPerSec
-	creditsLabel.TextColor3             = Color3.fromRGB(255, 220, 80)
-	creditsLabel.TextScaled             = true
-	creditsLabel.Font                   = Enum.Font.GothamBold
-	creditsLabel.Parent                 = nameTag
-
-	-- ── [E] pickup indicator ──
-	local eFrame = Instance.new("Frame")
-	eFrame.Name                   = "EFrame"
-	eFrame.Size                   = UDim2.new(0.26, 0, 0.22, 0)
-	eFrame.AnchorPoint            = Vector2.new(0.5, 1)
-	eFrame.Position               = UDim2.new(0.5, 0, 1, -1)
-	eFrame.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
-	eFrame.BackgroundTransparency = 0.4
-	eFrame.BorderSizePixel        = 0
-	eFrame.Parent                 = billboard
-	Instance.new("UICorner", eFrame).CornerRadius = UDim.new(1, 0)
-
-	local eLabel = Instance.new("TextLabel")
-	eLabel.Size                   = UDim2.new(1, 0, 1, 0)
-	eLabel.BackgroundTransparency = 1
-	eLabel.Text                   = "E"
-	eLabel.TextColor3             = Color3.fromRGB(255, 255, 255)
-	eLabel.TextScaled             = true
-	eLabel.Font                   = Enum.Font.GothamBold
-	eLabel.Parent                 = eFrame
-
-	return billboard
-end
-
--- =====================
--- SPAWN SYSTEM (now uses Folders + CollectionService tags)
--- =====================
-
-local function getRandomPositionInZone(zone)
-	local x = zone.position.X + math.random() * zone.size.X - zone.size.X / 2
-	local z = zone.position.Z + math.random() * zone.size.Z - zone.size.Z / 2
-	return Vector3.new(x, zone.position.Y + 1, z)
-end
+-- createPrompt is now in SpawnSystem module
+local createPrompt = SpawnSystem.createPrompt
 
 local function getPrimaryPart(obj)
 	if obj:IsA("Model") then
@@ -1715,257 +1575,16 @@ local function detachBrainrotFromPlayer(player)
 	carriedBrainrots[player] = nil
 end
 
-local function spawnBrainrotInZone(zoneIndex)
-	local zone = ZONES[zoneIndex]
-	if getZoneActiveCount(zoneIndex) >= zone.cap then return end
-
-	local rarity      = pickRarity(zone.rarities)
-	local brainrotDef = pickBrainrotFromRarity(rarity)
-	if not brainrotDef then return end
-
-	local spawnPos = getRandomPositionInZone(zone)
-	local brainrot
-	local parentFolder = spawnFolders[zoneIndex]
-
-	if brainrotDef.modelName or brainrotDef.name then
-		local template = ReplicatedStorage:FindFirstChild(brainrotDef.modelName or brainrotDef.name)
-		if template then
-			brainrot = template:Clone()
-			if brainrot:IsA("Model") then
-				if not brainrot.PrimaryPart then
-					local firstPart = brainrot:FindFirstChildWhichIsA("BasePart")
-					if firstPart then brainrot.PrimaryPart = firstPart end
-				end
-				brainrot:PivotTo(CFrame.new(spawnPos))
-				for _, part in ipairs(brainrot:GetDescendants()) do
-					if part:IsA("BasePart") then
-						part.Anchored   = true
-						part.CanCollide = false
-					end
-				end
-			else
-				brainrot.Position   = spawnPos
-				brainrot.Anchored   = true
-				brainrot.CanCollide = false
-			end
-			brainrot.Parent = parentFolder
-		end
-	end
-
-	if not brainrot then
-		brainrot = Instance.new("Part")
-		brainrot.Name       = "Brainrot"
-		brainrot.Size       = Vector3.new(2, 2, 2)
-		brainrot.Position   = spawnPos
-		brainrot.BrickColor = RARITY_COLORS[rarity]
-		brainrot.Material   = Enum.Material.Neon
-		brainrot.Anchored   = true
-		brainrot.CanCollide = false
-		brainrot.Parent     = parentFolder
-	end
-
-	-- Roll mutation and apply both rarity and mutation multipliers
-	local mutation, mutationKey = getMutation(nil)
-	local mutationMult = mutation.mult or 1
-	local earnRate = brainrotDef.baseEarn * RARITIES[rarity].mult * mutationMult
-
-	if brainrot:IsA("Model") then
-		brainrot:SetAttribute("EarnRate",     earnRate)
-		brainrot:SetAttribute("Rarity",       rarity)
-		brainrot:SetAttribute("BrainrotName", brainrotDef.name)
-		brainrot:SetAttribute("Mutation",     mutationKey)
-		if brainrot.PrimaryPart then
-			brainrot.PrimaryPart:SetAttribute("EarnRate",     earnRate)
-			brainrot.PrimaryPart:SetAttribute("Rarity",       rarity)
-			brainrot.PrimaryPart:SetAttribute("BrainrotName", brainrotDef.name)
-			brainrot.PrimaryPart:SetAttribute("Mutation",     mutationKey)
-		end
-	else
-		brainrot:SetAttribute("EarnRate",     earnRate)
-		brainrot:SetAttribute("Rarity",       rarity)
-		brainrot:SetAttribute("BrainrotName", brainrotDef.name)
-		brainrot:SetAttribute("Mutation",     mutationKey)
-	end
-
-	-- Tag for CollectionService-based detection
-	CollectionService:AddTag(brainrot, TAG_SPAWNED_BRAINROT)
-
-	createPrompt(brainrot, brainrotDef, nil, mutation)
-	-- Zone count is now derived from CollectionService tags (no manual increment needed)
-
-	-- Notify all players about the new spawn
-	local spawnName = brainrotDef and brainrotDef.name or "Brainrot"
-	local spawnRarity = rarity or "COMMON"
-	spawnNotifyEvent:FireAllClients(spawnName, spawnRarity, zoneIndex, mutationKey)
-
-	task.delay(DESPAWN_TIME, function()
-		if not (brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT)) then
-			return
-		end
-		-- Don't despawn if someone is carrying this brainrot (race with pickup event)
-		for _, carried in pairs(carriedBrainrots) do
-			if carried == brainrot then return end
-		end
-		-- Brief re-check to handle network-latency race with pickup
-		task.wait(0.5)
-		if brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT) then
-			-- Final check: not being carried
-			for _, carried in pairs(carriedBrainrots) do
-				if carried == brainrot then return end
-			end
-			debugWarn("[DESPAWN] Destroying", brainrot.Name, "parent:", brainrot.Parent.Name)
-			CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
-			brainrot:Destroy()
-			-- Zone count is derived from CollectionService tags (no manual decrement needed)
-		end
-	end)
-end
-
--- Admin spawn: spawn a specific brainrot by name in a random zone
--- mutationKey can be "NONE", "GOLD", "DIAMOND", "RAINBOW" or nil (random roll)
+-- Spawn logic delegated to SpawnSystem module
 adminSpawnBrainrot.OnInvoke = function(brainrotName, mutationKey)
-	if type(brainrotName) ~= "string" or #brainrotName == 0 then
-		return false, "Invalid brainrot name"
-	end
-
-	-- Find the brainrot definition
-	local brainrotDef = nil
-	for _, b in ipairs(BRAINROTS) do
-		if b.name:lower() == brainrotName:lower() then
-			brainrotDef = b
-			break
-		end
-	end
-	if not brainrotDef then
-		return false, "Brainrot '" .. brainrotName .. "' not found"
-	end
-
-	-- Find a zone that allows this rarity and has capacity
-	local targetZone = nil
-	for i, zone in ipairs(ZONES) do
-		for _, r in ipairs(zone.rarities) do
-			if r == brainrotDef.rarity and getZoneActiveCount(i) < zone.cap then
-				targetZone = i
-				break
-			end
-		end
-		if targetZone then break end
-	end
-
-	if not targetZone then
-		-- Fallback: spawn in zone 1 regardless of rarity match
-		targetZone = 1
-	end
-
-	local zone = ZONES[targetZone]
-	local rarity = brainrotDef.rarity
-	local spawnPos = getRandomPositionInZone(zone)
-	local parentFolder = spawnFolders[targetZone]
-
-	local brainrot
-	if brainrotDef.modelName or brainrotDef.name then
-		local template = ReplicatedStorage:FindFirstChild(brainrotDef.modelName or brainrotDef.name)
-		if template then
-			brainrot = template:Clone()
-			if brainrot:IsA("Model") then
-				if not brainrot.PrimaryPart then
-					local firstPart = brainrot:FindFirstChildWhichIsA("BasePart")
-					if firstPart then brainrot.PrimaryPart = firstPart end
-				end
-				brainrot:PivotTo(CFrame.new(spawnPos))
-				for _, part in ipairs(brainrot:GetDescendants()) do
-					if part:IsA("BasePart") then
-						part.Anchored = true
-						part.CanCollide = false
-					end
-				end
-			else
-				brainrot.Position = spawnPos
-				brainrot.Anchored = true
-				brainrot.CanCollide = false
-			end
-			brainrot.Parent = parentFolder
-		end
-	end
-
-	if not brainrot then
-		brainrot = Instance.new("Part")
-		brainrot.Name = "Brainrot"
-		brainrot.Size = Vector3.new(2, 2, 2)
-		brainrot.Position = spawnPos
-		brainrot.BrickColor = RARITY_COLORS[rarity]
-		brainrot.Material = Enum.Material.Neon
-		brainrot.Anchored = true
-		brainrot.CanCollide = false
-		brainrot.Parent = parentFolder
-	end
-
-	-- Determine mutation: use forced key from admin or roll randomly
-	local mutation
-	if mutationKey and mutationKey ~= "" and MUTATIONS[mutationKey] then
-		mutation = MUTATIONS[mutationKey]
-	else
-		mutation, mutationKey = getMutation(nil)
-	end
-
-	local mutationMult = mutation.mult or 1
-	local earnRate = brainrotDef.baseEarn * RARITIES[rarity].mult * mutationMult
-	if brainrot:IsA("Model") then
-		brainrot:SetAttribute("EarnRate", earnRate)
-		brainrot:SetAttribute("Rarity", rarity)
-		brainrot:SetAttribute("BrainrotName", brainrotDef.name)
-		brainrot:SetAttribute("Mutation", mutationKey)
-		if brainrot.PrimaryPart then
-			brainrot.PrimaryPart:SetAttribute("EarnRate", earnRate)
-			brainrot.PrimaryPart:SetAttribute("Rarity", rarity)
-			brainrot.PrimaryPart:SetAttribute("BrainrotName", brainrotDef.name)
-			brainrot.PrimaryPart:SetAttribute("Mutation", mutationKey)
-		end
-	else
-		brainrot:SetAttribute("EarnRate", earnRate)
-		brainrot:SetAttribute("Rarity", rarity)
-		brainrot:SetAttribute("BrainrotName", brainrotDef.name)
-		brainrot:SetAttribute("Mutation", mutationKey)
-	end
-
-	CollectionService:AddTag(brainrot, TAG_SPAWNED_BRAINROT)
-	createPrompt(brainrot, brainrotDef, nil, mutation)
-
-	spawnNotifyEvent:FireAllClients(brainrotDef.name, rarity, targetZone, mutationKey)
-
-	-- Auto-despawn after DESPAWN_TIME
-	task.delay(DESPAWN_TIME, function()
-		if brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT) then
-			for _, carried in pairs(carriedBrainrots) do
-				if carried == brainrot then return end
-			end
-			task.wait(0.5)
-			if brainrot and brainrot.Parent and CollectionService:HasTag(brainrot, TAG_SPAWNED_BRAINROT) then
-				for _, carried in pairs(carriedBrainrots) do
-					if carried == brainrot then return end
-				end
-				CollectionService:RemoveTag(brainrot, TAG_SPAWNED_BRAINROT)
-				brainrot:Destroy()
-			end
-		end
-	end)
-
-	return true, nil, targetZone
+	return SpawnSystem.adminSpawnBrainrot(brainrotName, mutationKey)
 end
 
-for zoneIndex, zone in ipairs(ZONES) do
-	for _, rarity in ipairs(zone.rarities) do
-		local interval = RARITIES[rarity].spawnInterval
-		task.spawn(function()
-			while true do
-				task.wait(interval)
-				if getZoneActiveCount(zoneIndex) < zone.cap then
-					spawnBrainrotInZone(zoneIndex)
-				end
-			end
-		end)
-	end
-end
+-- Start automatic spawn loops (pass closures so SpawnSystem reads current values)
+SpawnSystem.startSpawnLoops(
+	function() return serverLuckMult end,
+	function() return serverLuckEndTime end
+)
 
 -- =====================
 -- DEPOSIT SYSTEM (now tags stored brainrots + uses storedFolder)

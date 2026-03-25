@@ -15,6 +15,9 @@
       },
       "RemoteSetup": {
         "$path": "src/server/RemoteSetup.lua"
+      },
+      "SpawnSystem": {
+        "$path": "src/server/SpawnSystem.lua"
       }
     },
     "StarterPlayer": {

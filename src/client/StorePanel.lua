@@ -346,13 +346,19 @@ function StorePanel.init(player, config)
 	gpRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	gpRowLayout.Parent = gpRowFrame
 
-	-- Admin Panel card (half-width, in row)
+	-- Admin Panel card (half-width, in row) — fetch real info from Roblox
+	local apInfo = fetchGamepassInfo(GAMEPASS_IDS.ADMIN_PANEL)
+	local apTitle = (apInfo and apInfo.name ~= "") and apInfo.name or "ADMIN PANEL"
+	local apDesc  = (apInfo and apInfo.description ~= "") and apInfo.description or "Grant Server Luck\nand manage your server!"
+	local apIcon  = apInfo and apInfo.iconImageAssetId or 0
+	local apPrice = (apInfo and apInfo.priceInRobux and apInfo.priceInRobux > 0) and apInfo.priceInRobux or 30000
+
 	createGamepassCard({
-		title = "ADMIN PANEL",
-		desc = "Get Admin Commands\nType ;cmds in chat for\na list of commands!",
+		title = apTitle,
+		desc = apDesc,
 		icon = "AP",
-		iconImageId = 0,
-		price = 7499,
+		iconImageId = apIcon,
+		price = apPrice,
 		gpId = GAMEPASS_IDS.ADMIN_PANEL,
 		gpKey = "ADMIN_PANEL",
 		fullWidth = false,
@@ -360,55 +366,25 @@ function StorePanel.init(player, config)
 		parentFrame = gpRowFrame,
 	})
 
-	-- 2x Money card (in row)
-	do
-		local card = Instance.new("Frame")
-		card.Size = UDim2.new(0.5, -5, 1, 0)
-		card.BackgroundColor3 = Color3.fromRGB(30, 60, 30)
-		card.BorderSizePixel = 0
-		card.LayoutOrder = 2
-		card.ZIndex = 53
-		card.Parent = gpRowFrame
-		Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
+	-- 2x Money card (half-width, in row) — fetch real info from Roblox
+	local dmInfo = fetchGamepassInfo(GAMEPASS_IDS.DOUBLE_MONEY)
+	local dmTitle = (dmInfo and dmInfo.name ~= "") and dmInfo.name or "2X MONEY"
+	local dmDesc  = (dmInfo and dmInfo.description ~= "") and dmInfo.description or "Earn twice as much\nmoney!"
+	local dmIcon  = dmInfo and dmInfo.iconImageAssetId or 0
+	local dmPrice = (dmInfo and dmInfo.priceInRobux and dmInfo.priceInRobux > 0) and dmInfo.priceInRobux or 125
 
-		local t = Instance.new("TextLabel")
-		t.Size = UDim2.new(0.6, 0, 0, 28); t.Position = UDim2.new(0, 14, 0, 10)
-		t.BackgroundTransparency = 1; t.Text = "2X MONEY"; t.TextColor3 = Color3.fromRGB(255, 255, 255)
-		t.TextScaled = true; t.Font = Enum.Font.GothamBold; t.TextXAlignment = Enum.TextXAlignment.Left
-		t.ZIndex = 54; t.Parent = card
-
-		local d = Instance.new("TextLabel")
-		d.Size = UDim2.new(0.6, 0, 0, 40); d.Position = UDim2.new(0, 14, 0, 38)
-		d.BackgroundTransparency = 1; d.Text = "Earn twice as much\nmoney!"; d.TextColor3 = Color3.fromRGB(180, 200, 180)
-		d.TextScaled = true; d.Font = Enum.Font.Gotham; d.TextXAlignment = Enum.TextXAlignment.Left
-		d.TextYAlignment = Enum.TextYAlignment.Top; d.TextWrapped = true; d.ZIndex = 54; d.Parent = card
-
-		local ic = Instance.new("TextLabel")
-		ic.Size = UDim2.new(0, 50, 0, 50); ic.Position = UDim2.new(1, -70, 0, 8)
-		ic.BackgroundTransparency = 1; ic.Text = "x2"; ic.TextColor3 = Color3.fromRGB(200, 255, 200)
-		ic.TextScaled = true; ic.Font = Enum.Font.GothamBold; ic.ZIndex = 54; ic.Parent = card
-
-		local pb = Instance.new("Frame")
-		pb.Size = UDim2.new(0, 90, 0, 28); pb.Position = UDim2.new(1, -100, 1, -38)
-		pb.BackgroundColor3 = cachedGamepassStatus["DOUBLE_MONEY"] and Color3.fromRGB(40, 160, 40) or Color3.fromRGB(40, 120, 40)
-		pb.BorderSizePixel = 0; pb.ZIndex = 54; pb.Parent = card
-		Instance.new("UICorner", pb).CornerRadius = UDim.new(0, 6)
-		local pl = Instance.new("TextLabel")
-		pl.Size = UDim2.new(1, 0, 1, 0); pl.BackgroundTransparency = 1
-		pl.Text = cachedGamepassStatus["DOUBLE_MONEY"] and "OWNED \u{2713}" or (GAMEPASS_IDS.DOUBLE_MONEY > 0 and "R$ 299" or "Coming Soon")
-		pl.TextColor3 = Color3.fromRGB(255, 255, 255); pl.TextScaled = true
-		pl.Font = Enum.Font.GothamBold; pl.ZIndex = 55; pl.Parent = pb
-
-		local cb = Instance.new("TextButton")
-		cb.Size = UDim2.new(1, 0, 1, 0); cb.BackgroundTransparency = 1; cb.Text = ""
-		cb.ZIndex = 56; cb.Parent = card
-		cb.MouseButton1Click:Connect(function()
-			if cachedGamepassStatus["DOUBLE_MONEY"] then return end
-			if GAMEPASS_IDS.DOUBLE_MONEY > 0 then
-				pcall(function() MarketplaceService:PromptGamePassPurchase(player, GAMEPASS_IDS.DOUBLE_MONEY) end)
-			end
-		end)
-	end
+	createGamepassCard({
+		title = dmTitle,
+		desc = dmDesc,
+		icon = "x2",
+		iconImageId = dmIcon,
+		price = dmPrice,
+		gpId = GAMEPASS_IDS.DOUBLE_MONEY,
+		gpKey = "DOUBLE_MONEY",
+		fullWidth = false,
+		order = 2,
+		parentFrame = gpRowFrame,
+	})
 
 	-- ==================
 	-- TAB 2: SERVER LUCK

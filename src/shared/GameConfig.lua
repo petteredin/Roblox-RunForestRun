@@ -50,9 +50,9 @@ GameConfig.BRAINROTS = {
 -- GAMEPASS IDS
 -- =====================
 GameConfig.GAMEPASS_IDS = {
-	ADMIN_PANEL  = 0,           -- Replace with real ID from Creator Dashboard
-	DOUBLE_MONEY = 0,           -- Replace with real ID
-	VIP          = 1763788455,  -- V.I.P Pass
+	ADMIN_PANEL  = 0,           -- Not sold in store — granted manually to trusted users
+	DOUBLE_MONEY = 1767762906,  -- 2x Money GamePass (125 R$)
+	VIP          = 1763788455,  -- V.I.P Pass (350 R$)
 }
 
 -- =====================
@@ -60,14 +60,14 @@ GameConfig.GAMEPASS_IDS = {
 -- =====================
 -- duration is in minutes, price is in Robux
 GameConfig.LUCK_PRODUCTS = {
-	{ id = 0, mult = 5,    duration = 15,  price = 99    },
-	{ id = 0, mult = 10,   duration = 15,  price = 249   },
-	{ id = 0, mult = 25,   duration = 30,  price = 499   },
-	{ id = 0, mult = 50,   duration = 30,  price = 999   },
-	{ id = 0, mult = 100,  duration = 60,  price = 1999  },
-	{ id = 0, mult = 250,  duration = 60,  price = 3999  },
-	{ id = 0, mult = 500,  duration = 120, price = 7999  },
-	{ id = 0, mult = 1000, duration = 120, price = 14999 },
+	{ id = 3563392152, mult = 5,    duration = 15,  price = 99    },
+	{ id = 3563392463, mult = 10,   duration = 15,  price = 249   },
+	{ id = 3563392678, mult = 25,   duration = 30,  price = 499   },
+	{ id = 3563392856, mult = 50,   duration = 30,  price = 999   },
+	{ id = 3563393031, mult = 100,  duration = 60,  price = 1499  },
+	{ id = 3563393233, mult = 250,  duration = 60,  price = 2999  },
+	{ id = 3563393401, mult = 500,  duration = 120, price = 5999  },
+	{ id = 3563393621, mult = 1000, duration = 120, price = 12999 },
 }
 
 -- All available luck multiplier tiers (for admin UI dropdowns)

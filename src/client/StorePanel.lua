@@ -293,15 +293,8 @@ function StorePanel.init(player, config)
 			if info.gpId > 0 then
 				-- PromptGamePassPurchase silently fails in Studio and for
 				-- game owners (you already own everything as the creator).
-				-- Show a notice so it's not confusing during testing.
 				if RunService:IsStudio() then
-					pcall(function()
-						game:GetService("StarterGui"):SetCore("SendNotification", {
-							Title = "Studio Notice",
-							Text = "GamePass purchases don't work in Studio. Test in a live server.",
-							Duration = 4,
-						})
-					end)
+					warn("[Store] GamePass purchases don't work in Studio. PassId:", info.gpId, "Key:", info.gpKey, "- Test in a live server.")
 				end
 				pcall(function()
 					MarketplaceService:PromptGamePassPurchase(player, info.gpId)

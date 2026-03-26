@@ -67,11 +67,21 @@
   - VIP/gamepass (~150 lines)
   - Speed accelerator (~100 lines)
 
+## Medium - New Features
+
+- [ ] **Map each spawned Brainrot to a mesh (remove unused meshes)**
+  Currently brainrots use models from ReplicatedStorage matched by name. Audit which meshes in ReplicatedStorage are actually used by the BRAINROTS catalog in GameConfig, remove unused ones, and ensure every brainrot in the catalog has a corresponding mesh/model.
+
+- [ ] **Ability to reset the All-Time Leaderboard**
+  Add an admin command (Game Owner only) to clear the all-time leaderboard DataStore. Should require confirmation to prevent accidental resets. Add to Admin Panel under a new "Danger Zone" section or the existing Logs tab.
+
+- [ ] **Make room for 2 more bases (5 total)**
+  Currently `MAX_PLAYERS = 3` with 3 bases defined in `BASES`. Add 2 more base positions to support 5 concurrent players. Requires new base coordinates that don't overlap existing ones or the spawn area.
+
 ## Low - Code Quality
 
-- [ ] **Replace placeholder gamepass/product IDs before launch**
-  Files: `BrainrotSpawnEngine.server.lua:40-41`, line 59
-  `ADMIN_PANEL = 0`, `DOUBLE_MONEY = 0`, `GROUP_ID = 0`, all `LUCK_PRODUCT_IDS` have `id = 0`. Code handles `id > 0` checks so it won't break, but these need real values.
+- [x] **Replace placeholder gamepass/product IDs before launch**
+  FIXED: All GamePass IDs (VIP=1763788455, Admin Panel=1768316772, 2x Money=1767762906) and all 8 Luck Developer Product IDs set. Only `GROUP_ID = 0` remains (no Roblox group created yet).
 
 - [x] **Pick one language for player-facing strings (Swedish/English mix)**
   FIXED: All player-facing strings converted to English. One Swedish comment remains in AdminClient (line 333: `-- GUI-BYGGARE`) — cosmetic only.

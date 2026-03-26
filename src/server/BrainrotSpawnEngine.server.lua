@@ -1845,11 +1845,9 @@ local function depositBrainrot(player)
 		-- Remove the pickup prompt billboard so it doesn't overlap slot UI
 		local prompt = brainrot:FindFirstChild("PickupPrompt", true)
 		if prompt then prompt:Destroy() end
-		-- Slots 1-5 (front row) face the wrong direction; rotate 180° around Y
+		-- Rotate all brainrots 180° to face the player
 		local placeCFrame = CFrame.new(slotPad.Position + Vector3.new(0, 1.5, 0))
-		if freeSlot <= 5 then
-			placeCFrame = placeCFrame * CFrame.Angles(0, math.rad(180), 0)
-		end
+			* CFrame.Angles(0, math.rad(180), 0)
 		brainrot:PivotTo(placeCFrame)
 		brainrot.Parent = storedFolder
 		storedBlock = brainrot
@@ -2203,11 +2201,9 @@ local function restoreBrainrotToSlot(player, slotIndex, savedSlot)
 					local firstPart = storedBlock:FindFirstChildWhichIsA("BasePart")
 					if firstPart then storedBlock.PrimaryPart = firstPart end
 				end
-				-- Slots 1-5 (front row) face the wrong direction; rotate 180° around Y
+				-- Rotate all brainrots 180° to face the player
 				local placeCFrame = CFrame.new(slotPad.Position + Vector3.new(0, 2, 0))
-				if slotIndex <= 5 then
-					placeCFrame = placeCFrame * CFrame.Angles(0, math.rad(180), 0)
-				end
+					* CFrame.Angles(0, math.rad(180), 0)
 				storedBlock:PivotTo(placeCFrame)
 				for _, part in ipairs(storedBlock:GetDescendants()) do
 					if part:IsA("BasePart") then

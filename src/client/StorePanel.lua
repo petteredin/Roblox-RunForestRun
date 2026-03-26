@@ -235,7 +235,8 @@ function StorePanel.init(player, config)
 			local iconImg = Instance.new("ImageLabel")
 			iconImg.Name = "IconImage"
 			iconImg.Size = UDim2.new(0, 80, 0, 80)
-			iconImg.Position = UDim2.new(1, -140, 0, 10)
+			iconImg.AnchorPoint = Vector2.new(1, 0)
+			iconImg.Position = UDim2.new(1, -10, 0, 5)
 			iconImg.BackgroundTransparency = 1
 			iconImg.Image = "rbxassetid://" .. tostring(info.iconImageId)
 			iconImg.ScaleType = Enum.ScaleType.Fit
@@ -244,7 +245,8 @@ function StorePanel.init(player, config)
 		else
 			local iconLbl = Instance.new("TextLabel")
 			iconLbl.Size = UDim2.new(0, 80, 0, 60)
-			iconLbl.Position = UDim2.new(1, -140, 0, 10)
+			iconLbl.AnchorPoint = Vector2.new(1, 0)
+			iconLbl.Position = UDim2.new(1, -10, 0, 10)
 			iconLbl.BackgroundTransparency = 1
 			iconLbl.Text = info.icon or ""
 			iconLbl.TextColor3 = Color3.fromRGB(200, 255, 200)
@@ -257,7 +259,8 @@ function StorePanel.init(player, config)
 		-- Price badge
 		local priceBadge = Instance.new("Frame")
 		priceBadge.Size = UDim2.new(0, 100, 0, 30)
-		priceBadge.Position = UDim2.new(1, -115, 1, -40)
+		priceBadge.AnchorPoint = Vector2.new(1, 1)
+		priceBadge.Position = UDim2.new(1, -10, 1, -10)
 		priceBadge.BackgroundColor3 = Color3.fromRGB(40, 120, 40)
 		priceBadge.BorderSizePixel = 0
 		priceBadge.ZIndex = 54

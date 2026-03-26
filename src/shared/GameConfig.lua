@@ -61,7 +61,7 @@ GameConfig.BRAINROTS = {
 	{ name="Giraffa Celeste",           icon="\u{1F992}", rarity="COSMIC",    baseEarn=120 },
 	{ name="Trulimero Trulicina",       icon="\u{1F30C}", rarity="COSMIC",    baseEarn=140 },
 	{ name="Gold Lirili Larila",        icon="\u{1F335}", rarity="COSMIC",    baseEarn=130 },
-	{ name="Tralalero Tralala",         icon="\u{1F988}", rarity="COSMIC",    baseEarn=135 },
+	{ name="Cosmic Tralalero Tralala",  icon="\u{1F988}", rarity="COSMIC",    baseEarn=135 },
 }
 
 -- =====================

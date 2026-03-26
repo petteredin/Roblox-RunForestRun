@@ -59,11 +59,12 @@ local isHolding = false
 local isSelling = false
 local targetBrainrot = nil
 local targetSellSlot = nil
+local walletLabel = nil  -- forward declaration, created later in HUD setup
+local walletTotal = 0
 local holdStartTime = nil
 local sellStartTime = nil
 local animConnection = nil
 local sellAnimConnection = nil
-local walletTotal = 0
 
 -- =====================
 -- PROGRESS BAR (center screen)
@@ -378,7 +379,7 @@ walletFrame.BorderSizePixel = 0
 walletFrame.Parent = walletGui
 Instance.new("UICorner", walletFrame).CornerRadius = UDim.new(0, 8)
 
-local walletLabel = Instance.new("TextLabel")
+walletLabel = Instance.new("TextLabel")
 walletLabel.Size = UDim2.new(1, -12, 1, 0)
 walletLabel.Position = UDim2.new(0, 8, 0, 0)
 walletLabel.BackgroundTransparency = 1

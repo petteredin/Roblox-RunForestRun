@@ -451,7 +451,7 @@ function IndexPanel.init(player, config)
 					end
 					refreshIndexGrid()
 				end
-		end)
+			end)
 		end
 	end
 

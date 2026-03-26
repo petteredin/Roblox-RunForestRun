@@ -9,6 +9,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local MarketplaceService = game:GetService("MarketplaceService")
+
+local DEBUG = false
+local function debugPrint(...)
+	if DEBUG then print(...) end
+end
 print("[AdminClient] Waiting for GameConfig...")
 local gameConfigModule = ReplicatedStorage:WaitForChild("GameConfig", 30)
 print("[AdminClient] GameConfig found:", gameConfigModule ~= nil)

@@ -866,6 +866,7 @@ adminGrantVIP.OnInvoke = function(targetPlayer)
 		return false, targetPlayer.Name .. " already has VIP"
 	end
 	playerGamepasses[targetPlayer]["VIP"] = true
+	playerGamepasses[targetPlayer]["VIP_GRANTED"] = true  -- permanent: saved to DataStore
 	-- Set attributes for client
 	targetPlayer:SetAttribute("Own_VIP", true)
 	-- Add crown
@@ -2077,6 +2078,7 @@ local function savePlayerData(player)
 		speedTime  = playerSpeedTime[player] or 0,
 		rebirth    = playerRebirth[player] or 0,
 		credits    = playerCredits[player] or 0,
+		vipGranted = (playerGamepasses[player] and playerGamepasses[player]["VIP_GRANTED"]) or false,
 		slots      = {},
 		upgrades   = {},
 		plateCredits = {},
@@ -2658,6 +2660,14 @@ local function onPlayerAdded(player)
 		end
 	end
 
+	-- Restore admin-granted VIP (permanent — saved in DataStore)
+	if savedData and savedData.vipGranted then
+		if not playerGamepasses[player]["VIP"] then
+			playerGamepasses[player]["VIP"] = true
+			playerGamepasses[player]["VIP_GRANTED"] = true  -- flag: granted by admin, not purchased
+		end
+	end
+
 	-- Set VIP/Group attributes for client to read
 	local discountInfo = getPlayerDiscountInfo(player)
 	player:SetAttribute("Own_VIP", discountInfo.isVIP or false)
@@ -2715,22 +2725,46 @@ local function onPlayerAdded(player)
 	end
 
 	player.CharacterAdded:Connect(function(character)
-		-- Drop carried brainrot on respawn (player died while carrying)
-		if carriedBrainrots[player] then
-			local carried = carriedBrainrots[player]
-			if carried and carried.Parent then
-				carried:Destroy()
+		-- Check if VIP revive saved a brainrot from previous death
+		if carriedBrainrots[player] and carriedBrainrots[player].Parent then
+			-- VIP revive: reattach the saved brainrot after respawn
+			local savedBrainrot = carriedBrainrots[player]
+			task.delay(1.5, function()
+				if not player.Parent then return end
+				if savedBrainrot and savedBrainrot.Parent and carriedBrainrots[player] == savedBrainrot then
+					attachBrainrotToPlayer(player, savedBrainrot)
+					debugPrint("[VIP REVIVE]", player.Name, "brainrot reattached after respawn")
+				end
+			end)
+		else
+			-- No revive — clean up any leftover state
+			if carriedBrainrots[player] then
+				local carried = carriedBrainrots[player]
+				if carried and carried.Parent then
+					carried:Destroy()
+				end
+				carriedBrainrots[player] = nil
+				playerHasPickup[player] = false
+				playerHolding[player] = false
 			end
-			carriedBrainrots[player] = nil
-			playerHasPickup[player] = false
-			playerHolding[player] = false
 		end
 
-		-- Listen for death to drop brainrot immediately
+		-- Listen for death to drop brainrot (VIP has 50% chance to keep it)
 		local humanoid = character:WaitForChild("Humanoid", 10)
 		if humanoid then
 			humanoid.Died:Connect(function()
 				if carriedBrainrots[player] then
+					-- VIP revive: 50% chance to keep the brainrot
+					local isVIP = playerGamepasses[player] and playerGamepasses[player]["VIP"]
+					if isVIP and math.random() < 0.5 then
+						-- VIP saved! Keep the brainrot, it will reattach on respawn
+						debugPrint("[VIP REVIVE]", player.Name, "saved their brainrot!")
+						-- Don't destroy the carried brainrot — it stays in carriedBrainrots
+						-- and will be reattached in CharacterAdded
+						return
+					end
+
+					-- No revive — drop and destroy the brainrot
 					local carried = carriedBrainrots[player]
 					if carried and carried.Parent then
 						carried:Destroy()

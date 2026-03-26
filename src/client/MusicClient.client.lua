@@ -22,7 +22,7 @@ local player = Players.LocalPlayer
 local MUSIC_ZONES = {
 	{
 		name = "Base",
-		soundId = "rbxassetid://136974179670066", -- Chill Phonk (DAMAS)
+		soundId = "rbxassetid://71649299775733",
 		volume = 0.4,
 		-- Bounding box: covers all bases + spawn point
 		-- Bases: Z from -60 to +32, X from -30 to +25

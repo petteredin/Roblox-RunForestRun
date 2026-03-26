@@ -17,7 +17,7 @@ function StorePanel.init(player, config)
 	local LUCK_PRODUCT_IDS = GameConfig.LUCK_PRODUCTS
 
 	local storePanelOpen = false
-	local storeActiveTab = "V.I.P"
+	local storeActiveTab = "Gamepasses"
 
 	-- Remotes for store
 	local getGamepassStatusFunc = game.ReplicatedStorage:WaitForChild("GetGamepassStatus", 10)
@@ -89,7 +89,7 @@ function StorePanel.init(player, config)
 	storeTitle.Parent = storeHeader
 
 	-- Tab buttons in header
-	local storeTabNames = { "V.I.P", "Server Luck", "Codes" }
+	local storeTabNames = { "Gamepasses", "Server Luck", "Codes" }
 	local storeTabColors = {
 		Color3.fromRGB(180, 50, 180),
 		Color3.fromRGB(40, 120, 60),
@@ -168,7 +168,7 @@ function StorePanel.init(player, config)
 	gpPadding.PaddingRight = UDim.new(0, 4)
 	gpPadding.Parent = gamepassFrame
 
-	storeTabFrames["V.I.P"] = gamepassFrame
+	storeTabFrames["Gamepasses"] = gamepassFrame
 
 	-- Gamepass card builder
 	local cachedGamepassStatus = {}
@@ -653,7 +653,7 @@ function StorePanel.init(player, config)
 	end
 
 	-- Set initial tab
-	switchStoreTab("V.I.P")
+	switchStoreTab("Gamepasses")
 
 	-- ==================
 	-- STORE TOGGLE
@@ -719,8 +719,8 @@ function StorePanel.init(player, config)
 	for _, gui in ipairs(bottomGui:GetChildren()) do
 		if gui:IsA("Frame") then
 			for _, child in ipairs(gui:GetChildren()) do
-				if child:IsA("TextLabel") and (child.Text == "Store" or child.Text == "V.I.P") then
-					local tabTarget = "V.I.P"
+				if child:IsA("TextLabel") and (child.Text == "Store" or child.Text == "Gamepasses") then
+					local tabTarget = "Gamepasses"
 					local clickBtn = Instance.new("TextButton")
 					clickBtn.Size = UDim2.new(1, 0, 1, 0)
 					clickBtn.BackgroundTransparency = 1

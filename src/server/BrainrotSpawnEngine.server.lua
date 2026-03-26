@@ -13,7 +13,16 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
 local CollectionService = game:GetService("CollectionService")
-local SpawnSystem = require(script.Parent:WaitForChild("SpawnSystem", 10))
+
+print("[BrainrotSpawnEngine] Starting...")
+
+local spawnSystemModule = script.Parent:WaitForChild("SpawnSystem", 10)
+if not spawnSystemModule then
+	warn("[BrainrotSpawnEngine] FATAL: SpawnSystem module not found!")
+end
+local SpawnSystem = spawnSystemModule and require(spawnSystemModule) or nil
+
+print("[BrainrotSpawnEngine] SpawnSystem loaded:", SpawnSystem ~= nil)
 
 -- Set to true to enable verbose debug prints in server output
 local DEBUG = false
@@ -477,8 +486,14 @@ end
 -- =====================
 -- REMOTES (created via RemoteSetup module)
 -- =====================
-local RemoteSetup = require(script.Parent:WaitForChild("RemoteSetup", 10))
+print("[BrainrotSpawnEngine] Loading RemoteSetup...")
+local remoteSetupModule = script.Parent:WaitForChild("RemoteSetup", 10)
+if not remoteSetupModule then
+	error("[BrainrotSpawnEngine] FATAL: RemoteSetup module not found!")
+end
+local RemoteSetup = require(remoteSetupModule)
 local R = RemoteSetup.init()
+print("[BrainrotSpawnEngine] RemoteSetup loaded, remotes created")
 
 -- Local aliases for backward compatibility with existing code
 local remoteEvent           = R.pickupEvent

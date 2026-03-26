@@ -2552,13 +2552,14 @@ end)
 
 task.spawn(function()
 	while true do
-		task.wait(60)
+		task.wait(180)  -- Save all-time scores every 3 minutes (was 60s, caused DataStore throttling)
 		for _, p in ipairs(Players:GetPlayers()) do
 			local earned = playerCredits[p] or 0
 			if earned > 0 then
 				task.spawn(function()
 					saveAllTimeScore(p, earned)
 				end)
+				task.wait(6)  -- Stagger saves: 6s between players to avoid DataStore queue
 			end
 		end
 	end

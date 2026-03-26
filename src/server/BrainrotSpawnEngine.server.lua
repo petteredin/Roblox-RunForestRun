@@ -1994,10 +1994,12 @@ local function savePlayerData(player)
 				local bName = slot.block:GetAttribute("BrainrotName") or slot.block.Name
 				local rarity = slot.block:GetAttribute("Rarity") or "COMMON"
 				local earnRate = slot.block:GetAttribute("EarnRate") or (slot.earnRate or 1)
+				local mutation = slot.block:GetAttribute("Mutation") or "NONE"
 				data.slots[tostring(i)] = {
 					name     = bName,
 					rarity   = rarity,
 					earnRate = earnRate,
+					mutation = mutation,
 				}
 			end
 		end
@@ -2079,9 +2081,23 @@ local function restoreBrainrotToSlot(player, slotIndex, savedSlot)
 	local color = RARITY_COLORS[rarity] or RARITY_COLORS["COMMON"]
 	local earnRate = savedSlot.earnRate or 1
 
-	-- Try to clone the model from ReplicatedStorage
+	-- Try to clone the model from the correct mutation folder in ReplicatedStorage
+	local mutationKey = savedSlot.mutation or "NONE"
+	local MUTATION_FOLDERS = { NONE = "NormalBrainrots", GOLD = "GoldenBrainrots", DIAMOND = "DiamondBrainrots" }
 	if brainrotDef and (brainrotDef.modelName or brainrotDef.name) then
-		local template = ReplicatedStorage:FindFirstChild(brainrotDef.modelName or brainrotDef.name)
+		local modelName = brainrotDef.modelName or brainrotDef.name
+		local folderName = MUTATION_FOLDERS[mutationKey] or "NormalBrainrots"
+		local mutationFolder = ReplicatedStorage:FindFirstChild(folderName)
+		local template = mutationFolder and mutationFolder:FindFirstChild(modelName)
+		-- Fallback: try other folders
+		if not template then
+			for _, fb in pairs(MUTATION_FOLDERS) do
+				local f = ReplicatedStorage:FindFirstChild(fb)
+				if f then template = f:FindFirstChild(modelName) if template then break end end
+			end
+		end
+		-- Last resort: root of ReplicatedStorage
+		if not template then template = ReplicatedStorage:FindFirstChild(modelName) end
 		if template then
 			storedBlock = template:Clone()
 			if storedBlock:IsA("Model") then

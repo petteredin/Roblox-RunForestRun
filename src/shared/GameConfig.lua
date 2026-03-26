@@ -11,39 +11,67 @@ local GameConfig = {}
 -- =====================
 -- BRAINROT CATALOG
 -- =====================
--- All brainrots in the game. Server uses modelName (= name) separately.
--- Icon uses Unicode escapes for cross-platform compatibility.
+-- All 37 brainrots in the game. Must match model names in
+-- ReplicatedStorage/NormalBrainrots, GoldenBrainrots, DiamondBrainrots.
 GameConfig.BRAINROTS = {
-	{ name="Tralalero Tralala",         icon="\u{1F988}", rarity="COMMON",    baseEarn=10  },
-	{ name="Chimpanzini Bananini",      icon="\u{1F412}", rarity="COMMON",    baseEarn=9   },
-	{ name="Bobrito Bandito",           icon="\u{1F32F}", rarity="COMMON",    baseEarn=11  },
-	{ name="Frulli Frulla",             icon="\u{1F353}", rarity="COMMON",    baseEarn=8   },
-	{ name="Frigo Camelo",              icon="\u{1F42A}", rarity="COMMON",    baseEarn=12  },
+	-- COMMON (8)
+	{ name="67 Letter",                 icon="\u{1F4E7}", rarity="COMMON",    baseEarn=10  },
+	{ name="Ballerino Lololo",          icon="\u{1FA70}", rarity="COMMON",    baseEarn=9   },
+	{ name="Br Br Patapim",            icon="\u{1F438}", rarity="COMMON",    baseEarn=11  },
+	{ name="Crab Chef",                 icon="\u{1F980}", rarity="COMMON",    baseEarn=8   },
+	{ name="Esok Sekolah",              icon="\u{1F392}", rarity="COMMON",    baseEarn=12  },
+	{ name="Frulli Frulla",             icon="\u{1F353}", rarity="COMMON",    baseEarn=9   },
+	{ name="Garama",                    icon="\u{1F47E}", rarity="COMMON",    baseEarn=10  },
+	{ name="Matteo",                    icon="\u{1F468}", rarity="COMMON",    baseEarn=11  },
+
+	-- UNCOMMON (8)
 	{ name="Ballerina Cappuccina",      icon="\u{2615}",  rarity="UNCOMMON",  baseEarn=14  },
-	{ name="Liril\195\172 Laril\195\160", icon="\u{1F335}", rarity="UNCOMMON",  baseEarn=16  },
-	{ name="Burbaloni Luliloli",        icon="\u{1FAE7}", rarity="UNCOMMON",  baseEarn=13  },
-	{ name="Orangutini Ananasini",      icon="\u{1F34D}", rarity="UNCOMMON",  baseEarn=15  },
-	{ name="Pot Hotspot",               icon="\u{1F4F6}", rarity="UNCOMMON",  baseEarn=17  },
-	{ name="Cappuccino Assassino",      icon="\u{2615}",  rarity="EPIC",      baseEarn=22  },
-	{ name="Bombardiro Crocodilo",      icon="\u{1F40A}", rarity="EPIC",      baseEarn=28  },
-	{ name="Brr Brr Patapim",           icon="\u{1F438}", rarity="EPIC",      baseEarn=25  },
-	{ name="Il Cacto Hipopotamo",       icon="\u{1F99B}", rarity="EPIC",      baseEarn=20  },
-	{ name="Espressona Signora",        icon="\u{1F475}", rarity="EPIC",      baseEarn=23  },
-	{ name="Trippi Troppi",             icon="\u{1F990}", rarity="LEGENDARY", baseEarn=40  },
-	{ name="Bombombini Gusini",         icon="\u{1FABF}", rarity="LEGENDARY", baseEarn=45  },
-	{ name="La Vaca Saturno Saturnita", icon="\u{1F404}", rarity="LEGENDARY", baseEarn=50  },
-	{ name="Glorbo Fruttodrillo",       icon="\u{1F40A}", rarity="LEGENDARY", baseEarn=42  },
-	{ name="Rhino Toasterino",          icon="\u{1F98F}", rarity="LEGENDARY", baseEarn=38  },
-	{ name="Tung Tung Tung Sahur",      icon="\u{1FAB5}", rarity="MYTHIC",    baseEarn=70  },
-	{ name="Boneca Ambalabu",           icon="\u{1F438}", rarity="MYTHIC",    baseEarn=80  },
-	{ name="Garamararamararaman",       icon="\u{1F47E}", rarity="MYTHIC",    baseEarn=75  },
-	{ name="Ta Ta Ta Ta Ta Sahur",      icon="\u{1F941}", rarity="MYTHIC",    baseEarn=65  },
-	{ name="Tric Trac Baraboom",        icon="\u{1F4A5}", rarity="MYTHIC",    baseEarn=72  },
-	{ name="Girafa Celeste",            icon="\u{1F992}", rarity="COSMIC",    baseEarn=120 },
+	{ name="Bananita Dolphinita",       icon="\u{1F42C}", rarity="UNCOMMON",  baseEarn=16  },
+	{ name="Burbaloni Loliloli",        icon="\u{1FAE7}", rarity="UNCOMMON",  baseEarn=13  },
+	{ name="Chimpanzini Bananini",      icon="\u{1F412}", rarity="UNCOMMON",  baseEarn=15  },
+	{ name="Frigo Camelo",              icon="\u{1F42A}", rarity="UNCOMMON",  baseEarn=17  },
+	{ name="Gangster Footera",          icon="\u{1F45F}", rarity="UNCOMMON",  baseEarn=14  },
+	{ name="Lirili Larila",             icon="\u{1F335}", rarity="UNCOMMON",  baseEarn=16  },
+	{ name="Odin Din Din Dun",          icon="\u{1F941}", rarity="UNCOMMON",  baseEarn=15  },
+
+	-- EPIC (7)
+	{ name="Bombombini Gusini",         icon="\u{1FABF}", rarity="EPIC",      baseEarn=22  },
+	{ name="Boneca Ambalabu",           icon="\u{1F438}", rarity="EPIC",      baseEarn=25  },
+	{ name="Cappucino Assasino",        icon="\u{2615}",  rarity="EPIC",      baseEarn=28  },
+	{ name="Garamararam",               icon="\u{1F47E}", rarity="EPIC",      baseEarn=23  },
+	{ name="Job Job Job Sahur",         icon="\u{1F4BC}", rarity="EPIC",      baseEarn=20  },
+	{ name="Karkerkar Kurkur",          icon="\u{1F993}", rarity="EPIC",      baseEarn=24  },
+	{ name="Pipi Kiwi",                 icon="\u{1F95D}", rarity="EPIC",      baseEarn=21  },
+
+	-- LEGENDARY (6)
+	{ name="La Vacca Saturno Saturnita", icon="\u{1F404}", rarity="LEGENDARY", baseEarn=40  },
+	{ name="Orangutini Ananassini",     icon="\u{1F34D}", rarity="LEGENDARY", baseEarn=45  },
+	{ name="Pot Hotspot",               icon="\u{1F4F6}", rarity="LEGENDARY", baseEarn=42  },
+	{ name="Strawberry Elephant",       icon="\u{1F353}", rarity="LEGENDARY", baseEarn=38  },
+	{ name="Svinina Bombardino",        icon="\u{1F416}", rarity="LEGENDARY", baseEarn=50  },
+	{ name="Tralalero Tralala",         icon="\u{1F988}", rarity="LEGENDARY", baseEarn=44  },
+
+	-- MYTHIC (4)
+	{ name="Ta Ta Ta Ta Sahur",         icon="\u{1F941}", rarity="MYTHIC",    baseEarn=70  },
+	{ name="Trippi Troppi",             icon="\u{1F990}", rarity="MYTHIC",    baseEarn=80  },
+	{ name="Trippi Troppi Troppa",      icon="\u{1F990}", rarity="MYTHIC",    baseEarn=75  },
+	{ name="Tung Tung Sahur",           icon="\u{1FAB5}", rarity="MYTHIC",    baseEarn=72  },
+
+	-- COSMIC (4)
+	{ name="Giraffa Celeste",           icon="\u{1F992}", rarity="COSMIC",    baseEarn=120 },
 	{ name="Trulimero Trulicina",       icon="\u{1F30C}", rarity="COSMIC",    baseEarn=140 },
-	{ name="Blueberrinni Octopussini",  icon="\u{1F419}", rarity="COSMIC",    baseEarn=130 },
-	{ name="Graipussi Medussi",         icon="\u{1F347}", rarity="COSMIC",    baseEarn=110 },
-	{ name="Zibra Zubra Zibralini",     icon="\u{1F993}", rarity="COSMIC",    baseEarn=135 },
+	{ name="Gold Lirili Larila",        icon="\u{1F335}", rarity="COSMIC",    baseEarn=130 },
+	{ name="Tralalero Tralala",         icon="\u{1F988}", rarity="COSMIC",    baseEarn=135 },
+}
+
+-- =====================
+-- MUTATION FOLDER MAPPING
+-- =====================
+-- Maps mutation key to the ReplicatedStorage folder containing the models
+GameConfig.MUTATION_FOLDERS = {
+	NONE    = "NormalBrainrots",
+	GOLD    = "GoldenBrainrots",
+	DIAMOND = "DiamondBrainrots",
 }
 
 -- =====================
@@ -91,13 +119,12 @@ GameConfig.RARITY_COLORS = {
 GameConfig.RARITY_ORDER = { "COMMON", "UNCOMMON", "EPIC", "LEGENDARY", "MYTHIC", "COSMIC" }
 
 -- =====================
--- MUTATIONS
+-- MUTATIONS (Rainbow removed)
 -- =====================
 GameConfig.MUTATIONS = {
 	{ key = "NONE",    label = "Normal",  color = Color3.fromRGB(180, 180, 180), weight = 75, mult = 1     },
-	{ key = "GOLD",    label = "Gold",    color = Color3.fromRGB(255, 200, 0),   weight = 12, mult = 2.25  },
-	{ key = "DIAMOND", label = "Diamond", color = Color3.fromRGB(100, 220, 255), weight = 8,  mult = 7.75  },
-	{ key = "RAINBOW", label = "Rainbow", color = Color3.fromRGB(255, 100, 200), weight = 5,  mult = 23.25 },
+	{ key = "GOLD",    label = "Gold",    color = Color3.fromRGB(255, 200, 0),   weight = 15, mult = 2.25  },
+	{ key = "DIAMOND", label = "Diamond", color = Color3.fromRGB(100, 220, 255), weight = 10, mult = 7.75  },
 }
 
 -- Dictionary form for quick lookups (server uses this)

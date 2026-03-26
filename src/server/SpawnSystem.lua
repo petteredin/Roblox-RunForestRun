@@ -194,11 +194,40 @@ end
 -- =====================
 -- INSTANTIATE a brainrot model at a position
 -- =====================
-local function instantiateBrainrot(brainrotDef, rarity, spawnPos, parentFolder)
+-- mutationKey determines which folder to load from:
+--   "NONE" -> NormalBrainrots, "GOLD" -> GoldenBrainrots, "DIAMOND" -> DiamondBrainrots
+local MUTATION_FOLDERS = {
+	NONE    = "NormalBrainrots",
+	GOLD    = "GoldenBrainrots",
+	DIAMOND = "DiamondBrainrots",
+}
+
+local function instantiateBrainrot(brainrotDef, rarity, spawnPos, parentFolder, mutationKey)
 	local brainrot
-	if brainrotDef.modelName or brainrotDef.name then
-		local template = ReplicatedStorage:FindFirstChild(brainrotDef.modelName or brainrotDef.name)
-		if template then
+	local modelName = brainrotDef.modelName or brainrotDef.name
+
+	-- Find the template in the correct mutation folder
+	local folderName = MUTATION_FOLDERS[mutationKey or "NONE"] or "NormalBrainrots"
+	local mutationFolder = ReplicatedStorage:FindFirstChild(folderName)
+	local template = mutationFolder and mutationFolder:FindFirstChild(modelName)
+
+	-- Fallback: try the other mutation folders if not found
+	if not template then
+		for _, fallbackFolder in pairs(MUTATION_FOLDERS) do
+			local fb = ReplicatedStorage:FindFirstChild(fallbackFolder)
+			if fb then
+				template = fb:FindFirstChild(modelName)
+				if template then break end
+			end
+		end
+	end
+
+	-- Last resort fallback: try root of ReplicatedStorage
+	if not template then
+		template = ReplicatedStorage:FindFirstChild(modelName)
+	end
+
+	if modelName and template then
 			brainrot = template:Clone()
 			if brainrot:IsA("Model") then
 				if not brainrot.PrimaryPart then
@@ -296,9 +325,11 @@ function SpawnSystem.spawnBrainrotInZone(zoneIndex, serverLuckMult, serverLuckEn
 
 	local spawnPos = getRandomPositionInZone(zone)
 	local parentFolder = spawnFolders[zoneIndex]
-	local brainrot = instantiateBrainrot(brainrotDef, rarity, spawnPos, parentFolder)
 
+	-- Roll mutation BEFORE instantiation so we load the correct model
 	local mutation, mutationKey = getMutation(nil)
+	local brainrot = instantiateBrainrot(brainrotDef, rarity, spawnPos, parentFolder, mutationKey)
+
 	local mutationMult = mutation.mult or 1
 	local earnRate = brainrotDef.baseEarn * RARITIES[rarity].mult * mutationMult
 
@@ -348,8 +379,8 @@ function SpawnSystem.adminSpawnBrainrot(brainrotName, forcedMutationKey)
 	local rarity = brainrotDef.rarity
 	local spawnPos = getRandomPositionInZone(zone)
 	local parentFolder = spawnFolders[targetZone]
-	local brainrot = instantiateBrainrot(brainrotDef, rarity, spawnPos, parentFolder)
 
+	-- Roll mutation BEFORE instantiation so we load the correct model
 	local mutation, mutationKey
 	if forcedMutationKey and forcedMutationKey ~= "" and MUTATIONS[forcedMutationKey] then
 		mutation = MUTATIONS[forcedMutationKey]
@@ -357,6 +388,8 @@ function SpawnSystem.adminSpawnBrainrot(brainrotName, forcedMutationKey)
 	else
 		mutation, mutationKey = getMutation(nil)
 	end
+
+	local brainrot = instantiateBrainrot(brainrotDef, rarity, spawnPos, parentFolder, mutationKey)
 
 	local mutationMult = mutation.mult or 1
 	local earnRate = brainrotDef.baseEarn * RARITIES[rarity].mult * mutationMult

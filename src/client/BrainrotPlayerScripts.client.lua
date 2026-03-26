@@ -632,42 +632,24 @@ bottomGui.ResetOnSpawn = false
 bottomGui.Parent = player.PlayerGui
 
 -- Bottom left buttons
-local bottomButtons = { "Store", "Index" }
-local bottomIcons   = { "\u{25A6}", "\u{2630}" }
-local bottomColors  = {
-	Color3.fromRGB(40, 40, 50),
-	Color3.fromRGB(40, 40, 50),
-}
+local bottomButtons  = { "Store", "Index" }
+local bottomImageIds = { 105656954644211, 140599087132503 }
 
 for i, btnName in ipairs(bottomButtons) do
 	local btnFrame = Instance.new("Frame")
-	btnFrame.Size = UDim2.new(0, 58, 0, 68)
-	btnFrame.Position = UDim2.new(0, 12 + (i - 1) * 66, 1, -80)
-	btnFrame.BackgroundColor3 = bottomColors[i]
-	btnFrame.BackgroundTransparency = 0.2
+	btnFrame.Size = UDim2.new(0, 68, 0, 68)
+	btnFrame.Position = UDim2.new(0, 12 + (i - 1) * 76, 1, -80)
+	btnFrame.BackgroundTransparency = 1
 	btnFrame.BorderSizePixel = 0
 	btnFrame.Parent = bottomGui
-	Instance.new("UICorner", btnFrame).CornerRadius = UDim.new(0, 12)
 
-	local iconLbl = Instance.new("TextLabel")
-	iconLbl.Size = UDim2.new(1, 0, 0, 36)
-	iconLbl.Position = UDim2.new(0, 0, 0, 4)
-	iconLbl.BackgroundTransparency = 1
-	iconLbl.Text = bottomIcons[i]
-	iconLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-	iconLbl.TextScaled = true
-	iconLbl.Font = Enum.Font.GothamBold
-	iconLbl.Parent = btnFrame
-
-	local nameLbl = Instance.new("TextLabel")
-	nameLbl.Size = UDim2.new(1, 0, 0, 16)
-	nameLbl.Position = UDim2.new(0, 0, 1, -20)
-	nameLbl.BackgroundTransparency = 1
-	nameLbl.Text = btnName
-	nameLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-	nameLbl.TextScaled = true
-	nameLbl.Font = Enum.Font.Gotham
-	nameLbl.Parent = btnFrame
+	local iconImg = Instance.new("ImageLabel")
+	iconImg.Name = "Icon"
+	iconImg.Size = UDim2.new(1, 0, 1, 0)
+	iconImg.BackgroundTransparency = 1
+	iconImg.Image = "rbxassetid://" .. tostring(bottomImageIds[i])
+	iconImg.ScaleType = Enum.ScaleType.Fit
+	iconImg.Parent = btnFrame
 
 end
 
@@ -697,37 +679,23 @@ local getServerLuckFunc = game.ReplicatedStorage:WaitForChild("GetServerLuck", 1
 
 -- (old store UI code removed — now in StorePanel.lua module)
 
--- Owner button (bottom right) - hidden by default, shown for admins
+-- Admin button (bottom right) - hidden by default, shown for admins
 local ownerFrame = Instance.new("Frame")
 ownerFrame.Name = "OwnerButton"
-ownerFrame.Size = UDim2.new(0, 64, 0, 68)
-ownerFrame.Position = UDim2.new(1, -76, 1, -80)
-ownerFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-ownerFrame.BackgroundTransparency = 0.2
+ownerFrame.Size = UDim2.new(0, 68, 0, 68)
+ownerFrame.Position = UDim2.new(1, -80, 1, -80)
+ownerFrame.BackgroundTransparency = 1
 ownerFrame.BorderSizePixel = 0
 ownerFrame.Visible = false -- hidden until admin check
 ownerFrame.Parent = bottomGui
-Instance.new("UICorner", ownerFrame).CornerRadius = UDim.new(0, 12)
 
-local ownerIcon = Instance.new("TextLabel")
-ownerIcon.Size = UDim2.new(1, 0, 0, 36)
-ownerIcon.Position = UDim2.new(0, 0, 0, 4)
-ownerIcon.BackgroundTransparency = 1
-ownerIcon.Text = "\u{2699}"
-ownerIcon.TextColor3 = Color3.fromRGB(180, 180, 255)
-ownerIcon.TextScaled = true
-ownerIcon.Font = Enum.Font.GothamBold
-ownerIcon.Parent = ownerFrame
-
-local ownerNameLbl = Instance.new("TextLabel")
-ownerNameLbl.Size = UDim2.new(1, 0, 0, 16)
-ownerNameLbl.Position = UDim2.new(0, 0, 1, -20)
-ownerNameLbl.BackgroundTransparency = 1
-ownerNameLbl.Text = "Owner"
-ownerNameLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-ownerNameLbl.TextScaled = true
-ownerNameLbl.Font = Enum.Font.Gotham
-ownerNameLbl.Parent = ownerFrame
+local ownerIconImg = Instance.new("ImageLabel")
+ownerIconImg.Name = "Icon"
+ownerIconImg.Size = UDim2.new(1, 0, 1, 0)
+ownerIconImg.BackgroundTransparency = 1
+ownerIconImg.Image = "rbxassetid://140339347541759"
+ownerIconImg.ScaleType = Enum.ScaleType.Fit
+ownerIconImg.Parent = ownerFrame
 
 -- ADMIN badge on owner button
 local adminBadge = Instance.new("Frame")

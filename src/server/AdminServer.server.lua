@@ -77,6 +77,7 @@ end)
 -- =====================
 local OWNER_IDS = {
 	[8327644091] = true, -- Simpleson716
+	[3487892044] = true, -- Simpleson71
 }
 
 -- Unique counter for log keys to avoid collisions

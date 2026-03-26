@@ -29,6 +29,7 @@ local player = Players.LocalPlayer
 -- =====================
 local ADMIN_IDS = {
 	[8327644091] = true, -- Simpleson716 (fallback)
+	[3487892044] = true, -- Simpleson71 (fallback)
 }
 
 -- Check with the server if we are admin and get role

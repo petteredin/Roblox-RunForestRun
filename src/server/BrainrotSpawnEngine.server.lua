@@ -1340,7 +1340,7 @@ local function startCreditTick(player)
 			end
 			if totalEarned > 0 then
 				playerCredits[player] = (playerCredits[player] or 0) + totalEarned
-				sessionEarnings[player.UserId] = (sessionEarnings[player.UserId] or 0) + totalEarned
+				-- sessionEarnings now tracked at collection (plate pickup) only
 			end
 		end
 	end)
@@ -1370,6 +1370,7 @@ task.spawn(function()
 					plate.label.Text = ""
 					if plate.billboard then plate.billboard.Enabled = false end
 					playerWallet[player] = (playerWallet[player] or 0) + collected
+					sessionEarnings[player.UserId] = (sessionEarnings[player.UserId] or 0) + collected
 					plate.part.BrickColor = BrickColor.new("White")
 					task.delay(0.3, function()
 						if plate and plate.part and plate.part.Parent then

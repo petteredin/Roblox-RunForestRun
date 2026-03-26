@@ -228,26 +228,25 @@ local function instantiateBrainrot(brainrotDef, rarity, spawnPos, parentFolder, 
 	end
 
 	if modelName and template then
-			brainrot = template:Clone()
-			if brainrot:IsA("Model") then
-				if not brainrot.PrimaryPart then
-					local firstPart = brainrot:FindFirstChildWhichIsA("BasePart")
-					if firstPart then brainrot.PrimaryPart = firstPart end
-				end
-				brainrot:PivotTo(CFrame.new(spawnPos))
-				for _, part in ipairs(brainrot:GetDescendants()) do
-					if part:IsA("BasePart") then
-						part.Anchored   = true
-						part.CanCollide = false
-					end
-				end
-			else
-				brainrot.Position   = spawnPos
-				brainrot.Anchored   = true
-				brainrot.CanCollide = false
+		brainrot = template:Clone()
+		if brainrot:IsA("Model") then
+			if not brainrot.PrimaryPart then
+				local firstPart = brainrot:FindFirstChildWhichIsA("BasePart")
+				if firstPart then brainrot.PrimaryPart = firstPart end
 			end
-			brainrot.Parent = parentFolder
+			brainrot:PivotTo(CFrame.new(spawnPos))
+			for _, part in ipairs(brainrot:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.Anchored   = true
+					part.CanCollide = false
+				end
+			end
+		else
+			brainrot.Position   = spawnPos
+			brainrot.Anchored   = true
+			brainrot.CanCollide = false
 		end
+		brainrot.Parent = parentFolder
 	end
 
 	-- Fallback: no model found, create a generic neon block

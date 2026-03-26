@@ -2072,7 +2072,18 @@ end
 -- PLAYER DATA PERSISTENCE
 -- =====================
 
-local function savePlayerData(player)
+local lastSaveTime = {}  -- [player] = os.clock() — throttle saves to 1 per 10s
+local SAVE_COOLDOWN = 10
+
+local function savePlayerData(player, force)
+	if not force then
+		local now = os.clock()
+		if lastSaveTime[player] and (now - lastSaveTime[player]) < SAVE_COOLDOWN then
+			return  -- skip: saved too recently
+		end
+		lastSaveTime[player] = now
+	end
+
 	local data = {
 		wallet     = playerWallet[player] or 0,
 		speedTime  = playerSpeedTime[player] or 0,
@@ -2829,8 +2840,8 @@ end
 Players.PlayerAdded:Connect(onPlayerAdded)
 
 Players.PlayerRemoving:Connect(function(player)
-	-- Save player data before cleanup
-	savePlayerData(player)
+	-- Force save on disconnect (bypass cooldown)
+	savePlayerData(player, true)
 
 	local totalEarned = playerCredits[player] or 0
 	if totalEarned > 0 then
@@ -2873,6 +2884,7 @@ Players.PlayerRemoving:Connect(function(player)
 	playerRebirthInfoSent[player] = nil
 	playerSpeedLimit[player] = nil
 	playerRebirthReq[player] = nil
+	lastSaveTime[player] = nil
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
@@ -2888,7 +2900,7 @@ game:BindToClose(function()
 	local finished = 0
 	for _, p in ipairs(players) do
 		task.spawn(function()
-			savePlayerData(p)
+			savePlayerData(p, true)  -- force: bypass cooldown on shutdown
 			finished = finished + 1
 		end)
 	end

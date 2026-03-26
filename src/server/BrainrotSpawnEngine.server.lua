@@ -2426,7 +2426,7 @@ local function updateSessionBoard()
 		local displayName = isVIP and ("\u{1F451} " .. p.Name) or p.Name
 		table.insert(entries, {
 			name  = displayName,
-			score = sessionEarnings[p.UserId] or 0,
+			score = playerWallet[p] or 0,
 		})
 	end
 	table.sort(entries, function(a, b) return a.score > b.score end)

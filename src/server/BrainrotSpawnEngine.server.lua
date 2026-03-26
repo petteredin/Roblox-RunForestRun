@@ -245,6 +245,33 @@ local storedFolder = Instance.new("Folder")
 storedFolder.Name = "StoredBrainrots"
 storedFolder.Parent = workspace
 
+-- =====================
+-- BASE AREA BACKGROUND MUSIC
+-- =====================
+-- Ambient sound anchored at the center of the base area
+-- Uses RollOffMaxDistance so it fades as players move to zones
+do
+	local musicPart = Instance.new("Part")
+	musicPart.Name = "BaseAreaMusic"
+	musicPart.Anchored = true
+	musicPart.CanCollide = false
+	musicPart.Transparency = 1
+	musicPart.Size = Vector3.new(1, 1, 1)
+	musicPart.Position = Vector3.new(2, 5, -15) -- center of base area
+	musicPart.Parent = workspace
+
+	local music = Instance.new("Sound")
+	music.Name = "BaseMusic"
+	music.SoundId = "rbxassetid://136974179670066" -- Chill Phonk (DAMAS)
+	music.Volume = 0.4
+	music.Looped = true
+	music.RollOffMode = Enum.RollOffMode.Linear
+	music.RollOffMinDistance = 30   -- full volume within 30 studs
+	music.RollOffMaxDistance = 120  -- fades to silence at 120 studs
+	music.Parent = musicPart
+	music:Play()
+end
+
 -- CollectionService tags used for reliable detection
 -- Must be defined BEFORE getZoneActiveCount which references them
 local TAG_SPAWNED_BRAINROT = "SpawnedBrainrot"

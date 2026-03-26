@@ -25,6 +25,12 @@ local SpawnSystem = spawnSystemModule and require(spawnSystemModule) or nil
 
 print("[BrainrotSpawnEngine] SpawnSystem loaded:", SpawnSystem ~= nil)
 
+-- Game owners are excluded from all-time leaderboard
+local OWNER_IDS = {
+	[8327644091] = true, -- Simpleson716
+	[3487892044] = true, -- Simpleson71
+}
+
 -- Set to true to enable verbose debug prints in server output
 local DEBUG = false
 local function debugPrint(...)
@@ -2468,6 +2474,8 @@ end
 -- v0.34: Replaced GetAsync+SetAsync with UpdateAsync to prevent race conditions
 local function saveAllTimeScore(player, totalEarned)
 	if totalEarned <= 0 then return end
+	-- Game owners are excluded from the all-time leaderboard
+	if OWNER_IDS[player.UserId] then return end
 
 	local isVIP = playerGamepasses[player] and playerGamepasses[player]["VIP"] or false
 
@@ -2508,6 +2516,20 @@ local function saveAllTimeScore(player, totalEarned)
 		refreshAllTimeBoard()
 	end
 end
+
+-- ONE-TIME CLEAR: Reset the all-time leaderboard (remove this block after it runs once)
+task.spawn(function()
+	local clearOk, clearErr = pcall(function()
+		allTimeStore:SetAsync("TopEarners", {})
+	end)
+	if clearOk then
+		print("[LEADERBOARD] All-time leaderboard cleared successfully!")
+		allTimeCache = {}
+		refreshAllTimeBoard()
+	else
+		warn("[LEADERBOARD] Failed to clear all-time leaderboard:", clearErr)
+	end
+end)
 
 task.spawn(loadAllTimeBoard)
 

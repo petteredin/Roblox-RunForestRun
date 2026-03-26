@@ -2696,6 +2696,33 @@ local function onPlayerAdded(player)
 	end
 
 	player.CharacterAdded:Connect(function(character)
+		-- Drop carried brainrot on respawn (player died while carrying)
+		if carriedBrainrots[player] then
+			local carried = carriedBrainrots[player]
+			if carried and carried.Parent then
+				carried:Destroy()
+			end
+			carriedBrainrots[player] = nil
+			playerHasPickup[player] = false
+			playerHolding[player] = false
+		end
+
+		-- Listen for death to drop brainrot immediately
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		if humanoid then
+			humanoid.Died:Connect(function()
+				if carriedBrainrots[player] then
+					local carried = carriedBrainrots[player]
+					if carried and carried.Parent then
+						carried:Destroy()
+					end
+					carriedBrainrots[player] = nil
+					playerHasPickup[player] = false
+					playerHolding[player] = false
+				end
+			end)
+		end
+
 		task.wait(1)
 		local root = character:WaitForChild("HumanoidRootPart", 10)
 		if not root then return end

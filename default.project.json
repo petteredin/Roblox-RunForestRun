@@ -5,16 +5,13 @@
     "ServerScriptService": {
       "$className": "ServerScriptService",
       "BrainrotSpawnEngine": {
-        "$path": "src/server/BrainrotSpawnEngine.server.lua",
-        "$properties": { "RunContext": "Server" }
+        "$path": "src/server/BrainrotSpawnEngine.server.lua"
       },
       "AdminServer": {
-        "$path": "src/server/AdminServer.server.lua",
-        "$properties": { "RunContext": "Server" }
+        "$path": "src/server/AdminServer.server.lua"
       },
       "TrapManager": {
-        "$path": "src/server/TrapManager.server.lua",
-        "$properties": { "RunContext": "Server" }
+        "$path": "src/server/TrapManager.server.lua"
       },
       "RemoteSetup": {
         "$path": "src/server/RemoteSetup.lua"

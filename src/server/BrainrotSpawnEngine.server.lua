@@ -1,3 +1,4 @@
+print("=== BRAINROT ENGINE FILE LOADED ===")
 -- Brainrot Spawn Engine v0.34
 -- Blueberry Pie Games
 -- Changelog v0.34:

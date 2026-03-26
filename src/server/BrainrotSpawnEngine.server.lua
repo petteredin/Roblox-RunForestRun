@@ -484,16 +484,91 @@ local function getPlayerBasePosition(player)
 end
 
 -- =====================
--- REMOTES (created via RemoteSetup module)
+-- REMOTES
 -- =====================
+-- Try RemoteSetup module first, fall back to inline creation if not found
 print("[BrainrotSpawnEngine] Loading RemoteSetup...")
-local remoteSetupModule = script.Parent:WaitForChild("RemoteSetup", 10)
-if not remoteSetupModule then
-	error("[BrainrotSpawnEngine] FATAL: RemoteSetup module not found!")
+local R
+local remoteSetupModule = script.Parent:FindFirstChild("RemoteSetup")
+if remoteSetupModule then
+	local ok, result = pcall(function()
+		local RemoteSetup = require(remoteSetupModule)
+		return RemoteSetup.init()
+	end)
+	if ok then
+		R = result
+		print("[BrainrotSpawnEngine] RemoteSetup loaded OK")
+	else
+		warn("[BrainrotSpawnEngine] RemoteSetup failed:", result)
+	end
 end
-local RemoteSetup = require(remoteSetupModule)
-local R = RemoteSetup.init()
-print("[BrainrotSpawnEngine] RemoteSetup loaded, remotes created")
+
+-- Fallback: create remotes inline if RemoteSetup wasn't available
+if not R then
+	warn("[BrainrotSpawnEngine] RemoteSetup not found — creating remotes inline")
+	local function getOrCreateRemote(name)
+		local r = ReplicatedStorage:FindFirstChild(name)
+		if not r then
+			r = Instance.new("RemoteEvent")
+			r.Name = name
+			r.Parent = ReplicatedStorage
+		end
+		return r
+	end
+	local function getOrCreateRemoteFunction(name)
+		local r = ReplicatedStorage:FindFirstChild(name)
+		if not r then
+			r = Instance.new("RemoteFunction")
+			r.Name = name
+			r.Parent = ReplicatedStorage
+		end
+		return r
+	end
+	local function getOrCreateBindable(name)
+		local ServerScriptService = game:GetService("ServerScriptService")
+		local b = ServerScriptService:FindFirstChild(name)
+		if not b then
+			b = Instance.new("BindableFunction")
+			b.Name = name
+			b.Parent = ServerScriptService
+		end
+		return b
+	end
+	R = {
+		pickupEvent      = getOrCreateRemote("BrainrotPickup"),
+		progressEvent    = getOrCreateRemote("BrainrotProgress"),
+		depositEvent     = getOrCreateRemote("BrainrotDeposited"),
+		creditEvent      = getOrCreateRemote("CreditUpdate"),
+		collectEvent     = getOrCreateRemote("CreditsCollected"),
+		upgradeResult    = getOrCreateRemote("UpgradeResult"),
+		sellEvent        = getOrCreateRemote("SellRequested"),
+		sellProgress     = getOrCreateRemote("SellProgress"),
+		sellResult       = getOrCreateRemote("SellResult"),
+		speedUpdate      = getOrCreateRemote("SpeedUpdate"),
+		rebirthResult    = getOrCreateRemote("RebirthResult"),
+		rebirthInfo      = getOrCreateRemote("RebirthInfo"),
+		rebirthRequest   = getOrCreateRemote("RebirthRequested"),
+		spawnNotify      = getOrCreateRemote("SpawnNotify"),
+		adminCheck       = getOrCreateRemote("AdminCheck"),
+		collectionUpdate = getOrCreateRemote("CollectionUpdate"),
+		speedLimitEvent  = getOrCreateRemote("SpeedLimitEvent"),
+		getRebirthInfo   = getOrCreateRemoteFunction("GetRebirthInfo"),
+		getCollection    = getOrCreateRemoteFunction("GetCollection"),
+		getGamepassStatus = getOrCreateRemoteFunction("GetGamepassStatus"),
+		redeemCode       = getOrCreateRemoteFunction("RedeemCode"),
+		getServerLuck    = getOrCreateRemoteFunction("GetServerLuck"),
+		getDiscountInfo  = getOrCreateRemoteFunction("GetDiscountInfo"),
+		adminSetCredits    = getOrCreateBindable("AdminSetCredits"),
+		adminAddCredits    = getOrCreateBindable("AdminAddCredits"),
+		adminSetRebirth    = getOrCreateBindable("AdminSetRebirth"),
+		adminGiveRebirth   = getOrCreateBindable("AdminGiveRebirth"),
+		adminSetSpeed      = getOrCreateBindable("AdminSetSpeed"),
+		adminSpawnBrainrot = getOrCreateBindable("AdminSpawnBrainrot"),
+		adminSetLuck       = getOrCreateBindable("AdminSetLuck"),
+		adminGrantVIP      = getOrCreateBindable("AdminGrantVIP"),
+	}
+end
+print("[BrainrotSpawnEngine] Remotes ready")
 
 -- Local aliases for backward compatibility with existing code
 local remoteEvent           = R.pickupEvent

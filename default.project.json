@@ -38,6 +38,9 @@
         },
         "StorePanel": {
           "$path": "src/client/StorePanel.lua"
+        },
+        "MusicClient": {
+          "$path": "src/client/MusicClient.client.lua"
         }
       }
     },

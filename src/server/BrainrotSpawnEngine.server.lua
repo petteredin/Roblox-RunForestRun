@@ -245,43 +245,6 @@ local storedFolder = Instance.new("Folder")
 storedFolder.Name = "StoredBrainrots"
 storedFolder.Parent = workspace
 
--- =====================
--- BASE AREA BACKGROUND MUSIC
--- =====================
--- Ambient sound anchored at the center of the base/spawn area
--- Area covers: bases (-57 to +29 on Z), spawn point (-24, 1.5, -5.5)
--- Center point: roughly (-11, 8, -14) with large rolloff to cover full area
-do
-	local musicPart = Instance.new("Part")
-	musicPart.Name = "BaseAreaMusic"
-	musicPart.Anchored = true
-	musicPart.CanCollide = false
-	musicPart.Transparency = 1
-	musicPart.Size = Vector3.new(1, 1, 1)
-	musicPart.Position = Vector3.new(-11, 8, -14) -- center of base + spawn area
-	musicPart.Parent = workspace
-
-	local music = Instance.new("Sound")
-	music.Name = "BaseMusic"
-	music.SoundId = "rbxassetid://136974179670066" -- Chill Phonk (DAMAS)
-	music.Volume = 0.5
-	music.Looped = true
-	music.RollOffMode = Enum.RollOffMode.Linear
-	music.RollOffMinDistance = 60   -- full volume within 60 studs (covers all bases + spawn)
-	music.RollOffMaxDistance = 150  -- fades to silence at 150 studs
-	music.PlayOnRemove = false
-	music.Parent = musicPart
-
-	-- Wait for sound to load before playing
-	task.spawn(function()
-		if not music.IsLoaded then
-			music.Loaded:Wait()
-		end
-		music:Play()
-		print("[MUSIC] Base area music started: Chill Phonk (DAMAS)")
-	end)
-end
-
 -- CollectionService tags used for reliable detection
 -- Must be defined BEFORE getZoneActiveCount which references them
 local TAG_SPAWNED_BRAINROT = "SpawnedBrainrot"

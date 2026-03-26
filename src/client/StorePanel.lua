@@ -715,28 +715,15 @@ function StorePanel.init(player, config)
 		storeOverlay.Visible = false
 	end)
 
-	-- Connect Store and V.I.P buttons from bottom bar
-	for _, gui in ipairs(bottomGui:GetChildren()) do
-		if gui:IsA("Frame") then
-			for _, child in ipairs(gui:GetChildren()) do
-				if child:IsA("TextLabel") and (child.Text == "Store" or child.Text == "Gamepasses") then
-					local tabTarget = "Gamepasses"
-					local clickBtn = Instance.new("TextButton")
-					clickBtn.Size = UDim2.new(1, 0, 1, 0)
-					clickBtn.BackgroundTransparency = 1
-					clickBtn.Text = ""
-					clickBtn.ZIndex = 10
-					clickBtn.Parent = gui
-					clickBtn.MouseButton1Click:Connect(function()
-						if not storePanelOpen then
-							toggleStorePanel()
-						end
-						switchStoreTab(tabTarget)
-					end)
-					break
-				end
+	-- Connect Store button from bottom bar
+	local storeBtn = bottomGui:FindFirstChild("StoreButton")
+	if storeBtn and storeBtn:IsA("ImageButton") then
+		storeBtn.MouseButton1Click:Connect(function()
+			if not storePanelOpen then
+				toggleStorePanel()
 			end
-		end
+			switchStoreTab("Gamepasses")
+		end)
 	end
 
 	-- ==================

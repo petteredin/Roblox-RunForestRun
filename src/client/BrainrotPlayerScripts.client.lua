@@ -634,23 +634,19 @@ bottomGui.Parent = player.PlayerGui
 -- Bottom left buttons
 local bottomButtons  = { "Store", "Index" }
 local bottomImageIds = { 105656954644211, 140599087132503 }
+local bottomBtnRefs  = {}
 
 for i, btnName in ipairs(bottomButtons) do
-	local btnFrame = Instance.new("Frame")
-	btnFrame.Size = UDim2.new(0, 68, 0, 68)
-	btnFrame.Position = UDim2.new(0, 12 + (i - 1) * 76, 1, -80)
-	btnFrame.BackgroundTransparency = 1
-	btnFrame.BorderSizePixel = 0
-	btnFrame.Parent = bottomGui
-
-	local iconImg = Instance.new("ImageLabel")
-	iconImg.Name = "Icon"
-	iconImg.Size = UDim2.new(1, 0, 1, 0)
-	iconImg.BackgroundTransparency = 1
-	iconImg.Image = "rbxassetid://" .. tostring(bottomImageIds[i])
-	iconImg.ScaleType = Enum.ScaleType.Fit
-	iconImg.Parent = btnFrame
-
+	local iconBtn = Instance.new("ImageButton")
+	iconBtn.Name = btnName .. "Button"
+	iconBtn.Size = UDim2.new(0, 68, 0, 68)
+	iconBtn.Position = UDim2.new(0, 12 + (i - 1) * 76, 1, -80)
+	iconBtn.BackgroundTransparency = 1
+	iconBtn.BorderSizePixel = 0
+	iconBtn.Image = "rbxassetid://" .. tostring(bottomImageIds[i])
+	iconBtn.ScaleType = Enum.ScaleType.Fit
+	iconBtn.Parent = bottomGui
+	bottomBtnRefs[btnName] = iconBtn
 end
 
 -- =====================

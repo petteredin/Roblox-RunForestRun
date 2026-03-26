@@ -436,35 +436,22 @@ function IndexPanel.init(player, config)
 
 	-- Wire bottom bar Index button
 	if bottomGui then
-		for _, gui in ipairs(bottomGui:GetChildren()) do
-			if gui:IsA("Frame") then
-				for _, child in ipairs(gui:GetChildren()) do
-					if child:IsA("TextLabel") and child.Text == "Index" then
-						local clickBtn = Instance.new("TextButton")
-						clickBtn.Size = UDim2.new(1, 0, 1, 0)
-						clickBtn.BackgroundTransparency = 1
-						clickBtn.Text = ""
-						clickBtn.ZIndex = 10
-						clickBtn.Parent = gui
-						clickBtn.MouseButton1Click:Connect(function()
-							indexPanelOpen = not indexPanelOpen
-							indexPanel.Visible = indexPanelOpen
-							indexOverlay.Visible = indexPanelOpen
-							if indexPanelOpen then
-								if getCollectionFunc then
-									local serverCollection = getCollectionFunc:InvokeServer()
-									if serverCollection and type(serverCollection) == "table" then
-										localCollection = serverCollection
-									end
-								end
-								refreshIndexGrid()
-							end
-						end)
-						break
+		local indexBtn = bottomGui:FindFirstChild("IndexButton")
+		if indexBtn and indexBtn:IsA("ImageButton") then
+			indexBtn.MouseButton1Click:Connect(function()
+				indexPanelOpen = not indexPanelOpen
+				indexPanel.Visible = indexPanelOpen
+				indexOverlay.Visible = indexPanelOpen
+				if indexPanelOpen then
+					if getCollectionFunc then
+						local serverCollection = getCollectionFunc:InvokeServer()
+						if serverCollection and type(serverCollection) == "table" then
+							localCollection = serverCollection
+						end
 					end
+					refreshIndexGrid()
 				end
-			end
-		end
+		end)
 	end
 
 	-- Return public API

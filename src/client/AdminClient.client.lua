@@ -135,17 +135,14 @@ task.spawn(function()
 		task.wait(0.5)
 	end
 	-- Fallback: create our own button if Owner button not found
-	adminBtn = Instance.new("TextButton")
+	adminBtn = Instance.new("ImageButton")
 	adminBtn.Name = "AdminToggle"
-	adminBtn.Size = UDim2.new(0, 50, 0, 50)
-	adminBtn.Position = UDim2.new(1, -60, 1, -60)
-	adminBtn.BackgroundColor3 = COLORS.header
-	adminBtn.Text = "ADM"
-	adminBtn.TextColor3 = COLORS.text
-	adminBtn.TextSize = 14
-	adminBtn.Font = Enum.Font.GothamBold
+	adminBtn.Size = UDim2.new(0, 68, 0, 68)
+	adminBtn.Position = UDim2.new(1, -80, 1, -80)
+	adminBtn.BackgroundTransparency = 1
+	adminBtn.Image = "rbxassetid://140339347541759"
+	adminBtn.ScaleType = Enum.ScaleType.Fit
 	adminBtn.Parent = screenGui
-	Instance.new("UICorner", adminBtn).CornerRadius = UDim.new(0, 8)
 	adminBtn.MouseButton1Click:Connect(function()
 		togglePanel()
 	end)

@@ -177,7 +177,7 @@ function StorePanel.init(player, config)
 	local function fetchGamepassInfo(passId)
 		if passId == 0 then return nil end
 		local ok, info = pcall(function()
-			return MarketplaceService:GetProductInfo(passId, Enum.InfoType.GamePass)
+			return MarketplaceService:GetProductInfoAsync(passId, Enum.InfoType.GamePass)
 		end)
 		if ok and info then
 			return {

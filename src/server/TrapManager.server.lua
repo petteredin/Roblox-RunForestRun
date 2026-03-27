@@ -205,11 +205,20 @@ local SNAP_SOUND_ID     = "rbxassetid://0"  -- Replace with real asset
 -- Zone 2 bounds: center (-394, 3.5, -4.5), size (150, 1, 155)
 -- Ground surface at Y = 1.0, base is 1 stud tall → Y = 4.0 sits on top
 local ZONE2_TRAP_PLACEMENTS = {
-	{ position = Vector3.new(-350, 1.0, -5),   rotation = 0   },
-	{ position = Vector3.new(-380, 1.0, 25),   rotation = 45  },
-	{ position = Vector3.new(-410, 1.0, -30),  rotation = -20 },
-	{ position = Vector3.new(-440, 1.0, 10),   rotation = 10  },
-	{ position = Vector3.new(-450, 1.0, -5),   rotation = -10 },
+	-- Zone 2 X range: -319 to -469, Z range: -82 to 73, ground Y = 1.0
+	-- Spread 12 traps across the zone with varied rotations
+	{ position = Vector3.new(-325, 1.0,  -5),  rotation = 0   },
+	{ position = Vector3.new(-340, 1.0,  30),  rotation = 35  },
+	{ position = Vector3.new(-350, 1.0, -25),  rotation = -15 },
+	{ position = Vector3.new(-365, 1.0,  15),  rotation = 50  },
+	{ position = Vector3.new(-375, 1.0, -40),  rotation = -30 },
+	{ position = Vector3.new(-390, 1.0,   0),  rotation = 10  },
+	{ position = Vector3.new(-400, 1.0,  35),  rotation = -45 },
+	{ position = Vector3.new(-415, 1.0, -15),  rotation = 20  },
+	{ position = Vector3.new(-425, 1.0,  45),  rotation = -10 },
+	{ position = Vector3.new(-440, 1.0, -35),  rotation = 40  },
+	{ position = Vector3.new(-455, 1.0,  10),  rotation = -25 },
+	{ position = Vector3.new(-465, 1.0, -20),  rotation = 15  },
 }
 
 -- ── Build Model ──

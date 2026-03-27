@@ -72,14 +72,20 @@ local SPIN_CONFIG = {
 -- X range: -310 to -160, Z range: -82 to 73, ground Y = 1.0
 -- Heights are above ground surface (Y=1.0)
 local ZONE1_SPIN_PLACEMENTS = {
-	-- Trap 1: Early — teaches the mechanic, torso height
-	{ position = Vector3.new(-190, 6.0, -5),  barLength = 24, barHeight = 5 },
-	-- Trap 2: Mid-zone — longer bar, shin height (must jump)
-	{ position = Vector3.new(-230, 4.0, 0),   barLength = 28, barHeight = 3 },
-	-- Trap 3: Near brainrot area — head height (can walk under)
-	{ position = Vector3.new(-270, 8.0, -10), barLength = 24, barHeight = 7 },
-	-- Trap 4: Narrow platform — shorter bar, less room to dodge
-	{ position = Vector3.new(-300, 6.0, 15),  barLength = 20, barHeight = 5 },
+	-- Zone 1 X range: -160 to -310, Z range: -82 to 73, ground Y = 1.0
+	-- 12 traps with varied heights and bar lengths
+	{ position = Vector3.new(-170, 6.0,  -5),  barLength = 24, barHeight = 5 },  -- torso, intro
+	{ position = Vector3.new(-182, 4.0,  20),  barLength = 22, barHeight = 3 },  -- shin, jump over
+	{ position = Vector3.new(-195, 8.0, -15),  barLength = 24, barHeight = 7 },  -- head, duck under
+	{ position = Vector3.new(-208, 6.0,  10),  barLength = 26, barHeight = 5 },  -- torso, wider
+	{ position = Vector3.new(-220, 4.0, -30),  barLength = 20, barHeight = 3 },  -- shin, narrow
+	{ position = Vector3.new(-232, 6.0,  35),  barLength = 28, barHeight = 5 },  -- torso, long bar
+	{ position = Vector3.new(-245, 8.0,   0),  barLength = 24, barHeight = 7 },  -- head, center
+	{ position = Vector3.new(-255, 4.0, -20),  barLength = 22, barHeight = 3 },  -- shin, offset
+	{ position = Vector3.new(-268, 6.0,  25),  barLength = 26, barHeight = 5 },  -- torso
+	{ position = Vector3.new(-278, 8.0, -10),  barLength = 20, barHeight = 7 },  -- head, short bar
+	{ position = Vector3.new(-290, 4.0,  15),  barLength = 28, barHeight = 3 },  -- shin, long bar
+	{ position = Vector3.new(-305, 6.0,  -5),  barLength = 24, barHeight = 5 },  -- torso, final
 }
 
 -- ── Build Model ──

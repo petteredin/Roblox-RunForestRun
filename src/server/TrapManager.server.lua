@@ -346,13 +346,29 @@ local UFO_CONFIG = {
 
 -- Zone 3 bounds: center (-555, 3.5, -4.5), size (150, 1, 155)
 -- X range: -630 to -480, Z range: -82 to 73, ground Y = 1.0
--- Waypoints at UFO hover height (Y = 1.0 + 40 = 41)
-local ZONE3_UFO_WAYPOINTS = {
-	Vector3.new(-490, 41, -20),
-	Vector3.new(-520, 41,  30),
-	Vector3.new(-555, 41, -10),
-	Vector3.new(-590, 41,  20),
-	Vector3.new(-620, 41,   0),
+-- Each UFO gets its own patrol waypoints so they cover different areas
+local ZONE3_UFO_PATROLS = {
+	-- UFO 1: patrols the left (west) side of Zone 3
+	{
+		Vector3.new(-610, 41, -40),
+		Vector3.new(-620, 41,  20),
+		Vector3.new(-590, 41,  50),
+		Vector3.new(-600, 41, -10),
+	},
+	-- UFO 2: patrols the center of Zone 3
+	{
+		Vector3.new(-540, 41,  30),
+		Vector3.new(-555, 41, -30),
+		Vector3.new(-570, 41,  10),
+		Vector3.new(-530, 41, -20),
+	},
+	-- UFO 3: patrols the right (east) side of Zone 3
+	{
+		Vector3.new(-490, 41, -20),
+		Vector3.new(-500, 41,  40),
+		Vector3.new(-510, 41,   0),
+		Vector3.new(-485, 41,  25),
+	},
 }
 
 -- Remote event for client warning UI
@@ -360,11 +376,11 @@ local ufoWarningEvent = ensureRemoteEvent("UFOWarning")
 
 -- ── Build UFO Model ──
 
-local function buildUFOModel()
+local function buildUFOModel(waypoints)
 	local ufoModel = Instance.new("Model")
 	ufoModel.Name = "UFOTrap"
 
-	local startPos = ZONE3_UFO_WAYPOINTS[1]
+	local startPos = waypoints[1]
 
 	-- Body (flat metallic disc — cylinder rotated flat)
 	local body = Instance.new("Part")
@@ -420,7 +436,7 @@ local function buildUFOModel()
 	wpFolder.Name   = "Waypoints"
 	wpFolder.Parent = ufoModel
 
-	for i, pos in ipairs(ZONE3_UFO_WAYPOINTS) do
+	for i, pos in ipairs(waypoints) do
 		local wp = Instance.new("Part")
 		wp.Name         = "Waypoint" .. i
 		wp.Size         = Vector3.new(1, 1, 1)
@@ -622,10 +638,12 @@ end
 
 print("[TrapManager] Zone 2 mouse traps ready! Count:", #zone2Traps:GetChildren())
 
--- ── Zone 3: UFO Trap ──
-local ufoModel = buildUFOModel()
-setupUFO(ufoModel)
-print("[TrapManager] Built UFO trap for Zone 3")
+-- ── Zone 3: UFO Traps (3 UFOs with separate patrol paths) ──
+for i, patrol in ipairs(ZONE3_UFO_PATROLS) do
+	local ufoModel = buildUFOModel(patrol)
+	setupUFO(ufoModel)
+	print("[TrapManager] Built UFO trap #" .. i .. " for Zone 3")
+end
 
 -- Pick up manually-placed UFO traps from build.rbxlx
 for _, child in ipairs(zone3Traps:GetChildren()) do
@@ -636,7 +654,7 @@ for _, child in ipairs(zone3Traps:GetChildren()) do
 	end
 end
 
-print("[TrapManager] Zone 3 UFO trap ready!")
+print("[TrapManager] Zone 3 UFO traps ready! Count: 3")
 
 -- ── Cleanup ──
 Players.PlayerRemoving:Connect(function(_player)

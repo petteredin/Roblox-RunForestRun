@@ -75,7 +75,7 @@ local function getRandomPositionInZone(zone)
 	local half = zone.size / 2
 	local x = zone.position.X + math.random() * zone.size.X - half.X
 	local z = zone.position.Z + math.random() * zone.size.Z - half.Z
-	return Vector3.new(x, zone.position.Y + 2, z)
+	return Vector3.new(x, zone.position.Y - 2, z)
 end
 
 -- =====================
